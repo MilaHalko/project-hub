@@ -6,7 +6,7 @@ Status: approved
 ## Goal
 
 Create the minimal, runnable FastAPI skeleton that every later feature from
-[`specs/initial-spec.md`](../../../specs/initial-spec.md) (auth, projects,
+[`docs/initial-spec.md`](../../initial-spec.md) (auth, projects,
 documents, sharing) is built on. The skeleton contains **no business endpoints**.
 It is done when the app starts, answers a health check, and lint, type check and
 tests are all clean.

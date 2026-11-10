@@ -2,7 +2,7 @@
 
 Project Hub is a FastAPI service for managing projects. This repository holds the base
 skeleton: an app factory, typed settings and a health endpoint. See
-[`specs/initial-spec.md`](specs/initial-spec.md) for the product spec.
+[`docs/initial-spec.md`](docs/initial-spec.md) for the product spec.
 
 ## Requirements
 
