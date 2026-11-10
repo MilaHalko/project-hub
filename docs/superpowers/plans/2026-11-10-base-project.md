@@ -167,7 +167,7 @@ Expected: `8 passed`.
 
 - [ ] **Step 5: Fill in `README.md`**
 
-Sections: one-paragraph description (link `specs/initial-spec.md`); Requirements (uv; Python 3.13 is fetched by uv); Setup (`uv sync`, `cp .env.example .env`); Run (`uv run uvicorn project_hub.main:app --reload`, docs at `/docs`); Checks (`uv run ruff check`, `uv run ruff format --check`, `uv run pyright`, `uv run pytest`); Layout (feature modules + `core/` rules from the spec's "Conventions for future features").
+Sections: one-paragraph description (link `docs/initial-spec.md`); Requirements (uv; Python 3.13 is fetched by uv); Setup (`uv sync`, `cp .env.example .env`); Run (`uv run uvicorn project_hub.main:app --reload`, docs at `/docs`); Checks (`uv run ruff check`, `uv run ruff format --check`, `uv run pyright`, `uv run pytest`); Layout (feature modules + `core/` rules from the spec's "Conventions for future features").
 
 - [ ] **Step 6: Lint and type check**
 
