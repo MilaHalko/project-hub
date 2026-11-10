@@ -1,0 +1,42 @@
+[project]
+name = "project-hub"
+version = "0.1.0"
+description = "Project management API"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.162.4",
+    "pydantic-settings>=2.16.2",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["docs", "specs", ".superpowers", ".claude"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pyright>=1.1.414",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
