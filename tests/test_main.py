@@ -1,11 +1,11 @@
 from fastapi.testclient import TestClient
 
-from project_hub.core.config import Settings
 from project_hub.main import create_app
+from tests.isolated_settings import IsolatedSettings
 
 
 def test_create_app_uses_settings_name() -> None:
-    settings = Settings(_env_file=None, name="x")  # pyright: ignore[reportCallIssue]
+    settings = IsolatedSettings(name="x")
     assert create_app(settings).title == "x"
 
 
@@ -19,4 +19,5 @@ def test_unknown_path_returns_json_404(client: TestClient) -> None:
 def test_module_app_exposes_health() -> None:
     from project_hub.main import app
 
-    assert TestClient(app).get("/health").status_code == 200
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200

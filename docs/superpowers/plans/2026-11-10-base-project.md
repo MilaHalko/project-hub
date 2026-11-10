@@ -6,7 +6,7 @@
 
 **Architecture:** src-layout package organized by feature module with a shared `core/`. `create_app(settings)` factory builds the app; tests inject their own `Settings`. No database, Docker or CI.
 
-**Tech Stack:** Python 3.13, uv 0.13 (`uv_build` backend), FastAPI, uvicorn, pydantic-settings, pytest, httpx, ruff, pyright (strict).
+**Tech Stack:** Python 3.13, uv 0.13 (`uv_build` backend), FastAPI, uvicorn, pydantic-settings, pytest, httpx2, ruff, pyright (strict).
 
 **Spec:** `docs/superpowers/specs/2026-11-10-base-project-design.md`
 
@@ -14,7 +14,7 @@
 
 - `requires-python = ">=3.13"`, `.python-version` = `3.13`.
 - Package import name `project_hub`, distribution name `project-hub`, src layout.
-- Runtime deps only: `fastapi`, `uvicorn[standard]`, `pydantic-settings`. Dev group only: `pytest`, `httpx`, `ruff`, `pyright`. Add them with `uv add` / `uv add --dev` so versions are locked in `uv.lock`.
+- Runtime deps only: `fastapi`, `uvicorn[standard]`, `pydantic-settings`. Dev group only: `pytest`, `httpx2`, `ruff`, `pyright`. Add them with `uv add` / `uv add --dev` so versions are locked in `uv.lock`.
 - Settings: `env_prefix="APP_"`, `env_file=".env"`, `extra="ignore"`; fields `name: str = "Project Hub"`, `debug: bool = False`.
 - ruff: `line-length = 100`, `target-version = "py313"`, `select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]`.
 - pyright: `typeCheckingMode = "strict"`, `include = ["src", "tests"]`, `pythonVersion = "3.13"`, `venvPath = "."`, `venv = ".venv"`.
@@ -50,7 +50,7 @@ Empty `src/project_hub/__init__.py`, `src/project_hub/py.typed`, `src/project_hu
 
 - [ ] **Step 2: Add dependencies**
 
-Run: `uv add fastapi "uvicorn[standard]" pydantic-settings && uv add --dev pytest httpx ruff pyright`
+Run: `uv add fastapi "uvicorn[standard]" pydantic-settings && uv add --dev pytest httpx2 ruff pyright`
 Expected: `uv.lock` created, `.venv` created with Python 3.13 (`uv run python --version` → `Python 3.13.x`).
 
 - [ ] **Step 3: Write the failing tests** in `tests/test_config.py`
