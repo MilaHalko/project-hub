@@ -1,7 +1,7 @@
 # Base project skeleton — design
 
 Date: 2026-11-10
-Status: approved in chat, pending written-spec review
+Status: approved
 
 ## Goal
 
@@ -98,7 +98,7 @@ app = create_app()
 ## Dependencies
 
 - Runtime: `fastapi`, `uvicorn[standard]`, `pydantic-settings`.
-- Dev group: `pytest`, `httpx` (required by `TestClient`), `ruff`, `pyright`.
+- Dev group: `pytest`, `httpx2` (required by Starlette 1.10 `TestClient`; replaces `httpx`), `ruff`, `pyright`.
 
 ## Tooling configuration
 

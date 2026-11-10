@@ -4,16 +4,11 @@ import pytest
 from pydantic import ValidationError
 
 from project_hub.core.config import Settings
-
-
-@pytest.fixture(autouse=True)
-def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("APP_NAME", "APP_DEBUG"):
-        monkeypatch.delenv(key, raising=False)
+from tests.isolated_settings import IsolatedSettings
 
 
 def test_defaults_without_env() -> None:
-    s = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+    s = IsolatedSettings()
     assert s.name == "Project Hub"
     assert s.debug is False
 
@@ -21,7 +16,7 @@ def test_defaults_without_env() -> None:
 def test_env_vars_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_NAME", "x")
     monkeypatch.setenv("APP_DEBUG", "true")
-    s = Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+    s = IsolatedSettings()
     assert s.name == "x"
     assert s.debug is True
 
@@ -29,7 +24,7 @@ def test_env_vars_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_invalid_debug_value_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_DEBUG", "maybe")
     with pytest.raises(ValidationError):
-        Settings(_env_file=None)  # pyright: ignore[reportCallIssue]
+        IsolatedSettings()
 
 
 def test_env_file_with_unrelated_keys_is_accepted(tmp_path: Path) -> None:
