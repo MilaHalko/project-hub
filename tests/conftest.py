@@ -1,9 +1,13 @@
 import os
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from fastapi.testclient import TestClient
 
+from project_hub.db.database import Database
+from project_hub.db.migrate import upgrade
+from project_hub.db.orm import OrmDatabase
+from project_hub.db.sql import SqlDatabase
 from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
 from tests.support.database import (
@@ -12,12 +16,13 @@ from tests.support.database import (
     TestDatabaseUnavailableError,
     create_test_database,
     drop_test_database,
+    truncate_tables,
 )
 
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("APP_NAME", "APP_DEBUG"):
+    for key in ("APP_NAME", "APP_DEBUG", "APP_DB_BACKEND", "APP_DATABASE_URL"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -43,3 +48,38 @@ def database_url() -> Iterator[str]:
         yield url
     finally:
         drop_test_database(admin_url, url)
+
+
+@pytest.fixture(scope="session")
+def migrated_database_url(database_url: str) -> str:
+    upgrade(database_url)
+    return database_url
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+def _build_database(backend: str, url: str) -> Database:
+    """Build the `Database` for one backend name; add new backends here."""
+    if backend == "orm":
+        return OrmDatabase(url)
+    if backend == "sql":
+        return SqlDatabase(url)
+    raise ValueError(f"unknown database backend: {backend!r}")
+
+
+@pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
+async def database(
+    request: pytest.FixtureRequest, migrated_database_url: str
+) -> AsyncIterator[Database]:
+    db = _build_database(request.param, migrated_database_url)
+    await db.open()
+    try:
+        yield db
+    finally:
+        try:
+            await db.close()
+        finally:
+            truncate_tables(migrated_database_url)
