@@ -17,7 +17,7 @@ from tests.support.database import (
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("APP_NAME", "APP_DEBUG"):
+    for key in ("APP_NAME", "APP_DEBUG", "APP_DB_BACKEND", "APP_DATABASE_URL"):
         monkeypatch.delenv(key, raising=False)
 
 
