@@ -80,9 +80,9 @@ def test_compose_api_waits_for_healthy_db() -> None:
     assert api["depends_on"]["db"]["condition"] == "service_healthy"
 
 
-def test_compose_db_default_host_port_is_5433() -> None:
+def test_compose_db_default_host_port_is_55433() -> None:
     db = _compose_config()["services"]["db"]
-    assert db["ports"][0]["published"] == "5433"
+    assert db["ports"][0]["published"] == "55433"
 
 
 def test_compose_has_no_fixed_project_name() -> None:

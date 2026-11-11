@@ -77,15 +77,18 @@ def test_unreachable_server_raises_with_hint() -> None:
     with pytest.raises(TestDatabaseUnavailableError) as excinfo:
         create_test_database(f"postgresql://u:s3cret-pw@127.0.0.1:{port}/postgres")
     message = str(excinfo.value)
-    assert f"127.0.0.1:{port}" in message
-    assert "docker compose up -d db" in message
+    assert message == (
+        f"Postgres is not reachable at 127.0.0.1:{port}. Start it with: docker compose up -d db"
+    )
     assert "s3cret-pw" not in message
 
 
 def test_unreachable_message_defaults_port_5432() -> None:
-    message = unavailable_message("postgresql://u:pw@db.invalid/postgres")
-    assert "db.invalid:5432" in message
-    assert "pw" not in message
+    message = unavailable_message("postgresql://u:s3cret-pw@db.invalid/postgres")
+    assert message == (
+        "Postgres is not reachable at db.invalid:5432. Start it with: docker compose up -d db"
+    )
+    assert "s3cret-pw" not in message
 
 
 def test_database_url_fixture_gives_test_database(database_url: str) -> None:
