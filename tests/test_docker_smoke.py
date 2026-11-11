@@ -49,16 +49,35 @@ def _wait_for_health(url: str, timeout: float = 60) -> tuple[int, str]:
         time.sleep(0.5)
 
 
+def _tail(text: str, limit: int = 4000) -> str:
+    return text[-limit:]
+
+
 def _run(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        args,
-        check=True,
-        capture_output=True,
-        text=True,
-        cwd=ROOT,
-        env=env,
-        timeout=BUILD_TIMEOUT,
+    try:
+        return subprocess.run(
+            args,
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+            env=env,
+            timeout=BUILD_TIMEOUT,
+        )
+    except subprocess.CalledProcessError as err:
+        raise RuntimeError(
+            f"{' '.join(args)} exited with {err.returncode}\n"
+            f"--- stdout ---\n{_tail(err.stdout or '')}\n"
+            f"--- stderr ---\n{_tail(err.stderr or '')}"
+        ) from err
+
+
+def _logs(*command: str, env: dict[str, str] | None = None) -> str:
+    """Best-effort container logs, used only to explain a failed assertion."""
+    result = subprocess.run(
+        command, check=False, capture_output=True, text=True, cwd=ROOT, env=env, timeout=30
     )
+    return _tail(result.stdout + result.stderr)
 
 
 def test_image_serves_health_as_non_root() -> None:
@@ -72,7 +91,7 @@ def test_image_serves_health_as_non_root() -> None:
 
         status, body = _wait_for_health(f"http://127.0.0.1:{port}/health")
 
-        assert status == 200, body
+        assert status == 200, f"{body}\n{_logs(docker, 'logs', container_id)}"
         assert json.loads(body) == {"status": "ok"}
         uid = _run(docker, "exec", container_id, "id", "-u").stdout.strip()
         assert uid != "0"
@@ -97,13 +116,16 @@ def test_compose_stack_serves_health() -> None:
 
             status, body = _wait_for_health(f"http://127.0.0.1:{app_port}/health")
 
-            assert status == 200, body
+            def compose_logs() -> str:
+                return _logs(*compose, "logs", "--no-color", env=env)
+
+            assert status == 200, f"{body}\n{compose_logs()}"
             ps = _run(*compose, "ps", "--format", "json", env=env).stdout
             running = {
                 row["Service"]: row["State"]
                 for row in (json.loads(line) for line in ps.splitlines() if line.strip())
             }
-            assert running == {"db": "running", "api": "running"}
+            assert running == {"db": "running", "api": "running"}, compose_logs()
         finally:
             subprocess.run(
                 [*compose, "down", "-v", "--rmi", "local"],
