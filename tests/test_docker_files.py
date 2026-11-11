@@ -88,6 +88,15 @@ def test_compose_api_waits_for_healthy_db(compose_config: dict[str, Any]) -> Non
     assert api["depends_on"]["db"]["condition"] == "service_healthy"
 
 
+def test_compose_runs_migrations_before_api(compose_config: dict[str, Any]) -> None:
+    services = compose_config["services"]
+    migrate, api = services["migrate"], services["api"]
+    assert migrate["command"] == ["python", "-m", "project_hub.db.migrate"]
+    assert migrate["depends_on"]["db"]["condition"] == "service_healthy"
+    assert api["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert migrate["environment"]["APP_DATABASE_URL"] == api["environment"]["APP_DATABASE_URL"]
+
+
 def test_compose_db_default_host_port_is_55433(compose_config: dict[str, Any]) -> None:
     db = compose_config["services"]["db"]
     assert db["ports"][0]["published"] == "55433"
