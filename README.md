@@ -57,8 +57,13 @@ Stop everything with `docker compose down` (add `-v` to delete the database volu
 poetry run ruff check
 poetry run ruff format --check
 poetry run pyright
+docker compose up -d db   # tests need Postgres
 poetry run pytest
 ```
+
+The tests create a throwaway database (`project_hub_test_<random>`) on the compose `db`
+service and drop it when the session ends. Set `TEST_DATABASE_URL` (an admin URL such as
+`postgresql://project_hub:project_hub@localhost:5433/postgres`) to use a different server.
 
 ## Layout
 
