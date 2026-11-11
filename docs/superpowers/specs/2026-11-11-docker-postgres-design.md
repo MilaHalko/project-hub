@@ -90,10 +90,16 @@ variables.
 - `drop_test_database(admin_url: str, database_url: str) -> None` runs
   `DROP DATABASE IF EXISTS … WITH (FORCE)`.
 - Identifiers go through `psycopg.sql.Identifier`, never string formatting.
-- If the server cannot be reached, both raise `TestDatabaseUnavailableError`
-  with the message
-  `Postgres is not reachable at <host>:<port>. Start it with: docker compose up -d db`.
-  The message never contains the password.
+- `drop_test_database` refuses (`ValueError`, before connecting) any database whose
+  name does not start with `project_hub_test_`.
+- If the server cannot be reached or refuses the connection (wrong password,
+  missing database), both raise `TestDatabaseUnavailableError`. Line 1 of the
+  message is
+  `Postgres is not reachable at <host>:<port>. Start it with: docker compose up -d db`,
+  followed by `Reason: <driver error>` (whitespace stripped). The URL's password
+  is replaced with `***` everywhere in the reason, so the message never contains
+  it. `unavailable_message(admin_url, reason=None)` builds it; without a reason
+  only line 1 is produced.
 
 `tests/conftest.py`:
 
@@ -167,8 +173,12 @@ validation errors (422) stay unchanged; they already return `{"detail": …}`.
    has no tables in the `public` schema; after `drop_test_database` it no longer
    exists.
 7. Given nothing listens at the admin URL, when `create_test_database` is
-   called, then `TestDatabaseUnavailableError` is raised, its message contains
-   `docker compose up -d db`, and it does not contain the password.
+   called, then `TestDatabaseUnavailableError` is raised, its first line is the
+   hint containing `docker compose up -d db`, a `Reason:` line shows the driver
+   error (for example `password authentication failed` when the server is up but
+   the password is wrong), and the message does not contain the password.
+   `drop_test_database` behaves the same and refuses non-`project_hub_test_*`
+   databases with `ValueError`.
 8. The `Dockerfile` installs `poetry==2.5.1` and runs
    `poetry install … --no-interaction`; `.dockerignore` lists `.venv/`.
 9. `docker compose config` succeeds; `db` has a healthcheck; `api` depends on

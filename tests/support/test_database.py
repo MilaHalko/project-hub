@@ -21,6 +21,13 @@ def _db_name(url: str) -> str:
     return urlsplit(url).path.lstrip("/")
 
 
+def _netloc_with_password(password: str) -> str:
+    parts = urlsplit(ADMIN_URL)
+    host = parts.hostname or "localhost"
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.username}:{password}@{host}{port}"
+
+
 def _exists(name: str) -> bool:
     with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
         row = conn.execute("select 1 from pg_database where datname = %s", (name,)).fetchone()
@@ -77,10 +84,51 @@ def test_unreachable_server_raises_with_hint() -> None:
     with pytest.raises(TestDatabaseUnavailableError) as excinfo:
         create_test_database(f"postgresql://u:s3cret-pw@127.0.0.1:{port}/postgres")
     message = str(excinfo.value)
-    assert message == (
+    assert message.splitlines()[0] == (
         f"Postgres is not reachable at 127.0.0.1:{port}. Start it with: docker compose up -d db"
     )
     assert "s3cret-pw" not in message
+
+
+def test_wrong_password_reports_reason() -> None:
+    wrong = urlsplit(ADMIN_URL)._replace(netloc=_netloc_with_password("wrong-s3cret")).geturl()
+    info = urlsplit(wrong)
+    with pytest.raises(TestDatabaseUnavailableError) as excinfo:
+        create_test_database(wrong)
+    message = str(excinfo.value)
+    assert message.startswith(
+        f"Postgres is not reachable at {info.hostname}:{info.port}. "
+        "Start it with: docker compose up -d db\n"
+    )
+    assert "password authentication failed" in message
+    assert "wrong-s3cret" not in message
+
+
+def test_reason_redacts_password() -> None:
+    message = unavailable_message("postgresql://u:s3cret-pw@h:1/postgres", reason="boom s3cret-pw")
+    assert message == (
+        "Postgres is not reachable at h:1. Start it with: docker compose up -d db\nReason: boom ***"
+    )
+
+
+def test_drop_unreachable_server_raises() -> None:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    with pytest.raises(TestDatabaseUnavailableError) as excinfo:
+        drop_test_database(
+            f"postgresql://u:s3cret-pw@127.0.0.1:{port}/postgres",
+            f"postgresql://u:s3cret-pw@127.0.0.1:{port}/project_hub_test_abc",
+        )
+    assert str(excinfo.value).startswith(f"Postgres is not reachable at 127.0.0.1:{port}.")
+    assert "s3cret-pw" not in str(excinfo.value)
+
+
+def test_drop_refuses_non_test_database() -> None:
+    with pytest.raises(ValueError, match="postgres"):
+        drop_test_database(
+            "postgresql://u:p@127.0.0.1:1/postgres", "postgresql://u:p@127.0.0.1:1/postgres"
+        )
 
 
 def test_unreachable_message_defaults_port_5432() -> None:
