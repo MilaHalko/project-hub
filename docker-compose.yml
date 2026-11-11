@@ -16,6 +16,15 @@ services:
       timeout: 3s
       retries: 15
 
+  migrate:
+    build: .
+    command: ["python", "-m", "project_hub.db.migrate"]
+    environment:
+      APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
+    depends_on:
+      db:
+        condition: service_healthy
+
   api:
     build: .
     environment:
@@ -25,6 +34,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   pgdata:
