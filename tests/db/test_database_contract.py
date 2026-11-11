@@ -43,10 +43,28 @@ async def test_backend_accepts_sqlalchemy_style_url(
             truncate_tables(migrated_database_url)
 
 
-async def test_sql_backend_does_not_log_password(caplog: pytest.LogCaptureFixture) -> None:
+@pytest.mark.parametrize(
+    ("url", "password"),
+    [
+        ("postgresql+psycopg://project_hub:leak-check-pw@127.0.0.1:1/x", "leak-check-pw"),
+        ("postgresql://project_hub:leak-check-pw@[::1/x", "leak-check-pw"),
+        ("postgresql://project_hub:pw%zz@127.0.0.1:1/x", "pw%zz"),
+    ],
+    ids=["psycopg-scheme", "bad-ipv6", "bad-percent"],
+)
+async def test_sql_backend_does_not_log_password(
+    caplog: pytest.LogCaptureFixture, url: str, password: str
+) -> None:
     caplog.set_level(logging.DEBUG)
-    db = SqlDatabase("postgresql+psycopg://project_hub:leak-check-pw@127.0.0.1:1/x")
-    with anyio.fail_after(15), pytest.raises(Exception):  # noqa: B017
-        await db.open()
-    await db.close()
-    assert "leak-check-pw" not in caplog.text
+    errors: list[str] = []
+    try:
+        db = SqlDatabase(url)
+    except ValueError as err:
+        errors.append(str(err))
+    else:
+        with anyio.fail_after(15), pytest.raises(Exception) as excinfo:
+            await db.open()
+        errors.append(str(excinfo.value))
+        await db.close()
+    assert password not in caplog.text
+    assert all(password not in text for text in errors)
