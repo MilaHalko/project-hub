@@ -6,19 +6,21 @@ skeleton: an app factory, typed settings and a health endpoint. See
 
 ## Requirements
 
-- [uv](https://docs.astral.sh/uv/). Python 3.13 is fetched by uv automatically.
+- Python 3.13 and [Poetry](https://python-poetry.org/) 2.2+.
+- If your default `python3` is older than 3.13, run `poetry env use python3.13` before `poetry install` (Poetry does not download Python for you).
+- The virtualenv is created in `.venv/` (configured in `poetry.toml`).
 
 ## Setup
 
 ```bash
-uv sync
+poetry install
 cp .env.example .env
 ```
 
 ## Run
 
 ```bash
-uv run uvicorn project_hub.main:app --reload
+poetry run uvicorn project_hub.main:app --reload
 ```
 
 Interactive API docs are served at <http://localhost:8000/docs>.
@@ -26,10 +28,10 @@ Interactive API docs are served at <http://localhost:8000/docs>.
 ## Checks
 
 ```bash
-uv run ruff check
-uv run ruff format --check
-uv run pyright
-uv run pytest
+poetry run ruff check
+poetry run ruff format --check
+poetry run pyright
+poetry run pytest
 ```
 
 ## Layout

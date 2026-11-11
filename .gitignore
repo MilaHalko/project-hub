@@ -6,3 +6,5 @@ __pycache__/
 .env
 dist/
 .claude/settings.local.json
+.claude/worktrees/
+.superpowers/
