@@ -4,6 +4,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+from project_hub.db.migrate import upgrade
 from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
 from tests.support.database import (
@@ -43,3 +44,9 @@ def database_url() -> Iterator[str]:
         yield url
     finally:
         drop_test_database(admin_url, url)
+
+
+@pytest.fixture(scope="session")
+def migrated_database_url(database_url: str) -> str:
+    upgrade(database_url)
+    return database_url

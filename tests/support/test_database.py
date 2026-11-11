@@ -15,6 +15,7 @@ from tests.support.database import (
     TestDatabaseUnavailableError,
     create_test_database,
     drop_test_database,
+    truncate_tables,
     unavailable_message,
 )
 
@@ -201,3 +202,14 @@ def test_database_url_fixture_gives_test_database(database_url: str) -> None:
         row = conn.execute("select current_database()").fetchone()
     assert row is not None
     assert str(row[0]).startswith("project_hub_test_")
+
+
+def test_truncate_tables_keeps_alembic_version(migrated_database_url: str) -> None:
+    with psycopg.connect(migrated_database_url) as conn:
+        conn.execute("insert into users (login, password_hash) values ('t', 'h')")
+    truncate_tables(migrated_database_url)
+    with psycopg.connect(migrated_database_url) as conn:
+        users = conn.execute("select count(*) from users").fetchone()
+        versions = conn.execute("select version_num from alembic_version").fetchall()
+    assert users == (0,)
+    assert versions == [("0001",)]
