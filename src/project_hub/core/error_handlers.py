@@ -1,4 +1,5 @@
 import logging
+from http import HTTPStatus
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,20 +14,20 @@ from project_hub.core.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-_STATUS_BY_ERROR: dict[type[DomainError], int] = {
-    DomainError: 400,
-    NotFoundError: 404,
-    PermissionDeniedError: 403,
-    ConflictError: 409,
-    AuthenticationError: 401,
+_STATUS_BY_ERROR: dict[type[DomainError], HTTPStatus] = {
+    DomainError: HTTPStatus.BAD_REQUEST,
+    NotFoundError: HTTPStatus.NOT_FOUND,
+    PermissionDeniedError: HTTPStatus.FORBIDDEN,
+    ConflictError: HTTPStatus.CONFLICT,
+    AuthenticationError: HTTPStatus.UNAUTHORIZED,
 }
 
 
-def _status_for(exc: DomainError) -> int:
+def _status_for(exc: DomainError) -> HTTPStatus:
     for cls in type(exc).__mro__:
         if cls in _STATUS_BY_ERROR:
             return _STATUS_BY_ERROR[cls]
-    return 400
+    return HTTPStatus.BAD_REQUEST
 
 
 async def _handle_domain_error(request: Request, exc: Exception) -> JSONResponse:
@@ -40,7 +41,9 @@ async def _handle_domain_error(request: Request, exc: Exception) -> JSONResponse
 
 async def _handle_unhandled(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
-    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+    return JSONResponse(
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR, content={"detail": "Internal Server Error"}
+    )
 
 
 def register_error_handlers(app: FastAPI) -> None:
