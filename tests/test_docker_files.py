@@ -85,6 +85,12 @@ def test_compose_db_default_host_port_is_55433() -> None:
     assert db["ports"][0]["published"] == "55433"
 
 
+def test_compose_ports_bind_loopback_only() -> None:
+    services = _compose_config()["services"]
+    for name in ("db", "api"):
+        assert services[name]["ports"][0]["host_ip"] == "127.0.0.1"
+
+
 def test_compose_has_no_fixed_project_name() -> None:
     lines = (ROOT / "docker-compose.yml").read_text(encoding="utf-8").splitlines()
     assert not any(line.startswith("name:") for line in lines)
