@@ -64,6 +64,9 @@ protocols, selected with environment variables (see `.env.example`):
 | `APP_DB_BACKEND` | `orm` (default), `sql` | SQLAlchemy ORM or plain psycopg SQL |
 | `APP_DATABASE_URL` | `postgresql://user:pass@host:port/db` | Database to use; when unset the app starts without a database |
 
+Docker compose forwards `APP_DB_BACKEND` (default `orm`) to the `api` service, so setting it in
+`.env` or the shell also selects the backend there.
+
 Apply the migrations to the database in `APP_DATABASE_URL` (docker compose does this for you
 in the `migrate` service):
 
@@ -108,6 +111,7 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
 - Shared code lives in `core/`.
 - `db/` holds the data layer: `base.py` (SQLAlchemy base), `uow.py` (Unit of Work protocol),
   `database.py` (`Database` protocol and factory), `orm.py` and `sql.py` (the two backends),
+  `urls.py` (converts the plain Postgres URL for SQLAlchemy),
   `dependencies.py` (`get_uow`), `migrate.py` (runs `upgrade head`) and `migrations/`.
   It lives outside `core/` because the Unit of Work imports feature repositories.
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`

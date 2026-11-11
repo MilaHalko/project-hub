@@ -27,9 +27,15 @@ class SqlUserRepository:
                     (user.login, user.password_hash),
                 )
                 row = await cur.fetchone()
-        except errors.UniqueViolation as err:
+        except psycopg.Error as err:
+            # Any server error aborts the transaction; undo to the savepoint so the
+            # Unit of Work stays usable, as it does with the ORM backend.
             await self._conn.execute("ROLLBACK TO SAVEPOINT add_user")
-            if err.diag.constraint_name == _LOGIN_CONSTRAINT:
+            await self._conn.execute("RELEASE SAVEPOINT add_user")
+            if (
+                isinstance(err, errors.UniqueViolation)
+                and err.diag.constraint_name == _LOGIN_CONSTRAINT
+            ):
                 raise ConflictError(f"Login {user.login!r} is already taken") from err
             raise
         await self._conn.execute("RELEASE SAVEPOINT add_user")

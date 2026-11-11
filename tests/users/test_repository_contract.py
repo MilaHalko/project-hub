@@ -1,5 +1,6 @@
 """Contract tests every `UserRepository` backend must pass (via the `database` fixture)."""
 
+import secrets
 from uuid import UUID, uuid4
 
 import pytest
@@ -73,3 +74,17 @@ async def test_login_is_case_sensitive(database: Database) -> None:
     assert found_lower == lower
     assert found_upper == upper
     assert lower.id != upper.id
+
+
+async def test_failed_add_keeps_unit_of_work_usable(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        await uow.users.add(NewUser("anna", "hash"))
+        with pytest.raises(Exception) as exc_info:
+            await uow.users.add(NewUser(secrets.token_hex(4000), "h"))
+        assert not isinstance(exc_info.value, ConflictError)
+        await uow.users.add(NewUser("bob", "hash"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.users.get_by_login("anna") is not None
+        assert await uow.users.get_by_login("bob") is not None
