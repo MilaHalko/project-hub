@@ -118,3 +118,44 @@ def test_compose_stack_serves_health() -> None:
             assert running == {"db": "running", "api": "running"}, compose_logs()
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
+
+
+def test_compose_stack_migrates_database() -> None:
+    docker = _docker()
+    project = f"project-hub-smoke-{uuid.uuid4().hex}"
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_env_file = Path(tmp) / "empty.env"
+        empty_env_file.write_text("", encoding="utf-8")
+        compose = [docker, "compose", "--env-file", str(empty_env_file), "-p", project]
+        try:
+            _run(*compose, "up", "-d", "--build", "--wait", env=env)
+            app_port = published_port(_run(*compose, "port", "api", "8000", env=env).stdout)
+
+            status, body = _wait_for_health(f"http://127.0.0.1:{app_port}/health")
+
+            def compose_logs() -> str:
+                return _logs(*compose, "logs", "--no-color", env=env)
+
+            assert status == 200, f"{body}\n{compose_logs()}"
+            ps = _run(*compose, "ps", "-a", "--format", "json", env=env).stdout
+            rows = {row["Service"]: row for row in parse_compose_ps(ps)}
+            assert rows["migrate"]["State"] == "exited", compose_logs()
+            assert rows["migrate"]["ExitCode"] == 0, compose_logs()
+            table = _run(
+                *compose,
+                "exec",
+                "-T",
+                "db",
+                "psql",
+                "-U",
+                "project_hub",
+                "-d",
+                "project_hub",
+                "-tAc",
+                "select to_regclass('public.users')",
+                env=env,
+            ).stdout.strip()
+            assert table == "users", compose_logs()
+        finally:
+            cleanup(*compose, "down", "-v", "--rmi", "local", env=env)

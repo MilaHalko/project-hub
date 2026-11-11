@@ -19,6 +19,7 @@ _COMPOSE_VARIABLES = (
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
     "POSTGRES_DB",
+    "APP_DB_BACKEND",
 )
 
 
@@ -88,6 +89,15 @@ def test_compose_api_waits_for_healthy_db(compose_config: dict[str, Any]) -> Non
     assert api["depends_on"]["db"]["condition"] == "service_healthy"
 
 
+def test_compose_runs_migrations_before_api(compose_config: dict[str, Any]) -> None:
+    services = compose_config["services"]
+    migrate, api = services["migrate"], services["api"]
+    assert migrate["command"] == ["python", "-m", "project_hub.db.migrate"]
+    assert migrate["depends_on"]["db"]["condition"] == "service_healthy"
+    assert api["depends_on"]["migrate"]["condition"] == "service_completed_successfully"
+    assert migrate["environment"]["APP_DATABASE_URL"] == api["environment"]["APP_DATABASE_URL"]
+
+
 def test_compose_db_default_host_port_is_55433(compose_config: dict[str, Any]) -> None:
     db = compose_config["services"]["db"]
     assert db["ports"][0]["published"] == "55433"
@@ -110,3 +120,10 @@ def test_docker_marker_is_opt_in() -> None:
     ]["ini_options"]
     assert '-m "not docker"' in pytest_options["addopts"]
     assert any(marker.startswith("docker:") for marker in pytest_options["markers"])
+
+
+def test_compose_forwards_db_backend() -> None:
+    default = _compose_config()
+    assert default["services"]["api"]["environment"]["APP_DB_BACKEND"] == "orm"
+    sql = _compose_config({"APP_DB_BACKEND": "sql"})
+    assert sql["services"]["api"]["environment"]["APP_DB_BACKEND"] == "sql"
