@@ -24,14 +24,14 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 
 ## Phase 4 — Implement: `superpowers:subagent-driven-development`
 - One fresh subagent per task. Each subagent follows `superpowers:test-driven-development`: write the failing test, run it and see it fail for the right reason, write the minimal code, see it pass, refactor.
-- Python projects: use the python-development agent matching the stack (fastapi-pro, django-pro, otherwise python-pro) and the project's own tooling (uv, ruff, pyright, pytest).
+- Python projects: use the python-development agent matching the stack (fastapi-pro, django-pro, otherwise python-pro) and the project's own tooling (poetry, ruff, pyright, pytest).
 - Rules for every subagent:
   - Never modify, weaken or delete existing tests to make them pass without asking the user.
   - Prefer a real database (testcontainers / docker compose) over mocks for integration tests when the project supports it.
   - On an unexpected failure use `superpowers:systematic-debugging` — no guess-and-retry.
 
 ## Phase 5 — Verify: `superpowers:verification-before-completion`
-- Run the full checks fresh: linter, type checker, full test suite. Report each command with its actual result (e.g. `uv run pytest` → 48 passed).
+- Run the full checks fresh: linter, type checker, full test suite. Report each command with its actual result (e.g. `poetry run pytest` → 48 passed).
 - Build a table: acceptance criterion → test that proves it → status. Any criterion without a passing test means the feature is not done.
 - Resolve every warning Security Guidance raised during the session, or explain to the user why it is a false positive.
 
