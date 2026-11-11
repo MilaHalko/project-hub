@@ -49,13 +49,15 @@ async def test_duplicate_login_raises_conflict_and_uow_stays_usable(database: Da
         await uow.commit()
 
     async with database.unit_of_work() as uow:
+        await uow.users.add(NewUser("anna", "hash"))
         with pytest.raises(ConflictError, match="Login 'mila' is already taken"):
             await uow.users.add(NewUser("mila", "other"))
-        await uow.users.add(NewUser("anna", "hash"))
+        await uow.users.add(NewUser("bob", "hash"))
         await uow.commit()
 
     async with database.unit_of_work() as uow:
         assert await uow.users.get_by_login("anna") is not None
+        assert await uow.users.get_by_login("bob") is not None
 
 
 async def test_login_is_case_sensitive(database: Database) -> None:

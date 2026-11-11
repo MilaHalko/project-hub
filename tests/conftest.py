@@ -55,6 +55,11 @@ def migrated_database_url(database_url: str) -> str:
     return database_url
 
 
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
 def _build_database(backend: str, url: str) -> Database:
     """Build the `Database` for one backend name; add new backends here."""
     if backend == "orm":
@@ -71,5 +76,7 @@ async def database(
     try:
         yield db
     finally:
-        await db.close()
-        truncate_tables(migrated_database_url)
+        try:
+            await db.close()
+        finally:
+            truncate_tables(migrated_database_url)

@@ -37,7 +37,7 @@ class OrmUserRepository:
                 await self._session.flush()
         except IntegrityError as err:
             if _is_login_conflict(err):
-                raise ConflictError(f"Login {user.login!r} is already taken") from None
+                raise ConflictError(f"Login {user.login!r} is already taken") from err
             raise
         return _to_entity(model)
 
