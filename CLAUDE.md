@@ -25,8 +25,8 @@ These rules are not optional. Do not skip them because a task "looks simple".
 ## Python
 
 - Delegate Python implementation to the matching `python-development` agent: `python-development:python-development-fastapi-pro` for FastAPI, `python-development:python-development-django-pro` for Django, otherwise `python-development:python-pro`.
-- Use the relevant `python-development:*` skills (testing patterns, type safety, code style, error handling, project structure, uv) when the task touches that area.
-- Tooling: `uv`, `ruff`, `pyright`, `pytest`.
+- Use the relevant `python-development:*` skills (testing patterns, type safety, code style, error handling, project structure, packaging) when the task touches that area.
+- Tooling: `poetry`, `ruff`, `pyright`, `pytest`.
 
 ## Security
 

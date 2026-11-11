@@ -11,8 +11,11 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["uv_build>=0.13,<0.14"]
-build-backend = "uv_build"
+requires = ["poetry-core>=2.0,<3.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+requires-poetry = ">=2.2,<3.0"
 
 [tool.ruff]
 line-length = 100
