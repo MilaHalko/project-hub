@@ -28,6 +28,7 @@ services:
   api:
     build: .
     environment:
+      APP_DB_BACKEND: ${APP_DB_BACKEND:-orm}
       APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"

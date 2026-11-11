@@ -19,6 +19,7 @@ _COMPOSE_VARIABLES = (
     "POSTGRES_USER",
     "POSTGRES_PASSWORD",
     "POSTGRES_DB",
+    "APP_DB_BACKEND",
 )
 
 
@@ -119,3 +120,10 @@ def test_docker_marker_is_opt_in() -> None:
     ]["ini_options"]
     assert '-m "not docker"' in pytest_options["addopts"]
     assert any(marker.startswith("docker:") for marker in pytest_options["markers"])
+
+
+def test_compose_forwards_db_backend() -> None:
+    default = _compose_config()
+    assert default["services"]["api"]["environment"]["APP_DB_BACKEND"] == "orm"
+    sql = _compose_config({"APP_DB_BACKEND": "sql"})
+    assert sql["services"]["api"]["environment"]["APP_DB_BACKEND"] == "sql"

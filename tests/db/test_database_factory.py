@@ -21,3 +21,22 @@ def test_create_database_picks_backend(backend: str, expected: type) -> None:
 def test_create_database_requires_url() -> None:
     with pytest.raises(ValueError, match="database_url is not set"):
         create_database(IsolatedSettings(db_backend="sql"))
+
+
+@pytest.mark.parametrize("url", ["", "   "])
+@pytest.mark.parametrize("backend", ["orm", "sql"])
+def test_create_database_rejects_empty_url(backend: str, url: str) -> None:
+    settings = IsolatedSettings.model_validate(
+        {"db_backend": backend, "database_url": SecretStr(url)}
+    )
+    with pytest.raises(ValueError, match="database_url is not set"):
+        create_database(settings)
+
+
+@pytest.mark.parametrize("backend", ["orm", "sql"])
+def test_create_database_rejects_unsupported_scheme(backend: str) -> None:
+    settings = IsolatedSettings.model_validate(
+        {"db_backend": backend, "database_url": SecretStr("mysql://u:p@h/d")}
+    )
+    with pytest.raises(ValueError, match="unsupported database URL scheme"):
+        create_database(settings)
