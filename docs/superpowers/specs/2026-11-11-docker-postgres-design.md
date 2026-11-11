@@ -100,6 +100,16 @@ variables.
   is replaced with `***` everywhere in the reason, so the message never contains
   it. `unavailable_message(admin_url, reason=None)` builds it; without a reason
   only line 1 is produced.
+- `TestDatabaseConfigError` is raised when `TEST_DATABASE_URL` is unusable. Both
+  functions validate the admin URL before connecting: it must parse and carry an
+  explicit TCP host (not empty, not a socket directory) and port, otherwise the
+  message is `CONFIG_HINT` (`TEST_DATABASE_URL must be a URL with an explicit TCP
+  host and port, for example postgresql://…@localhost:55433/postgres`). It never
+  includes the URL or the driver's parse error, since they can contain the password.
+- Any other server error that is not a connection failure (for example a role
+  without `CREATEDB`) is raised as `TestDatabaseConfigError` with the message
+  `Postgres at <host>:<port> rejected the request.` followed by
+  `Reason: <server error>`, with the password redacted as above.
 
 `tests/conftest.py`:
 
@@ -107,8 +117,8 @@ variables.
   `postgresql://project_hub:project_hub@localhost:55433/postgres` (the compose
   defaults; local credentials only). It calls `create_test_database`, yields the
   URL, and calls `drop_test_database` at teardown. On
-  `TestDatabaseUnavailableError` it calls `pytest.fail` with the error message,
-  so the test errors out instead of skipping.
+  `TestDatabaseUnavailableError` or `TestDatabaseConfigError` it calls
+  `pytest.fail` with the error message, so the test errors out instead of skipping.
 - The fixture is lazy: only tests that request it need Postgres.
 - The URL is a plain `postgresql://` URL. Epic 1b converts it to
   `postgresql+psycopg://` for SQLAlchemy and applies migrations in its own
@@ -178,7 +188,10 @@ validation errors (422) stay unchanged; they already return `{"detail": …}`.
    error (for example `password authentication failed` when the server is up but
    the password is wrong), and the message does not contain the password.
    `drop_test_database` behaves the same and refuses non-`project_hub_test_*`
-   databases with `ValueError`.
+   databases with `ValueError`. Given a URL without a TCP host or port, or one
+   that does not parse, both raise `TestDatabaseConfigError` before connecting;
+   given a role without `CREATEDB`, `create_test_database` raises
+   `TestDatabaseConfigError` with the server's reason.
 8. The `Dockerfile` installs `poetry==2.5.1` and runs
    `poetry install … --no-interaction`; `.dockerignore` lists `.venv/`.
 9. `docker compose config` succeeds; `db` has a healthcheck; `api` depends on

@@ -8,6 +8,7 @@ from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
 from tests.support.database import (
     DEFAULT_ADMIN_URL,
+    TestDatabaseConfigError,
     TestDatabaseUnavailableError,
     create_test_database,
     drop_test_database,
@@ -34,7 +35,7 @@ def database_url() -> Iterator[str]:
     url = ""
     try:
         url = create_test_database(admin_url)
-    except TestDatabaseUnavailableError as err:
+    except (TestDatabaseUnavailableError, TestDatabaseConfigError) as err:
         failure = str(err)
     if failure is not None:
         pytest.fail(failure, pytrace=False)

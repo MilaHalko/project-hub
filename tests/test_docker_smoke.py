@@ -3,7 +3,6 @@
 import json
 import os
 import shutil
-import socket
 import subprocess
 import tempfile
 import time
@@ -14,9 +13,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.support.docker import ROOT, cleanup, parse_compose_ps, published_port
+
 pytestmark = pytest.mark.docker
 
-ROOT = Path(__file__).resolve().parents[1]
 BUILD_TIMEOUT = 900
 
 
@@ -24,12 +24,6 @@ def _docker() -> str:
     docker = shutil.which("docker")
     assert docker is not None
     return docker
-
-
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
 
 
 def _wait_for_health(url: str, timeout: float = 60) -> tuple[int, str]:
@@ -86,8 +80,8 @@ def test_image_serves_health_as_non_root() -> None:
     container_id = ""
     try:
         _run(docker, "build", "-t", tag, ".")
-        port = _free_port()
-        container_id = _run(docker, "run", "-d", "-p", f"127.0.0.1:{port}:8000", tag).stdout.strip()
+        container_id = _run(docker, "run", "-d", "-p", "127.0.0.1:0:8000", tag).stdout.strip()
+        port = published_port(_run(docker, "port", container_id, "8000").stdout)
 
         status, body = _wait_for_health(f"http://127.0.0.1:{port}/health")
 
@@ -97,22 +91,21 @@ def test_image_serves_health_as_non_root() -> None:
         assert uid != "0"
     finally:
         if container_id:
-            subprocess.run([docker, "rm", "-f", container_id], check=False, capture_output=True)
-        subprocess.run([docker, "rmi", "-f", tag], check=False, capture_output=True)
+            cleanup(docker, "rm", "-f", container_id)
+        cleanup(docker, "rmi", "-f", tag)
 
 
 def test_compose_stack_serves_health() -> None:
     docker = _docker()
     project = f"project-hub-smoke-{uuid.uuid4().hex}"
-    app_port = _free_port()
-    db_port = _free_port()
-    env = {**os.environ, "APP_PORT": str(app_port), "APP_DB_PORT": str(db_port)}
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
     with tempfile.TemporaryDirectory() as tmp:
         empty_env_file = Path(tmp) / "empty.env"
         empty_env_file.write_text("", encoding="utf-8")
         compose = [docker, "compose", "--env-file", str(empty_env_file), "-p", project]
         try:
             _run(*compose, "up", "-d", "--build", "--wait", env=env)
+            app_port = published_port(_run(*compose, "port", "api", "8000", env=env).stdout)
 
             status, body = _wait_for_health(f"http://127.0.0.1:{app_port}/health")
 
@@ -121,16 +114,7 @@ def test_compose_stack_serves_health() -> None:
 
             assert status == 200, f"{body}\n{compose_logs()}"
             ps = _run(*compose, "ps", "--format", "json", env=env).stdout
-            running = {
-                row["Service"]: row["State"]
-                for row in (json.loads(line) for line in ps.splitlines() if line.strip())
-            }
+            running = {row["Service"]: row["State"] for row in parse_compose_ps(ps)}
             assert running == {"db": "running", "api": "running"}, compose_logs()
         finally:
-            subprocess.run(
-                [*compose, "down", "-v", "--rmi", "local"],
-                check=False,
-                capture_output=True,
-                env=env,
-                cwd=ROOT,
-            )
+            cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
