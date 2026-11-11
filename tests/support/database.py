@@ -82,6 +82,18 @@ def create_test_database(admin_url: str) -> str:
     return urlsplit(admin_url)._replace(path=f"/{name}").geturl()
 
 
+def truncate_tables(database_url: str) -> None:
+    """Empty every table in schema ``public`` except ``alembic_version``."""
+    with psycopg.connect(database_url) as conn:
+        rows = conn.execute(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
+        ).fetchall()
+        if rows:
+            names = sql.SQL(", ").join(sql.Identifier("public", str(row[0])) for row in rows)
+            conn.execute(sql.SQL("TRUNCATE {}").format(names))
+
+
 def drop_test_database(admin_url: str, database_url: str) -> None:
     """Drop a database made by `create_test_database`, even with open connections."""
     name = urlsplit(database_url).path.lstrip("/")
