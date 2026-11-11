@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      # Local development credentials only; real environments get theirs elsewhere.
+      POSTGRES_USER: ${POSTGRES_USER:-project_hub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-project_hub}
+      POSTGRES_DB: ${POSTGRES_DB:-project_hub}
+    ports:
+      - "127.0.0.1:${APP_DB_PORT:-55433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build: .
+    environment:
+      APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
