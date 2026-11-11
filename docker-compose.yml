@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-project_hub}
       POSTGRES_DB: ${POSTGRES_DB:-project_hub}
     ports:
-      - "${APP_DB_PORT:-5433}:5432"
+      - "${APP_DB_PORT:-55433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:

@@ -37,9 +37,9 @@ healthy and is served at <http://localhost:8000>.
 | Service | Host port | Override with |
 |---|---|---|
 | `api` | 8000 | `APP_PORT` |
-| `db` | 5433 | `APP_DB_PORT` |
+| `db` | 55433 | `APP_DB_PORT` |
 
-The database uses 5433 so it does not clash with a local Postgres on 5432. Set the variables
+The database uses 55433 so it does not clash with local Postgres servers on 5432 or 5433. Set the variables
 in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docker compose up`.
 The `POSTGRES_*` values are local development credentials only.
 
@@ -63,7 +63,7 @@ poetry run pytest
 
 The tests create a throwaway database (`project_hub_test_<random>`) on the compose `db`
 service and drop it when the session ends. Set `TEST_DATABASE_URL` (an admin URL such as
-`postgresql://project_hub:project_hub@localhost:5433/postgres`) to use a different server.
+`postgresql://project_hub:project_hub@localhost:55433/postgres`) to use a different server.
 
 ## Layout
 

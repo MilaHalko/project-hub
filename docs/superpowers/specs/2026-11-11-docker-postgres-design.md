@@ -64,8 +64,8 @@ comes from the directory, so it cannot clash with other stacks on the machine.
 - Healthcheck: `pg_isready`.
 - Named volume mounted at `/var/lib/postgresql` (the Postgres 18 image keeps
   its data under a versioned subdirectory there).
-- Host port `${APP_DB_PORT:-5433}` → 5432. The default avoids a local Postgres
-  on 5432.
+- Host port `${APP_DB_PORT:-55433}` → 5432. The default avoids local Postgres servers
+  on 5432 and 5433.
 
 **`api`**
 
@@ -97,7 +97,7 @@ variables.
 `tests/conftest.py`:
 
 - Session fixture `database_url` reads `TEST_DATABASE_URL`, default
-  `postgresql://project_hub:project_hub@localhost:5433/postgres` (the compose
+  `postgresql://project_hub:project_hub@localhost:55433/postgres` (the compose
   defaults; local credentials only). It calls `create_test_database`, yields the
   URL, and calls `drop_test_database` at teardown. On
   `TestDatabaseUnavailableError` it calls `pytest.fail` with the error message,

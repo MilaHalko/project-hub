@@ -17,8 +17,8 @@
 - Poetry in the image is pinned to exactly `2.5.1`; every `poetry install` in the image uses `--no-interaction`.
 - `core/` never imports from feature modules; `core/exceptions.py` imports nothing from `fastapi` or `starlette`.
 - Error bodies are always `{"detail": "<message>"}`; the 500 body is exactly `{"detail": "Internal Server Error"}`.
-- Compose defaults: user, password and database `project_hub`; host ports `${APP_DB_PORT:-5433}` (db) and `${APP_PORT:-8000}` (api); no top-level `name:`.
-- `TEST_DATABASE_URL` default: `postgresql://project_hub:project_hub@localhost:5433/postgres`.
+- Compose defaults: user, password and database `project_hub`; host ports `${APP_DB_PORT:-55433}` (db) and `${APP_PORT:-8000}` (api); no top-level `name:`.
+- `TEST_DATABASE_URL` default: `postgresql://project_hub:project_hub@localhost:55433/postgres`.
 - Test database names: `project_hub_test_<uuid4 hex>`.
 - Unreachable-Postgres message: `Postgres is not reachable at <host>:<port>. Start it with: docker compose up -d db` — never the password.
 - Commits: no `Co-Authored-By` lines.
@@ -100,13 +100,13 @@ git commit -m "Map domain errors to JSON responses"
 
 **Files:**
 - Create: `Dockerfile`, `.dockerignore`, `docker-compose.yml`
-- Modify: `.env.example` (add `APP_PORT=8000`, `APP_DB_PORT=5433`, `POSTGRES_USER=project_hub`, `POSTGRES_PASSWORD=project_hub`, `POSTGRES_DB=project_hub`, `TEST_DATABASE_URL=postgresql://project_hub:project_hub@localhost:5433/postgres`)
+- Modify: `.env.example` (add `APP_PORT=8000`, `APP_DB_PORT=55433`, `POSTGRES_USER=project_hub`, `POSTGRES_PASSWORD=project_hub`, `POSTGRES_DB=project_hub`, `TEST_DATABASE_URL=postgresql://project_hub:project_hub@localhost:55433/postgres`)
 - Modify: `pyproject.toml` (`[tool.pytest.ini_options]`: `addopts = '-ra --strict-markers -m "not docker"'`, `markers = ["docker: builds and runs Docker images; opt-in with pytest -m docker"]`)
 - Modify: `README.md` (new "Docker" section: `docker compose up --build`, ports and their env overrides, `docker compose up -d db` for tests)
 - Create: `tests/test_docker_files.py`
 
 **Interfaces:**
-- Produces: compose services `db` and `api`; image serves on container port 8000 as a non-root user; `/app/.venv/bin` first on `PATH`; `HEALTHCHECK` hitting `http://127.0.0.1:8000/health`. Task 3 and 4 rely on `db` listening on host port `${APP_DB_PORT:-5433}`; Task 4 relies on `APP_PORT` and `APP_DB_PORT` overriding host ports.
+- Produces: compose services `db` and `api`; image serves on container port 8000 as a non-root user; `/app/.venv/bin` first on `PATH`; `HEALTHCHECK` hitting `http://127.0.0.1:8000/health`. Task 3 and 4 rely on `db` listening on host port `${APP_DB_PORT:-55433}`; Task 4 relies on `APP_PORT` and `APP_DB_PORT` overriding host ports.
 
 Dockerfile shape is fixed by spec section 1 (two stages on `python:3.13-slim`, deps layer before `COPY src`, copy `.venv` and `src` to the same paths). Set `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1`. `db` volume mounts `pgdata:/var/lib/postgresql`. `db` healthcheck: `pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}`, interval 2s, retries 15. `api` environment `APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}`.
 
@@ -118,7 +118,7 @@ Dockerfile shape is fixed by spec section 1 (two stages on `python:3.13-slim`, d
 - `test_compose_config_is_valid` (AC 9): `docker compose config --format json` (via `shutil.which("docker")`, `cwd=ROOT`, `check=False`) returns 0; parse JSON.
 - `test_compose_db_has_healthcheck` (AC 9): `services.db.healthcheck.test` mentions `pg_isready`.
 - `test_compose_api_waits_for_healthy_db` (AC 9): `services.api.depends_on.db.condition == "service_healthy"`.
-- `test_compose_db_default_host_port_is_5433`: with `APP_DB_PORT` removed from the subprocess env, `services.db.ports[0].published == "5433"`.
+- `test_compose_db_default_host_port_is_55433`: with `APP_DB_PORT` removed from the subprocess env, `services.db.ports[0].published == "55433"`.
 - `test_compose_has_no_fixed_project_name`: `"name:"` does not appear at column 0 of `docker-compose.yml`.
 - `test_docker_marker_is_opt_in`: `pyproject` `addopts` contains `-m "not docker"` and `markers` has an entry starting with `docker:`.
 
@@ -155,9 +155,9 @@ git commit -m "Add Dockerfile and docker-compose with Postgres"
 - Modify: `README.md` ("Checks": start `docker compose up -d db` before `poetry run pytest`; `TEST_DATABASE_URL` override)
 
 **Interfaces:**
-- Consumes: compose `db` on host port 5433 (Task 2).
+- Consumes: compose `db` on host port 55433 (Task 2).
 - Produces (in `tests.support.database`):
-  - `DEFAULT_ADMIN_URL: Final = "postgresql://project_hub:project_hub@localhost:5433/postgres"`
+  - `DEFAULT_ADMIN_URL: Final = "postgresql://project_hub:project_hub@localhost:55433/postgres"`
   - `class TestDatabaseUnavailableError(Exception)` (set `__test__ = False` so pytest does not collect it)
   - `create_test_database(admin_url: str) -> str` → URL of the new database (same scheme, credentials, host and port as `admin_url`, path `/project_hub_test_<uuid4 hex>`)
   - `drop_test_database(admin_url: str, database_url: str) -> None`

@@ -8,7 +8,7 @@ import psycopg
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
 
-DEFAULT_ADMIN_URL: Final = "postgresql://project_hub:project_hub@localhost:5433/postgres"
+DEFAULT_ADMIN_URL: Final = "postgresql://project_hub:project_hub@localhost:55433/postgres"
 
 
 class TestDatabaseUnavailableError(Exception):
@@ -22,11 +22,7 @@ def unavailable_message(admin_url: str) -> str:
     info = conninfo_to_dict(admin_url)
     host = info.get("host", "localhost")
     port = info.get("port", "5432")
-    return (
-        f"Cannot reach Postgres at {host}:{port}. "
-        "Start it with `docker compose up -d db`, "
-        "or set TEST_DATABASE_URL to another server."
-    )
+    return f"Postgres is not reachable at {host}:{port}. Start it with: docker compose up -d db"
 
 
 def create_test_database(admin_url: str) -> str:
