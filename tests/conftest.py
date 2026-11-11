@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from project_hub.db.database import Database
 from project_hub.db.migrate import upgrade
 from project_hub.db.orm import OrmDatabase
+from project_hub.db.sql import SqlDatabase
 from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
 from tests.support.database import (
@@ -64,10 +65,12 @@ def _build_database(backend: str, url: str) -> Database:
     """Build the `Database` for one backend name; add new backends here."""
     if backend == "orm":
         return OrmDatabase(url)
+    if backend == "sql":
+        return SqlDatabase(url)
     raise ValueError(f"unknown database backend: {backend!r}")
 
 
-@pytest.fixture(params=["orm"], ids=["orm"])
+@pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
 async def database(
     request: pytest.FixtureRequest, migrated_database_url: str
 ) -> AsyncIterator[Database]:
