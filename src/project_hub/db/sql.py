@@ -4,6 +4,7 @@ from typing import Any, Self
 import psycopg
 from psycopg_pool import AsyncConnectionPool
 
+from project_hub.db.urls import psycopg_url
 from project_hub.users.repository import UserRepository
 from project_hub.users.repository_sql import SqlUserRepository
 
@@ -57,7 +58,7 @@ class SqlDatabase:
 
     def __init__(self, url: str) -> None:
         self._pool: AsyncConnectionPool[psycopg.AsyncConnection[Any]] = AsyncConnectionPool(
-            url, open=False
+            psycopg_url(url), open=False
         )
 
     async def open(self) -> None:

@@ -28,7 +28,7 @@ def create_database(settings: Settings) -> Database:
     url = settings.database_url.get_secret_value()
     if not url.strip():
         raise ValueError("database_url is not set")
-    sqlalchemy_url(url)  # validates the scheme for both backends
+    sqlalchemy_url(url)  # fail fast on a bad scheme; each backend normalizes the URL itself
     match settings.db_backend:
         case "sql":
             return SqlDatabase(url)
