@@ -6,7 +6,8 @@ skeleton: an app factory, typed settings and a health endpoint. See
 
 ## Requirements
 
-- Python 3.13 and [Poetry](https://python-poetry.org/) 2.x.
+- Python 3.13 and [Poetry](https://python-poetry.org/) 2.2+.
+- If your default `python3` is older than 3.13, run `poetry env use python3.13` before `poetry install` (Poetry does not download Python for you).
 - The virtualenv is created in `.venv/` (configured in `poetry.toml`).
 
 ## Setup
