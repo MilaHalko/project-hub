@@ -25,6 +25,32 @@ poetry run uvicorn project_hub.main:app --reload
 
 Interactive API docs are served at <http://localhost:8000/docs>.
 
+## Docker
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL 18 (`db`) and the API (`api`). The API waits for the database to be
+healthy and is served at <http://localhost:8000>.
+
+| Service | Host port | Override with |
+|---|---|---|
+| `api` | 8000 | `APP_PORT` |
+| `db` | 5433 | `APP_DB_PORT` |
+
+The database uses 5433 so it does not clash with a local Postgres on 5432. Set the variables
+in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docker compose up`.
+The `POSTGRES_*` values are local development credentials only.
+
+Tests that need a database expect the `db` service to be running:
+
+```bash
+docker compose up -d db
+```
+
+Stop everything with `docker compose down` (add `-v` to delete the database volume).
+
 ## Checks
 
 ```bash
