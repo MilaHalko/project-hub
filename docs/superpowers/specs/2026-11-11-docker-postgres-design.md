@@ -64,13 +64,14 @@ comes from the directory, so it cannot clash with other stacks on the machine.
 - Healthcheck: `pg_isready`.
 - Named volume mounted at `/var/lib/postgresql` (the Postgres 18 image keeps
   its data under a versioned subdirectory there).
-- Host port `${APP_DB_PORT:-55433}` → 5432. The default avoids local Postgres servers
+- Host port `127.0.0.1:${APP_DB_PORT:-55433}` → 5432, bound to loopback only (the
+  superuser password is in the repo). The default avoids local Postgres servers
   on 5432 and 5433.
 
 **`api`**
 
 - `build: .`
-- Host port `${APP_PORT:-8000}` → 8000.
+- Host port `127.0.0.1:${APP_PORT:-8000}` → 8000, bound to loopback only.
 - `depends_on: db` with `condition: service_healthy`.
 - `APP_DATABASE_URL=postgresql://<user>:<password>@db:5432/<db>`. Settings ignore
   it until epic 1b adds the field; it is wired now so 1b only reads it.

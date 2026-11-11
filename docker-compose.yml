@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-project_hub}
       POSTGRES_DB: ${POSTGRES_DB:-project_hub}
     ports:
-      - "${APP_DB_PORT:-55433}:5432"
+      - "127.0.0.1:${APP_DB_PORT:-55433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
@@ -21,7 +21,7 @@ services:
     environment:
       APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
     ports:
-      - "${APP_PORT:-8000}:8000"
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
