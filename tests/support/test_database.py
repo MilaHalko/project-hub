@@ -2,12 +2,16 @@ import contextlib
 import os
 import socket
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 import psycopg
 import pytest
+from psycopg import sql
 
 from tests.support.database import (
+    CONFIG_HINT,
     DEFAULT_ADMIN_URL,
+    TestDatabaseConfigError,
     TestDatabaseUnavailableError,
     create_test_database,
     drop_test_database,
@@ -137,6 +141,59 @@ def test_unreachable_message_defaults_port_5432() -> None:
         "Postgres is not reachable at db.invalid:5432. Start it with: docker compose up -d db"
     )
     assert "s3cret-pw" not in message
+
+
+def test_hostless_url_is_rejected() -> None:
+    with pytest.raises(TestDatabaseConfigError) as excinfo:
+        create_test_database("postgresql://u:s3cret-pw@:1/postgres")
+    assert str(excinfo.value) == CONFIG_HINT
+
+
+def test_socket_host_is_rejected() -> None:
+    with pytest.raises(TestDatabaseConfigError):
+        create_test_database("postgresql://u:s3cret-pw@%2Fnonexistent-socket-dir:1/postgres")
+
+
+def test_url_without_port_is_rejected() -> None:
+    with pytest.raises(TestDatabaseConfigError):
+        create_test_database("postgresql://u:s3cret-pw@db.invalid/postgres")
+
+
+def test_malformed_url_is_rejected_without_leaking_password() -> None:
+    with pytest.raises(TestDatabaseConfigError) as excinfo:
+        create_test_database("u:s3cret-pw@localhost:55433")
+    assert "s3cret-pw" not in str(excinfo.value)
+
+
+def test_drop_validates_admin_url() -> None:
+    with pytest.raises(TestDatabaseConfigError):
+        drop_test_database(
+            "postgresql://u:pw@:1/postgres", "postgresql://u:pw@:1/project_hub_test_abc"
+        )
+
+
+def test_role_without_createdb_reports_reason() -> None:
+    role = f"project_hub_test_role_{uuid4().hex}"
+    password = uuid4().hex
+    info = urlsplit(ADMIN_URL)
+    host, port = info.hostname, info.port
+    url = f"postgresql://{role}:{password}@{host}:{port}/postgres"
+    with psycopg.connect(ADMIN_URL, autocommit=True) as admin:
+        admin.execute(
+            sql.SQL("CREATE ROLE {} LOGIN PASSWORD {} NOCREATEDB").format(
+                sql.Identifier(role), sql.Literal(password)
+            )
+        )
+    try:
+        with pytest.raises(TestDatabaseConfigError) as excinfo:
+            create_test_database(url)
+        message = str(excinfo.value)
+        assert message.startswith(f"Postgres at {host}:{port} rejected the request.\nReason: ")
+        assert "permission denied to create database" in message
+        assert password not in message
+    finally:
+        with psycopg.connect(ADMIN_URL, autocommit=True) as admin:
+            admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))
 
 
 def test_database_url_fixture_gives_test_database(database_url: str) -> None:

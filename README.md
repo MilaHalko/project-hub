@@ -63,7 +63,7 @@ poetry run pytest
 ```
 
 The tests create a throwaway database (`project_hub_test_<random>`) on the compose `db`
-service and drop it when the session ends. Set `TEST_DATABASE_URL` (an admin URL such as
+service and drop it when the session ends. Set `TEST_DATABASE_URL` (an admin URL with an explicit host and port, such as
 `postgresql://project_hub:project_hub@localhost:55433/postgres`) to use a different server.
 pytest reads it only from the shell environment, not from `.env`, so use
 `export TEST_DATABASE_URL=...`, and keep its port and credentials in step with `APP_DB_PORT`

@@ -9,6 +9,8 @@ import tomllib
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 _COMPOSE_VARIABLES = (
@@ -46,6 +48,12 @@ def _compose_config(env: dict[str, str] | None = None) -> dict[str, Any]:
     return cast("dict[str, Any]", json.loads(result.stdout))
 
 
+@pytest.fixture(scope="module")
+def compose_config() -> dict[str, Any]:
+    """Render ``docker compose config`` once for all compose tests in this module."""
+    return _compose_config()
+
+
 def test_dockerfile_pins_poetry() -> None:
     assert "poetry==2.5.1" in (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
@@ -65,28 +73,28 @@ def test_dockerignore_excludes_venv_and_env() -> None:
     assert ".env" in lines
 
 
-def test_compose_config_is_valid() -> None:
-    services = _compose_config()["services"]
+def test_compose_config_is_valid(compose_config: dict[str, Any]) -> None:
+    services = compose_config["services"]
     assert {"db", "api"} <= services.keys()
 
 
-def test_compose_db_has_healthcheck() -> None:
-    db = _compose_config()["services"]["db"]
+def test_compose_db_has_healthcheck(compose_config: dict[str, Any]) -> None:
+    db = compose_config["services"]["db"]
     assert "pg_isready" in " ".join(db["healthcheck"]["test"])
 
 
-def test_compose_api_waits_for_healthy_db() -> None:
-    api = _compose_config()["services"]["api"]
+def test_compose_api_waits_for_healthy_db(compose_config: dict[str, Any]) -> None:
+    api = compose_config["services"]["api"]
     assert api["depends_on"]["db"]["condition"] == "service_healthy"
 
 
-def test_compose_db_default_host_port_is_55433() -> None:
-    db = _compose_config()["services"]["db"]
+def test_compose_db_default_host_port_is_55433(compose_config: dict[str, Any]) -> None:
+    db = compose_config["services"]["db"]
     assert db["ports"][0]["published"] == "55433"
 
 
-def test_compose_ports_bind_loopback_only() -> None:
-    services = _compose_config()["services"]
+def test_compose_ports_bind_loopback_only(compose_config: dict[str, Any]) -> None:
+    services = compose_config["services"]
     for name in ("db", "api"):
         assert services[name]["ports"][0]["host_ip"] == "127.0.0.1"
 
