@@ -138,6 +138,12 @@ breaking them gives `422`. There are two `422` shapes: pydantic body errors are 
 (`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the service and gives
 `{"detail": "Password must not equal the login"}`. Neither echoes the submitted passwords.
 
+Security events are logged at INFO by `project_hub.auth.service` (`user registered`, `login
+succeeded`, `login failed`, `logout`, `password changed`) with the login and user id; passwords,
+hashes and tokens never appear in the log. The app writes `project_hub.*` records at INFO and
+above to stderr (also under `uvicorn`); a missing `APP_JWT_SECRET` logs one startup warning
+(`APP_JWT_SECRET is not set; login is disabled`).
+
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
 
