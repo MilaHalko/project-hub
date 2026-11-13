@@ -35,6 +35,16 @@ These rules are not optional. Do not skip them because a task "looks simple".
 - **No tests for test helpers** in `tests/support/`, except a guard against something dangerous (for example, dropping a database the tests did not create).
 - A config test is allowed only when it guards a security property that nothing else would catch (for example, compose ports bound to `127.0.0.1` only).
 
+## Commits
+
+The user reads the history to understand what was done, so every commit is one logical topic:
+
+- **One commit = one micro-feature (a vertical slice)**: the code, its tests and everything else that piece needs (settings, `.env.example`, compose, migration, README lines). Example for auth: "Log in with POST /login and get a 1-hour JWT" holds the token service, the route, the login tests and the `APP_JWT_SECRET` setting.
+- **No layer commits** such as "add models", "add tests", "add config", "fix lint". A lint, format or review fix goes into the slice it belongs to (amend or fixup before the PR is opened; after that, a follow-up commit named after the slice it fixes).
+- **Subject line**: what a user or developer can now do, in plain words, imperative mood, at most about 70 characters. **Body**: 1–3 short lines on what changed and why.
+- Plan tasks are shaped as such slices, so one task ends in one or a few slice commits.
+- Never add a `Co-Authored-By: Claude` trailer.
+
 ## Security
 
 Treat every Security Guidance warning as a blocker: fix it, or explain to the user why it is a false positive. Never ignore one silently.
