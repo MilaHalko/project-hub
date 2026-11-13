@@ -11,7 +11,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 
 ## Phase 1 — Clarify: `superpowers:brainstorming`
 - Turn the request into a short design. Ask clarifying questions one at a time.
-- Output **acceptance criteria**: a numbered list of testable statements ("Given X, when Y, then Z"). A criterion about behaviour is proven by an automated test; a criterion about tooling or configuration (dependencies, Dockerfile, compose, CI workflow, env vars) is proven by a command that really runs it (`poetry check --lock`, `docker compose config`, a build, a CI run) — see "What to test" in `CLAUDE.md`.
+- Output **acceptance criteria**: a numbered list of testable statements ("Given X, when Y, then Z"). A criterion about behaviour is proven by an automated test; a criterion about tooling or configuration is proven by a command that really runs it, as described in "What to test" in `CLAUDE.md`.
 - Get the user's explicit approval of the design and criteria before moving on.
 
 ## Phase 2 — Isolate: `superpowers:using-git-worktrees`
