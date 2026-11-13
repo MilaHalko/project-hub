@@ -12,6 +12,7 @@ from project_hub.core.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    ValidationFailedError,
 )
 from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
@@ -37,6 +38,7 @@ def error_client() -> TestClient:
             "conflict": ConflictError("nope"),
             "auth": AuthenticationError("nope"),
             "subclass": ProjectNotFound("missing"),
+            "validation": ValidationFailedError("nope"),
             "plain": DomainError("bad"),
             "unhandled": RuntimeError("secret-internal-detail"),
         }
@@ -59,7 +61,13 @@ def error_client() -> TestClient:
 
 @pytest.mark.parametrize(
     ("kind", "status"),
-    [("not_found", 404), ("permission", 403), ("conflict", 409), ("auth", 401)],
+    [
+        ("not_found", 404),
+        ("permission", 403),
+        ("conflict", 409),
+        ("auth", 401),
+        ("validation", 422),
+    ],
 )
 def test_domain_error_maps_to_status(error_client: TestClient, kind: str, status: int) -> None:
     r = error_client.get(f"/raise/{kind}")

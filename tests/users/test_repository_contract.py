@@ -171,3 +171,70 @@ async def test_increment_token_version_needs_commit(database: Database) -> None:
         committed = await uow.users.get_by_id(added.id)
     assert committed is not None
     assert committed.token_version == 1
+
+
+async def test_update_password_sets_hash_and_increments_version(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        added = await uow.users.add(NewUser("mila", "old-hash"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        updated = await uow.users.update_password(added.id, "new-hash")
+
+    assert type(updated) is User
+    assert updated == User(
+        id=added.id,
+        login="mila",
+        password_hash="new-hash",
+        created_at=added.created_at,
+        token_version=1,
+    )
+
+
+async def test_update_password_unknown_id_returns_none(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.users.update_password(uuid4(), "new-hash") is None
+
+
+async def test_update_password_is_fresh_after_earlier_read(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        added = await uow.users.add(NewUser("mila", "old-hash"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        before = await uow.users.get_by_id(added.id)
+        updated = await uow.users.update_password(added.id, "new-hash")
+        after = await uow.users.get_by_id(added.id)
+
+    assert before is not None
+    assert before.password_hash == "old-hash"
+    assert updated is not None
+    assert updated.password_hash == "new-hash"
+    assert after is not None
+    assert after.password_hash == "new-hash"
+    assert after.token_version == 1
+
+
+async def test_update_password_needs_commit(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        added = await uow.users.add(NewUser("mila", "old-hash"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.users.update_password(added.id, "new-hash")
+
+    async with database.unit_of_work() as uow:
+        uncommitted = await uow.users.get_by_id(added.id)
+    assert uncommitted is not None
+    assert uncommitted.password_hash == "old-hash"
+    assert uncommitted.token_version == 0
+
+    async with database.unit_of_work() as uow:
+        await uow.users.update_password(added.id, "new-hash")
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        committed = await uow.users.get_by_id(added.id)
+    assert committed is not None
+    assert committed.password_hash == "new-hash"
+    assert committed.token_version == 1

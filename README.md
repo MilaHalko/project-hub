@@ -114,7 +114,8 @@ dummy hash when the login does not exist).
 `APP_JWT_SECRET` signs the tokens: at least 32 characters, never committed. Generate one with
 `python -c "import secrets; print(secrets.token_urlsafe(32))"`. An empty or whitespace-only
 value counts as not set; without it the app starts and `/health` works, but `POST /login` answers
-`500` (logged). A too-short value stops the start with an error that does not print the value.
+`500` (logged). A too-short value stops the start with an error that does not print the value, and
+database errors are logged without bound parameters (no password hashes in logs).
 
 `GET /users/me` returns the current user (`id`, `login`, `created_at`). Send the token as
 `Authorization: Bearer <access_token>`. The token is checked for signature (HS256 only), expiry and
@@ -127,6 +128,15 @@ from `POST /login`.
 every device. Each user has a `token_version` number that every token carries as its `ver` claim;
 logout adds one to it, so all tokens issued before (with the old `ver`) get `401` from then on,
 and the next `POST /login` gives a working token again.
+
+`PUT /users/me/password` (with the token) takes `current_password`, `new_password` and
+`repeat_new_password` and answers `200` with a fresh token, like `/login`. The new hash and
+`token_version + 1` are stored in one statement, so every other session ends (old tokens get `401`).
+A wrong `current_password` gives `400`. `new_password` follows the same rules as at registration
+(8-128 characters, must match the repeat, must differ from the current one and from the login) and
+breaking them gives `422`. There are two `422` shapes: pydantic body errors are a list
+(`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the service and gives
+`{"detail": "Password must not equal the login"}`. Neither echoes the submitted passwords.
 
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.

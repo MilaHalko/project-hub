@@ -31,3 +31,18 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: Literal["bearer"] = "bearer"
     expires_in: int = 3600
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: Annotated[SecretStr, Field(min_length=1, max_length=128)]
+    new_password: Password
+    repeat_new_password: SecretStr
+
+    @model_validator(mode="after")
+    def _check_passwords(self) -> Self:
+        new = self.new_password.get_secret_value()
+        if new != self.repeat_new_password.get_secret_value():
+            raise ValueError("Passwords do not match")
+        if new == self.current_password.get_secret_value():
+            raise ValueError("New password must differ from the current one")
+        return self

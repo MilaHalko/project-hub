@@ -1,11 +1,13 @@
 """ORM-only behaviour the shared contract tests cannot reach (they never hold a model)."""
 
+import secrets
 from collections.abc import AsyncIterator
 
 import psycopg
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+from project_hub.db.orm import OrmDatabase
 from project_hub.db.urls import sqlalchemy_url
 from project_hub.users.entities import NewUser
 from project_hub.users.models import UserModel
@@ -45,3 +47,40 @@ async def test_increment_token_version_refreshes_a_stale_model_held_in_the_sessi
     assert updated is not None
     assert updated.token_version == 2
     assert held.token_version == 2
+
+
+async def test_update_password_refreshes_a_stale_model_held_in_the_session(
+    session: AsyncSession, migrated_database_url: str
+) -> None:
+    repo = OrmUserRepository(session)
+    added = await repo.add(NewUser("mila", "old-hash"))
+    await session.commit()
+    held = await session.get(UserModel, added.id)
+    assert held is not None
+    assert held.token_version == 0
+    with psycopg.connect(migrated_database_url) as other:  # a concurrent change commits
+        other.execute(
+            "UPDATE users SET password_hash = 'other-hash', token_version = token_version + 1 "
+            "WHERE id = %s",
+            (added.id,),
+        )
+
+    updated = await repo.update_password(added.id, "new-hash")
+
+    assert updated is not None
+    assert (updated.password_hash, updated.token_version) == ("new-hash", 2)
+    assert (held.password_hash, held.token_version) == ("new-hash", 2)
+
+
+async def test_statement_error_does_not_carry_bound_values(migrated_database_url: str) -> None:
+    secret_hash = "$argon2id$secret-hash-value"
+    database = OrmDatabase(migrated_database_url)
+    await database.open()
+    try:
+        async with database.unit_of_work() as uow:
+            with pytest.raises(Exception) as exc_info:
+                await uow.users.add(NewUser(secrets.token_hex(4000), secret_hash))
+    finally:
+        await database.close()
+        truncate_tables(migrated_database_url)
+    assert secret_hash not in str(exc_info.value)

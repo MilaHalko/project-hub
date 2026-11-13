@@ -53,7 +53,7 @@ class OrmDatabase:
         self._session_factory: async_sessionmaker[AsyncSession] | None = None
 
     async def open(self) -> None:
-        engine = create_async_engine(self._url)
+        engine = create_async_engine(self._url, hide_parameters=True)
         try:
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
