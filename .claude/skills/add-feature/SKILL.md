@@ -20,7 +20,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 - Run the existing test suite on the untouched baseline. If it is not green, report it and ask the user how to proceed — do not build on a red baseline.
 
 ## Phase 3 — Plan: `superpowers:writing-plans`
-- Break the work into small tasks. Each task names the files it touches, the test to write first, and the acceptance criterion it covers.
+- Break the work into small tasks shaped as vertical slices (one micro-feature each: code + its tests + the config, migration and docs it needs), never by layer. Each task names the files it touches, the test to write first, and the acceptance criterion it covers.
 - Every acceptance criterion maps to at least one task. Show the plan to the user before implementing.
 
 ## Phase 4 — Implement: `superpowers:subagent-driven-development`
@@ -30,6 +30,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
   - Never modify, weaken or delete existing tests to make them pass without asking the user.
   - Prefer a real database (testcontainers / docker compose) over mocks for integration tests when the project supports it.
   - On an unexpected failure use `superpowers:systematic-debugging` — no guess-and-retry.
+  - Commit per micro-feature as described in "Commits" in `CLAUDE.md`: one slice per commit with a plain-words subject; review and lint fixes are folded into the slice they belong to.
 
 ## Phase 5 — Verify: `superpowers:verification-before-completion`
 - Run the full checks fresh: linter, type checker, full test suite. Report each command with its actual result (e.g. `poetry run pytest` → 48 passed).
