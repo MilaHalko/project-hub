@@ -15,3 +15,8 @@ async def get_user_by_login(uow: UnitOfWork, login: str) -> User | None:
 
 async def get_user(uow: UnitOfWork, user_id: UUID) -> User | None:
     return await uow.users.get_by_id(user_id)
+
+
+async def revoke_tokens(uow: UnitOfWork, user_id: UUID) -> User | None:
+    """Invalidate every token of the user in the caller's transaction; the caller commits."""
+    return await uow.users.increment_token_version(user_id)

@@ -18,6 +18,7 @@ def _utc_now() -> datetime:
 @dataclass(frozen=True)
 class TokenClaims:
     user_id: UUID
+    token_version: int
 
 
 class TokenService:
@@ -25,10 +26,11 @@ class TokenService:
         self._secret = secret
         self._clock = clock
 
-    def issue(self, user_id: UUID) -> str:
+    def issue(self, user_id: UUID, token_version: int) -> str:
         issued_at = int(self._clock().timestamp())
         claims = {
             "sub": str(user_id),
+            "ver": token_version,
             "iat": issued_at,
             "exp": issued_at + int(TOKEN_TTL.total_seconds()),
         }
@@ -41,8 +43,12 @@ class TokenService:
                 token,
                 self._secret,
                 algorithms=[ALGORITHM],
-                options={"require": ["exp", "iat", "sub"]},
+                options={"require": ["exp", "iat", "sub", "ver"]},
             )
-            return TokenClaims(user_id=UUID(str(claims["sub"])))
+            version = claims["ver"]
+            # bool is a subclass of int, so `true` must be rejected explicitly.
+            if not isinstance(version, int) or isinstance(version, bool):
+                raise ValueError("ver must be an integer")
+            return TokenClaims(user_id=UUID(str(claims["sub"])), token_version=version)
         except (jwt.InvalidTokenError, ValueError):
             raise AuthenticationError("Invalid or expired token") from None

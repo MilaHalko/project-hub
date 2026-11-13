@@ -84,6 +84,11 @@ poetry run alembic revision -m "describe the change"
 Then fill in `upgrade()` and `downgrade()` in the new file under
 `src/project_hub/db/migrations/versions/`.
 
+| Revision | Change |
+|---|---|
+| `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
+| `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
+
 ## Auth
 
 `POST /auth` registers a user. The JSON body takes `login`, `password` and `repeat_password`;
@@ -113,9 +118,15 @@ value counts as not set; without it the app starts and `/health` works, but `POS
 
 `GET /users/me` returns the current user (`id`, `login`, `created_at`). Send the token as
 `Authorization: Bearer <access_token>`. The token is checked for signature (HS256 only), expiry and
-the required claims (`sub`, `iat`, `exp`), and the user must still exist. Anything else, including a
-missing header, gives `401` with `WWW-Authenticate: Bearer`. In Swagger (`/docs`) click
-"Authorize" and paste the `access_token` from `POST /login`.
+the required claims (`sub`, `ver`, `iat`, `exp`); the user must still exist and its `ver` must match
+the user's current `token_version`. Anything else, including a missing header, gives `401` with
+`WWW-Authenticate: Bearer`. In Swagger (`/docs`) click "Authorize" and paste the `access_token`
+from `POST /login`.
+
+`POST /logout` (with the token) answers `204` with no body and ends every session of the user, on
+every device. Each user has a `token_version` number that every token carries as its `ver` claim;
+logout adds one to it, so all tokens issued before (with the old `ver`) get `401` from then on,
+and the next `POST /login` gives a working token again.
 
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.

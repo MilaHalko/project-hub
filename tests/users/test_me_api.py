@@ -37,7 +37,7 @@ def test_token_expiry_boundary(api_client: TestClient) -> None:
 
     def token_aged(seconds: int) -> str:
         service = TokenService(TEST_JWT_SECRET, clock=lambda: now - timedelta(seconds=seconds))
-        return service.issue(UUID(user_id))
+        return service.issue(UUID(user_id), token_version=0)
 
     assert api_client.get("/users/me", headers=bearer(token_aged(3590))).status_code == 200
     assert api_client.get("/users/me", headers=bearer(token_aged(3600))).status_code == 401
@@ -60,7 +60,7 @@ def test_missing_or_malformed_auth_is_401(api_client: TestClient, headers: dict[
 
 def _good_claims(user_id: str, **overrides: Any) -> dict[str, Any]:
     now = int(datetime.now(UTC).timestamp())
-    claims: dict[str, Any] = {"sub": user_id, "iat": now, "exp": now + 3600}
+    claims: dict[str, Any] = {"sub": user_id, "ver": 0, "iat": now, "exp": now + 3600}
     claims.update(overrides)
     return claims
 
@@ -87,7 +87,7 @@ def test_token_without_required_claims_is_401(api_client: TestClient) -> None:
 
 
 def test_token_for_missing_user_is_401(api_client: TestClient) -> None:
-    token = TokenService(TEST_JWT_SECRET).issue(uuid4())
+    token = TokenService(TEST_JWT_SECRET).issue(uuid4(), token_version=0)
     r = api_client.get("/users/me", headers=bearer(token))
     assert r.status_code == 401
     assert r.json() == {"detail": "Invalid or expired token"}
@@ -98,3 +98,12 @@ def test_lowercase_bearer_scheme_works(api_client: TestClient) -> None:
     token = login(api_client)
     r = api_client.get("/users/me", headers={"Authorization": f"bearer {token}"})
     assert r.status_code == 200
+
+
+def test_token_with_stale_version_is_401(api_client: TestClient) -> None:
+    user_id = register(api_client).json()["id"]
+    token = TokenService(TEST_JWT_SECRET).issue(UUID(user_id), token_version=5)
+    r = api_client.get("/users/me", headers=bearer(token))
+    assert r.status_code == 401
+    assert r.json() == {"detail": "Invalid or expired token"}
+    assert r.headers["www-authenticate"] == "Bearer"

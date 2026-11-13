@@ -25,5 +25,12 @@ async def login(
     if not await hasher.verify(user.password_hash, password):
         raise AuthenticationError("Invalid login or password")
     return TokenResponse(
-        access_token=tokens.issue(user.id), expires_in=int(TOKEN_TTL.total_seconds())
+        access_token=tokens.issue(user.id, user.token_version),
+        expires_in=int(TOKEN_TTL.total_seconds()),
     )
+
+
+async def logout(uow: UnitOfWork, user: User) -> None:
+    """End every session of the user: tokens with the old version are refused from now on."""
+    await users_service.revoke_tokens(uow, user.id)
+    await uow.commit()

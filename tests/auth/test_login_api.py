@@ -25,6 +25,7 @@ def test_login_token_lasts_exactly_one_hour_and_names_the_user(api_client: TestC
     claims = jwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])  # pyright: ignore[reportUnknownMemberType]
     assert claims["exp"] - claims["iat"] == 3600
     assert claims["sub"] == user_id
+    assert claims["ver"] == 0
 
 
 def test_wrong_password_and_unknown_login_look_the_same(api_client: TestClient) -> None:
