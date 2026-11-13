@@ -63,3 +63,15 @@ class OrmUserRepository:
         )
         model = (await self._session.execute(statement)).scalar_one_or_none()
         return None if model is None else _to_entity(model)
+
+    async def update_password(self, user_id: UUID, password_hash: str) -> User | None:
+        # Same single-statement pattern as increment_token_version: hash and version together.
+        statement = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(password_hash=password_hash, token_version=UserModel.token_version + 1)
+            .returning(UserModel)
+            .execution_options(populate_existing=True)
+        )
+        model = (await self._session.execute(statement)).scalar_one_or_none()
+        return None if model is None else _to_entity(model)

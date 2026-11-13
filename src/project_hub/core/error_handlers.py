@@ -12,6 +12,7 @@ from project_hub.core.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    ValidationFailedError,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ _STATUS_BY_ERROR: dict[type[DomainError], HTTPStatus] = {
     PermissionDeniedError: HTTPStatus.FORBIDDEN,
     ConflictError: HTTPStatus.CONFLICT,
     AuthenticationError: HTTPStatus.UNAUTHORIZED,
+    ValidationFailedError: HTTPStatus.UNPROCESSABLE_ENTITY,
 }
 
 
