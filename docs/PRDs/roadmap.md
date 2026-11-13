@@ -126,6 +126,49 @@ Notes:
 - Destroy rather than stop: a stopped RDS instance restarts by itself after 7
   days, and an idle load balancer is still billed.
 
+## AWS sandbox rules
+
+The cloud is a course-provided AWS sandbox. Its usage agreement adds hard rules;
+breaking one terminates the sandbox and deletes everything in it.
+
+- **Regions:** only `us-east-1`, `eu-west-1` and `ap-south-1` are open. We use
+  `eu-west-1`.
+- **No company name:** the course provider's company name must not appear
+  anywhere in the sandbox: account name, resource names, tags, DNS records,
+  certificates, HTTP headers or page content, service banners. All names derive
+  from `project-hub`. The GitHub repository was renamed to `project-hub` for the
+  same reason (it shows up in the GitHub OIDC trust policy).
+- **No corporate email** for anything in the sandbox: AWS Budgets alerts, SES
+  senders or recipients (epic 10), registrations.
+- **Certificates:** only self-generated or AWS-issued (ACM).
+- **Scope:** only actions the project needs. Every action is logged.
+- **Limited lifespan:** when the sandbox expires, everything in it is deleted
+  with no recovery, the persistent layer included. So:
+  - all infrastructure must come back with `terraform init && terraform apply`
+    from this repository;
+  - nothing exists only in the sandbox: configuration and secrets have a source
+    outside it, and the Terraform state is never kept only in the sandbox;
+  - data in RDS and S3 is demo data, never the only copy of anything.
+- **Budget:** exceeding the sandbox budget terminates it. The AWS Budgets alert
+  in the persistent layer must fire well below that limit.
+
+Open questions for the mentors (answers go here, decided by 8a at the latest):
+
+| Question | Affects |
+|---|---|
+| Sandbox lifespan and expiry date | 8a, checkpoint planning |
+| Budget limit | 8a (Budgets alert threshold) |
+| Are IAM roles and a GitHub OIDC identity provider allowed? If not, CI uses access keys stored as GitHub secrets | 8a, 8b |
+| Where may the Terraform state live (S3 backend in the sandbox, or outside it)? | 8a |
+
+## Other constraints
+
+- **GitHub plan:** the repository is private on the free plan, so branch
+  protection (blocking a merge while CI is red) is not available. A red CI must
+  be fixed before merging by discipline.
+- **What to test:** see "What to test" in `CLAUDE.md`. Tests prove behaviour;
+  tooling and configuration are proven by commands that really run them.
+
 ## Deferred to implementation
 
 | Question | Decided in |

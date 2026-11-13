@@ -11,7 +11,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 
 ## Phase 1 — Clarify: `superpowers:brainstorming`
 - Turn the request into a short design. Ask clarifying questions one at a time.
-- Output **acceptance criteria**: a numbered list of testable statements ("Given X, when Y, then Z"). Every criterion must be provable by an automated test.
+- Output **acceptance criteria**: a numbered list of testable statements ("Given X, when Y, then Z"). A criterion about behaviour is proven by an automated test; a criterion about tooling or configuration is proven by a command that really runs it, as described in "What to test" in `CLAUDE.md`.
 - Get the user's explicit approval of the design and criteria before moving on.
 
 ## Phase 2 — Isolate: `superpowers:using-git-worktrees`
@@ -32,7 +32,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 
 ## Phase 5 — Verify: `superpowers:verification-before-completion`
 - Run the full checks fresh: linter, type checker, full test suite. Report each command with its actual result (e.g. `poetry run pytest` → 48 passed).
-- Build a table: acceptance criterion → test that proves it → status. Any criterion without a passing test means the feature is not done.
+- Build a table: acceptance criterion → test or command that proves it → status. Any criterion without a passing test or command means the feature is not done.
 - Resolve every warning Security Guidance raised during the session, or explain to the user why it is a false positive.
 
 ## Phase 6 — Final Quality Assurance: Code Review
