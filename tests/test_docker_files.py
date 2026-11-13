@@ -1,58 +1,20 @@
 """Fast file checks for the Docker setup; the image smoke tests are opt-in (``-m docker``)."""
 
-import json
-import os
-import shutil
-import subprocess
-import tempfile
 import tomllib
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
+from tests.support.docker import compose_config as render_compose_config
+
 ROOT = Path(__file__).resolve().parents[1]
-
-_COMPOSE_VARIABLES = (
-    "APP_PORT",
-    "APP_DB_PORT",
-    "POSTGRES_USER",
-    "POSTGRES_PASSWORD",
-    "POSTGRES_DB",
-    "APP_DB_BACKEND",
-)
-
-
-def _compose_config(env: dict[str, str] | None = None) -> dict[str, Any]:
-    """Render ``docker compose config`` with the compose defaults.
-
-    The compose variables are removed from the inherited environment and an empty
-    ``--env-file`` replaces ``.env``, so local settings cannot change the result.
-    ``env`` adds variables on top of that clean environment.
-    """
-    docker = shutil.which("docker")
-    assert docker is not None
-    full_env = {k: v for k, v in os.environ.items() if k not in _COMPOSE_VARIABLES}
-    full_env.update(env or {})
-    with tempfile.TemporaryDirectory() as tmp:
-        empty_env_file = Path(tmp) / "empty.env"
-        empty_env_file.write_text("", encoding="utf-8")
-        result = subprocess.run(
-            [docker, "compose", "--env-file", str(empty_env_file), "config", "--format", "json"],
-            cwd=ROOT,
-            env=full_env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    assert result.returncode == 0, result.stdout + result.stderr
-    return cast("dict[str, Any]", json.loads(result.stdout))
 
 
 @pytest.fixture(scope="module")
 def compose_config() -> dict[str, Any]:
     """Render ``docker compose config`` once for all compose tests in this module."""
-    return _compose_config()
+    return render_compose_config()
 
 
 def test_dockerfile_pins_poetry() -> None:
@@ -123,7 +85,7 @@ def test_docker_marker_is_opt_in() -> None:
 
 
 def test_compose_forwards_db_backend() -> None:
-    default = _compose_config()
+    default = render_compose_config()
     assert default["services"]["api"]["environment"]["APP_DB_BACKEND"] == "orm"
-    sql = _compose_config({"APP_DB_BACKEND": "sql"})
+    sql = render_compose_config({"APP_DB_BACKEND": "sql"})
     assert sql["services"]["api"]["environment"]["APP_DB_BACKEND"] == "sql"
