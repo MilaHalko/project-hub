@@ -163,9 +163,11 @@ Open questions for the mentors (answers go here, decided by 8a at the latest):
 
 ## Other constraints
 
-- **GitHub plan:** the repository is private on the free plan, so branch
-  protection (blocking a merge while CI is red) is not available. A red CI must
-  be fixed before merging by discipline.
+- **Protected `main`:** the ruleset `protect-main` (empty bypass list) blocks
+  deleting `main` and force pushes, and allows changes only through a pull
+  request whose required checks `checks` and `docker` are green. Approvals are
+  not required and the branch does not have to be up to date before merging.
+  Every change to `main`, documentation included, goes through a PR.
 - **What to test:** see "What to test" in `CLAUDE.md`. Tests prove behaviour;
   tooling and configuration are proven by commands that really run them.
 
