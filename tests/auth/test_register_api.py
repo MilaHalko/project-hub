@@ -63,6 +63,30 @@ def test_register_rejects_bad_password_without_echoing_it(
     assert password not in r.text
 
 
+@pytest.mark.parametrize(
+    "password",
+    [
+        pytest.param("пароль-12345", id="cyrillic"),
+        pytest.param("café-horse-1", id="accented-latin"),
+        pytest.param("horse-\U0001f434-123", id="emoji"),
+        pytest.param("correct\thorse1", id="tab"),
+        pytest.param("correct\nhorse1", id="newline"),
+    ],
+)
+def test_register_rejects_non_english_password(api_client: TestClient, password: str) -> None:
+    r = register(api_client, password=password)
+    assert r.status_code == 422
+    assert "English letters" in r.text
+    assert password not in r.text
+
+
+def test_register_accepts_every_keyboard_symbol_and_space(api_client: TestClient) -> None:
+    password = "Aa1 !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
+    assert register(api_client, password=password).status_code == 201
+    r = api_client.post("/login", json={"login": "mila", "password": password})
+    assert r.status_code == 200
+
+
 def test_register_password_equal_to_login_is_422(api_client: TestClient) -> None:
     assert register(api_client, login="mila_long", password="mila_long").status_code == 422
 

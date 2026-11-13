@@ -186,7 +186,7 @@ import cycles; `core/` still imports no feature module.
 | Field | Rule |
 |---|---|
 | `login` | 3–32 characters, only `A–Z a–z 0–9 _ . -`; case-sensitive (as the 1b contract tests already fix: `mila` and `Mila` are different users) |
-| `password`, `new_password` | 8–128 characters, any characters; `SecretStr` so it never shows in `repr`; must not equal the login |
+| `password`, `new_password` | 8–128 characters, printable ASCII only (English letters, digits, keyboard symbols, space; user, 2026-11-14); `SecretStr` so it never shows in `repr`; must not equal the login |
 | `repeat_password`, `repeat_new_password` | must equal the password above, otherwise 422 `Passwords do not match` |
 | `new_password` | must differ from `current_password`, otherwise 422 |
 
@@ -306,8 +306,10 @@ Registration — `POST /auth`
 4. Given `repeat_password` different from `password`, then 422 and no user is created.
 5. Given a login shorter than 3, longer than 32, or with a character outside
    `A–Z a–z 0–9 _ . -`, then 422.
-6. Given a password shorter than 8 or longer than 128 characters, then 422, and
-   the response body does not contain the submitted password.
+6. Given a password shorter than 8 or longer than 128 characters, or with a
+   character outside printable ASCII (Cyrillic, accented letters, emoji, tab,
+   newline), then 422, and the response body does not contain the submitted
+   password.
 7. Given a password equal to the login, then 422.
 8. Given a missing field or a body that is not JSON, then 422.
 
@@ -352,7 +354,8 @@ Change password — `PUT /users/me/password`
 23. Given a wrong current password, then 400 `{"detail": "Current password is
     incorrect"}`, and the old password and token still work.
 24. Given `repeat_new_password` different from `new_password`, a new password equal
-    to the current one, equal to the login, or outside 8–128 characters, then 422.
+    to the current one, equal to the login, outside 8–128 characters, or with a
+    character outside printable ASCII, then 422.
 25. Given no token or an invalid one, then 401.
 
 User repository — contract tests, both backends

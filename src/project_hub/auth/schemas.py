@@ -1,9 +1,30 @@
+import re
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, SecretStr, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    Field,
+    SecretStr,
+    StringConstraints,
+    model_validator,
+)
+
+_PRINTABLE_ASCII = re.compile(r"[\x20-\x7E]*")
+
+
+def _check_printable_ascii(value: SecretStr) -> SecretStr:
+    if _PRINTABLE_ASCII.fullmatch(value.get_secret_value()) is None:
+        raise ValueError(
+            "Password may contain only English letters, digits, keyboard symbols and spaces"
+        )
+    return value
+
 
 Login = Annotated[str, StringConstraints(min_length=3, max_length=32, pattern=r"^[A-Za-z0-9_.-]+$")]
-Password = Annotated[SecretStr, Field(min_length=8, max_length=128)]
+Password = Annotated[
+    SecretStr, Field(min_length=8, max_length=128), AfterValidator(_check_printable_ascii)
+]
 
 
 class RegisterRequest(BaseModel):
