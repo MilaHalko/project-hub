@@ -13,6 +13,20 @@ Each epic gets its own PRD in this folder and its own branch and PR.
 - **Everything marked optional in the spec is mandatory**: the email share link
   (`GET /project/<id>/share` + `GET /join`) and S3 + Lambda image resize.
 - **Endpoint names stay exactly as in the spec.**
+- **The spec is the floor, not the ceiling.** The goal is the best app we can
+  build and defend, not the minimum. Every epic looks for additions that are
+  necessary, convenient or expected in a real product, that are not hard, and
+  that the user can explain at the defense: new endpoints (logout, change
+  password, `GET /users/me`), useful checks, small UX or security
+  improvements. Rules:
+  - an addition never breaks or renames anything the spec defines, and never
+    breaks a hard rule (spec, AWS sandbox rules, "What to test");
+  - the agent **proposes, argues and asks**: for each addition say what it is,
+    why it matters (for users, security or the defense), what it costs (files,
+    endpoints, migrations, tests), and recommend yes or no. The user decides;
+    nothing beyond the spec is built without her yes;
+  - rejected or postponed additions are written down in the epic's design doc
+    with the reason, so they are not proposed again by accident.
 - **Access roles:** the owner can do anything; a participant can do everything
   except delete the project (participants may add, update and delete documents
   and update project info). Inviting stays owner-only, as in the spec.
@@ -49,13 +63,13 @@ The ORM and non-ORM implementations must be interchangeable:
 | # | Epic | Scope | Depends on |
 |---|---|---|---|
 | 0 | ✅ Skeleton | FastAPI app, settings, `GET /health`, lint, type check, tests | — |
-| 0.5 | Poetry migration | Build backend `poetry-core`, `poetry.lock` replaces `uv.lock`, README and `CLAUDE.md` switch from uv to Poetry | 0 |
-| 1a | Docker and Postgres | `Dockerfile`, `docker-compose` with Postgres, test database setup, `core/exceptions.py` (domain errors → JSON with proper status codes) | 0.5 |
-| 1b | Data layer | Repository and Unit of Work protocols, SQLAlchemy and psycopg implementations, migrations, `APP_DB_BACKEND` switch, shared contract tests | 1a |
-| 2 | CI | GitHub Actions: lint, type check, tests for both DB backends, image build | 1b |
+| 0.5 | ✅ Poetry migration (PR #1) | Build backend `poetry-core`, `poetry.lock` replaces `uv.lock`, README and `CLAUDE.md` switch from uv to Poetry | 0 |
+| 1a | ✅ Docker and Postgres (PR #2) | `Dockerfile`, `docker-compose` with Postgres, test database setup, `core/exceptions.py` (domain errors → JSON with proper status codes) | 0.5 |
+| 1b | ✅ Data layer (PR #3) | Repository and Unit of Work protocols, SQLAlchemy and psycopg implementations, migrations, `APP_DB_BACKEND` switch, shared contract tests | 1a |
+| 2 | ✅ CI (PR #4) | GitHub Actions: lint, type check, tests for both DB backends, image build | 1b |
 | 8a | Terraform infrastructure | Persistent and ephemeral layers (see [AWS cost strategy](#aws-cost-strategy)) | 2 |
 | 8b | Deploy on merge | Push the image to ECR on every merge; deploy to ECS when the ephemeral layer is up | 8a |
-| 3 | Users and auth | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency | 1b |
+| 3 | 🚧 Users and auth | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency | 1b |
 | 4 | Projects and access | Project CRUD, owner/participant roles, access checks on every request, owner-only delete | 3 |
 | 5 | Invites | `POST /project/<id>/invite?user=<login>`, owner only | 4 |
 | 6 | Documents and S3 | Upload, download, update and delete documents; delete files with the project | 4 |
@@ -163,9 +177,11 @@ Open questions for the mentors (answers go here, decided by 8a at the latest):
 
 ## Other constraints
 
-- **GitHub plan:** the repository is private on the free plan, so branch
-  protection (blocking a merge while CI is red) is not available. A red CI must
-  be fixed before merging by discipline.
+- **Protected `main`:** the ruleset `protect-main` (empty bypass list) blocks
+  deleting `main` and force pushes, and allows changes only through a pull
+  request whose required checks `checks` and `docker` are green. Approvals are
+  not required and the branch does not have to be up to date before merging.
+  Every change to `main`, documentation included, goes through a PR.
 - **What to test:** see "What to test" in `CLAUDE.md`. Tests prove behaviour;
   tooling and configuration are proven by commands that really run them.
 
