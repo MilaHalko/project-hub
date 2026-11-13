@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from project_hub.auth.passwords import PasswordHasher
+from project_hub.auth.router import router as auth_router
 from project_hub.core.config import Settings
 from project_hub.core.error_handlers import register_error_handlers
 from project_hub.db.database import create_database
@@ -28,7 +30,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await database.close()
 
     app = FastAPI(title=settings.name, debug=settings.debug, lifespan=lifespan)
+    app.state.password_hasher = PasswordHasher()
     register_error_handlers(app)
+    app.include_router(auth_router)
     app.include_router(health_router)
     return app
 

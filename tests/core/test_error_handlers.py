@@ -1,8 +1,10 @@
 import logging
+from typing import Annotated
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, Field
 
 from project_hub.core.exceptions import (
     AuthenticationError,
@@ -13,6 +15,10 @@ from project_hub.core.exceptions import (
 )
 from project_hub.main import create_app
 from tests.isolated_settings import IsolatedSettings
+
+
+class SecretBody(BaseModel):
+    value: Annotated[str, Field(min_length=10)]
 
 
 class ProjectNotFound(NotFoundError):
@@ -43,6 +49,10 @@ def error_client() -> TestClient:
     @app.get("/echo")
     def echo(n: int) -> dict[str, int]:
         return {"n": n}
+
+    @app.post("/echo-secret")
+    def echo_secret(body: SecretBody) -> dict[str, str]:
+        return {"value": body.value}
 
     return TestClient(app, raise_server_exceptions=False)
 
@@ -106,3 +116,10 @@ def test_validation_error_unchanged(error_client: TestClient) -> None:
     r = error_client.get("/echo", params={"n": "abc"})
     assert r.status_code == 422
     assert isinstance(r.json()["detail"], list)
+
+
+def test_validation_error_does_not_echo_input(error_client: TestClient) -> None:
+    r = error_client.post("/echo-secret", json={"value": "s3cr3t"})
+    assert r.status_code == 422
+    assert "s3cr3t" not in r.text
+    assert r.json()["detail"][0]["loc"] == ["body", "value"]

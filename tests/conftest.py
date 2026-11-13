@@ -1,9 +1,12 @@
 import os
 from collections.abc import AsyncIterator, Iterator
 
+import argon2
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
+from project_hub.auth.passwords import PasswordHasher
 from project_hub.db.database import Database
 from project_hub.db.migrate import upgrade
 from project_hub.db.orm import OrmDatabase
@@ -83,3 +86,20 @@ async def database(
             await db.close()
         finally:
             truncate_tables(migrated_database_url)
+
+
+@pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
+def api_client(request: pytest.FixtureRequest, migrated_database_url: str) -> Iterator[TestClient]:
+    settings = IsolatedSettings(
+        db_backend=request.param, database_url=SecretStr(migrated_database_url)
+    )
+    app = create_app(settings)
+    # Cheapest Argon2 parameters keep the tests fast; never use them outside tests.
+    app.state.password_hasher = PasswordHasher(
+        argon2.PasswordHasher.from_parameters(argon2.profiles.CHEAPEST)
+    )
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        truncate_tables(migrated_database_url)

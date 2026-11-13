@@ -84,6 +84,28 @@ poetry run alembic revision -m "describe the change"
 Then fill in `upgrade()` and `downgrade()` in the new file under
 `src/project_hub/db/migrations/versions/`.
 
+## Auth
+
+`POST /auth` registers a user. The JSON body takes `login`, `password` and `repeat_password`;
+on success it answers `201` with `id`, `login` and `created_at` (never the password or its hash).
+
+- `login`: 3-32 characters from `A-Z a-z 0-9 _ . -`, case-sensitive, never trimmed. A taken
+  login gives `409`.
+- `password`: 8-128 characters, stored exactly as typed, and it must not equal the login.
+  `repeat_password` must match it.
+- Invalid input gives `422`. The error list never echoes the submitted values, so a rejected
+  password does not end up in a response or a log.
+
+Passwords are stored as Argon2id hashes (`argon2-cffi` defaults); the random salt and the
+parameters live inside the hash string, so there is no separate salt column. Hashing runs in a
+worker thread so it does not block the event loop.
+
+### Known limitations and future improvements
+
+- Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
+  count failed attempts per login and per IP and answer `429` after a threshold.
+- `DELETE /users/me` is not implemented; it comes after epic 4.
+
 ## Checks
 
 ```bash
@@ -127,6 +149,9 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   It lives outside `core/` because the Unit of Work imports feature repositories.
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
+- `auth/` holds registration (and later login and tokens): `passwords.py` (Argon2 hashing),
+  `schemas.py`, `service.py`, `router.py` and `dependencies.py`. `users/` also has `service.py`
+  and `schemas.py` for the user data other modules need.
 - Feature modules depend on `core/`; `core/` never imports from feature modules.
 - A module that needs another module calls that module's `service`, never its repository.
 - Tests mirror this layout under `tests/<feature>/`.
