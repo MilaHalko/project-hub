@@ -101,6 +101,17 @@ pytest reads it only from the shell environment, not from `.env`, so use
 `export TEST_DATABASE_URL=...`, and keep its port and credentials in step with `APP_DB_PORT`
 and `POSTGRES_*` if you change them.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`.
+
+- Job `checks`: the commands from `## Checks` on Python 3.13 with a Postgres service, then a
+  step that fails unless the contract tests passed with both database backends (`orm` and `sql`).
+- Job `docker`: `poetry run pytest -m docker`, the image and compose smoke tests, in parallel.
+
+Results are on the pull request's Checks tab and in the repository's Actions tab. There is no
+deploy yet (epic 8).
+
 ## Layout
 
 Each feature gets its own package under `src/project_hub/<feature>/` with, as needed:
