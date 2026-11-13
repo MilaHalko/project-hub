@@ -1,9 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from project_hub.auth import service
-from project_hub.auth.dependencies import get_password_hasher, get_token_service
+from project_hub.auth.dependencies import CurrentUser, get_password_hasher, get_token_service
 from project_hub.auth.passwords import PasswordHasher
 from project_hub.auth.schemas import LoginRequest, RegisterRequest, TokenResponse
 from project_hub.auth.tokens import TokenService
@@ -32,3 +32,8 @@ async def log_in(
     tokens: Annotated[TokenService, Depends(get_token_service)],
 ) -> TokenResponse:
     return await service.login(uow, hasher, tokens, data)
+
+
+@router.post("/logout", status_code=204, response_class=Response)
+async def log_out(user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]) -> None:
+    await service.logout(uow, user)

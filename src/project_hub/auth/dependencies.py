@@ -36,7 +36,7 @@ async def get_current_user(
         raise AuthenticationError("Not authenticated")
     claims = tokens.decode(credentials.credentials)
     user = await users_service.get_user(uow, claims.user_id)
-    if user is None:
+    if user is None or user.token_version != claims.token_version:
         raise AuthenticationError("Invalid or expired token")
     return user
 

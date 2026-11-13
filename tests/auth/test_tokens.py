@@ -16,7 +16,7 @@ from tests.conftest import TEST_JWT_SECRET
 def test_issue_sets_sub_iat_and_exp_one_hour_later() -> None:
     fixed = datetime(2026, 11, 13, 12, 0, tzinfo=UTC)
     user_id = uuid4()
-    token = TokenService(TEST_JWT_SECRET, clock=lambda: fixed).issue(user_id)
+    token = TokenService(TEST_JWT_SECRET, clock=lambda: fixed).issue(user_id, token_version=0)
 
     # PyJWT leaves its key type partly unknown without the optional cryptography package.
     claims = jwt.decode(  # pyright: ignore[reportUnknownMemberType]
@@ -45,20 +45,32 @@ def _encode(claims: dict[str, Any], secret: str = S, algorithm: str = "HS256") -
 
 def _good_claims(**overrides: Any) -> dict[str, Any]:
     now = int(datetime.now(UTC).timestamp())
-    claims: dict[str, Any] = {"sub": str(uuid4()), "iat": now, "exp": now + 3600}
+    claims: dict[str, Any] = {"sub": str(uuid4()), "ver": 0, "iat": now, "exp": now + 3600}
     claims.update(overrides)
     return claims
 
 
 def _issue_at(age: timedelta, user_id: Any = None) -> str:
     now = datetime.now(UTC)
-    return TokenService(S, clock=lambda: now - age).issue(user_id or uuid4())
+    return TokenService(S, clock=lambda: now - age).issue(user_id or uuid4(), token_version=0)
 
 
 def test_decode_returns_claims_of_issued_token() -> None:
     user_id = uuid4()
     service = TokenService(S)
-    assert service.decode(service.issue(user_id)) == TokenClaims(user_id=user_id)
+    assert service.decode(service.issue(user_id, token_version=0)) == TokenClaims(
+        user_id=user_id, token_version=0
+    )
+
+
+def test_ver_round_trips_through_issue_and_decode() -> None:
+    user_id = uuid4()
+    service = TokenService(S)
+    token = service.issue(user_id, token_version=7)
+
+    claims = jwt.decode(token, S, algorithms=["HS256"])  # pyright: ignore[reportUnknownMemberType]
+    assert claims["ver"] == 7
+    assert service.decode(token) == TokenClaims(user_id=user_id, token_version=7)
 
 
 def test_decode_rejects_expired_token() -> None:
@@ -108,6 +120,9 @@ def _without(key: str) -> dict[str, Any]:
         pytest.param(_without("iat"), id="no-iat"),
         pytest.param(_without("sub"), id="no-sub"),
         pytest.param(_good_claims(sub="not-a-uuid"), id="sub-not-uuid"),
+        pytest.param(_without("ver"), id="no-ver"),
+        pytest.param(_good_claims(ver="0"), id="ver-string"),
+        pytest.param(_good_claims(ver=True), id="ver-bool"),
     ],
 )
 def test_decode_requires_claims(claims: dict[str, Any]) -> None:
