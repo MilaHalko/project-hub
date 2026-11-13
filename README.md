@@ -111,6 +111,15 @@ dummy hash when the login does not exist).
 value counts as not set; without it the app starts and `/health` works, but `POST /login` answers
 `500` (logged). A too-short value stops the start with an error that does not print the value.
 
+`GET /users/me` returns the current user (`id`, `login`, `created_at`). Send the token as
+`Authorization: Bearer <access_token>`. The token is checked for signature (HS256 only), expiry and
+the required claims (`sub`, `iat`, `exp`), and the user must still exist. Anything else, including a
+missing header, gives `401` with `WWW-Authenticate: Bearer`. In Swagger (`/docs`) click
+"Authorize" and paste the `access_token` from `POST /login`.
+
+Later routes that need a logged-in user take the `CurrentUser` dependency
+(`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
+
 ### Known limitations and future improvements
 
 - Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
@@ -160,9 +169,10 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   It lives outside `core/` because the Unit of Work imports feature repositories.
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
-- `auth/` holds registration (and later login and tokens): `passwords.py` (Argon2 hashing),
-  `schemas.py`, `service.py`, `router.py` and `dependencies.py`. `users/` also has `service.py`
-  and `schemas.py` for the user data other modules need.
+- `auth/` holds registration, login and tokens: `passwords.py` (Argon2 hashing), `tokens.py`
+  (JWT issue and decode), `schemas.py`, `service.py`, `router.py` and `dependencies.py`
+  (`CurrentUser`). `users/` also has `router.py` (`GET /users/me`), `service.py` and
+  `schemas.py` for the user data other modules need.
 - Feature modules depend on `core/`; `core/` never imports from feature modules.
 - A module that needs another module calls that module's `service`, never its repository.
 - Tests mirror this layout under `tests/<feature>/`.
