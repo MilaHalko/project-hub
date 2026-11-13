@@ -1,9 +1,15 @@
-from datetime import UTC, datetime
+import base64
+import json
+import warnings
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import uuid4
 
 import jwt
+import pytest
 
-from project_hub.auth.tokens import TokenService
+from project_hub.auth.tokens import TokenClaims, TokenService
+from project_hub.core.exceptions import AuthenticationError
 from tests.conftest import TEST_JWT_SECRET
 
 
@@ -20,3 +26,90 @@ def test_issue_sets_sub_iat_and_exp_one_hour_later() -> None:
     assert claims["iat"] == int(fixed.timestamp())
     assert claims["exp"] - claims["iat"] == 3600
     assert jwt.get_unverified_header(token)["alg"] == "HS256"
+
+
+S = "a" * 32
+
+
+def _b64(data: dict[str, Any]) -> str:
+    raw = json.dumps(data, separators=(",", ":")).encode()
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+
+def _encode(claims: dict[str, Any], secret: str = S, algorithm: str = "HS256") -> str:
+    with warnings.catch_warnings():
+        # A 32-byte key is short for HS512; that is the point of the test, so silence the warning.
+        warnings.simplefilter("ignore", jwt.warnings.InsecureKeyLengthWarning)
+        return jwt.encode(claims, secret, algorithm=algorithm)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _good_claims(**overrides: Any) -> dict[str, Any]:
+    now = int(datetime.now(UTC).timestamp())
+    claims: dict[str, Any] = {"sub": str(uuid4()), "iat": now, "exp": now + 3600}
+    claims.update(overrides)
+    return claims
+
+
+def _issue_at(age: timedelta, user_id: Any = None) -> str:
+    now = datetime.now(UTC)
+    return TokenService(S, clock=lambda: now - age).issue(user_id or uuid4())
+
+
+def test_decode_returns_claims_of_issued_token() -> None:
+    user_id = uuid4()
+    service = TokenService(S)
+    assert service.decode(service.issue(user_id)) == TokenClaims(user_id=user_id)
+
+
+def test_decode_rejects_expired_token() -> None:
+    with pytest.raises(AuthenticationError, match="Invalid or expired token"):
+        TokenService(S).decode(_issue_at(timedelta(seconds=3600)))
+
+
+def test_decode_accepts_token_just_before_expiry() -> None:
+    user_id = uuid4()
+    assert TokenService(S).decode(_issue_at(timedelta(seconds=3590), user_id)).user_id == user_id
+
+
+def _alg_none_token() -> str:
+    return f"{_b64({'alg': 'none', 'typ': 'JWT'})}.{_b64(_good_claims())}."
+
+
+def _payload_swapped_token() -> str:
+    header, _, signature = _encode(_good_claims()).split(".")
+    return f"{header}.{_b64(_good_claims())}.{signature}"
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param(_encode(_good_claims(), secret="b" * 32), id="wrong-secret"),
+        pytest.param(_encode(_good_claims(), algorithm="HS512"), id="hs512"),
+        pytest.param(_alg_none_token(), id="alg-none"),
+        pytest.param(_payload_swapped_token(), id="modified-payload"),
+        pytest.param("garbage", id="garbage"),
+    ],
+)
+def test_decode_rejects_tampering(token: str) -> None:
+    with pytest.raises(AuthenticationError, match="Invalid or expired token"):
+        TokenService(S).decode(token)
+
+
+def _without(key: str) -> dict[str, Any]:
+    claims = _good_claims()
+    del claims[key]
+    return claims
+
+
+@pytest.mark.parametrize(
+    "claims",
+    [
+        pytest.param(_without("exp"), id="no-exp"),
+        pytest.param(_without("iat"), id="no-iat"),
+        pytest.param(_without("sub"), id="no-sub"),
+        pytest.param(_good_claims(sub="not-a-uuid"), id="sub-not-uuid"),
+    ],
+)
+def test_decode_requires_claims(claims: dict[str, Any]) -> None:
+    with pytest.raises(AuthenticationError, match="Invalid or expired token"):
+        TokenService(S).decode(_encode(claims))

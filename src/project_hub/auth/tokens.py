@@ -1,8 +1,11 @@
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
+
+from project_hub.core.exceptions import AuthenticationError
 
 TOKEN_TTL = timedelta(hours=1)
 ALGORITHM = "HS256"
@@ -10,6 +13,11 @@ ALGORITHM = "HS256"
 
 def _utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+@dataclass(frozen=True)
+class TokenClaims:
+    user_id: UUID
 
 
 class TokenService:
@@ -25,3 +33,16 @@ class TokenService:
             "exp": issued_at + int(TOKEN_TTL.total_seconds()),
         }
         return jwt.encode(claims, self._secret, algorithm=ALGORITHM)  # pyright: ignore[reportUnknownMemberType]
+
+    def decode(self, token: str) -> TokenClaims:
+        """Verify signature (HS256 only), expiry and claims; raise ``AuthenticationError``."""
+        try:
+            claims = jwt.decode(  # pyright: ignore[reportUnknownMemberType]
+                token,
+                self._secret,
+                algorithms=[ALGORITHM],
+                options={"require": ["exp", "iat", "sub"]},
+            )
+            return TokenClaims(user_id=UUID(str(claims["sub"])))
+        except (jwt.InvalidTokenError, ValueError):
+            raise AuthenticationError("Invalid or expired token") from None

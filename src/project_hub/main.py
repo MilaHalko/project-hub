@@ -10,6 +10,7 @@ from project_hub.core.config import Settings
 from project_hub.core.error_handlers import register_error_handlers
 from project_hub.db.database import create_database
 from project_hub.health.router import router as health_router
+from project_hub.users.router import router as users_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -38,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     app.include_router(auth_router)
     app.include_router(health_router)
+    app.include_router(users_router)
     return app
 
 
