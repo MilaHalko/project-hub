@@ -45,6 +45,8 @@ jobs:
         with:
           python-version-file: .python-version
           cache: poetry
+      - name: Check poetry.lock matches pyproject.toml
+        run: poetry check --lock
       - name: Install dependencies
         run: poetry install --no-interaction
       - name: Check the interpreter is Python 3.13
