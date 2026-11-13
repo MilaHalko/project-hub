@@ -11,6 +11,13 @@ This project depends on these Claude Code plugins (declared in `.claude/settings
 
 If any of them is missing in the session, say so before doing any work and ask the user to install it. Do not silently continue without it.
 
+Frontend work also needs these (declared in the same file):
+
+- **frontend-design** — guidance for building a polished, non-generic UI
+- **design** — design critique, design system, accessibility review, UX copy
+- **playwright** — drives a real browser for end-to-end checks
+- **axe-accessibility** — WCAG accessibility scan and fixes (needs a Deque account: API key or `npx -y @deque/axe-auth@1.6.0 login`; the user sets this up, agents never enter keys)
+
 ## Mandatory workflow
 
 These rules are not optional. Do not skip them because a task "looks simple".
