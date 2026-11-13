@@ -43,10 +43,10 @@ def test_login_missing_field_is_422(api_client: TestClient) -> None:
 
 
 def test_password_is_checked_exactly_as_typed(api_client: TestClient) -> None:
-    register(api_client, password="  пароль 123 ")
-    ok = api_client.post("/login", json={"login": "mila", "password": "  пароль 123 "})
+    register(api_client, password="  horse 1234 ")
+    ok = api_client.post("/login", json={"login": "mila", "password": "  horse 1234 "})
     assert ok.status_code == 200
-    trimmed = api_client.post("/login", json={"login": "mila", "password": "пароль 123"})
+    trimmed = api_client.post("/login", json={"login": "mila", "password": "horse 1234"})
     assert trimmed.status_code == 401
 
 

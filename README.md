@@ -96,7 +96,8 @@ on success it answers `201` with `id`, `login` and `created_at` (never the passw
 
 - `login`: 3-32 characters from `A-Z a-z 0-9 _ . -`, case-sensitive, never trimmed. A taken
   login gives `409`.
-- `password`: 8-128 characters, stored exactly as typed, and it must not equal the login.
+- `password`: 8-128 characters of printable ASCII only (English letters, digits, keyboard
+  symbols and spaces; Cyrillic, accents, emoji, tabs and newlines give `422`), stored exactly as typed, and it must not equal the login.
   `repeat_password` must match it.
 - Invalid input gives `422`. The error list never echoes the submitted values, so a rejected
   password does not end up in a response or a log.
@@ -133,7 +134,7 @@ and the next `POST /login` gives a working token again.
 `repeat_new_password` and answers `200` with a fresh token, like `/login`. The new hash and
 `token_version + 1` are stored in one statement, so every other session ends (old tokens get `401`).
 A wrong `current_password` gives `400`. `new_password` follows the same rules as at registration
-(8-128 characters, must match the repeat, must differ from the current one and from the login) and
+(8-128 printable ASCII characters, must match the repeat, must differ from the current one and from the login) and
 breaking them gives `422`. There are two `422` shapes: pydantic body errors are a list
 (`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the service and gives
 `{"detail": "Password must not equal the login"}`. Neither echoes the submitted passwords.

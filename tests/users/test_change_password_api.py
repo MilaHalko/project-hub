@@ -60,6 +60,7 @@ def test_wrong_current_password_is_400_and_changes_nothing(api_client: TestClien
         pytest.param(LONG_LOGIN, LONG_LOGIN, id="equals-login"),
         pytest.param("1234567", "1234567", id="7-chars"),
         pytest.param("x" * 129, "x" * 129, id="129-chars"),
+        pytest.param("пароль-12345", "пароль-12345", id="cyrillic"),
     ],
 )
 def test_change_password_invalid_input_is_422(
