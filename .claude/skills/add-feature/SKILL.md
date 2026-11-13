@@ -11,6 +11,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
 
 ## Phase 1 — Clarify: `superpowers:brainstorming`
 - Turn the request into a short design. Ask clarifying questions one at a time.
+- Go beyond the minimum: the spec is the floor (see "The spec is the floor, not the ceiling" in `docs/PRDs/roadmap.md`). Propose additions that are necessary, convenient or expected in a real product and not hard to build or defend (for example logout, change password, a "who am I" endpoint). For each one give what it is, why it matters, what it costs and your recommendation, and ask the user. Build nothing beyond the spec without her explicit yes; record rejected or postponed additions with the reason in the design doc.
 - Output **acceptance criteria**: a numbered list of testable statements ("Given X, when Y, then Z"). A criterion about behaviour is proven by an automated test; a criterion about tooling or configuration is proven by a command that really runs it, as described in "What to test" in `CLAUDE.md`.
 - Get the user's explicit approval of the design and criteria before moving on.
 
