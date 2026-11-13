@@ -22,7 +22,7 @@ Frontend work also needs these (declared in the same file):
 
 These rules are not optional. Do not skip them because a task "looks simple".
 
-1. **New feature / new behavior** → invoke the project skill `add-feature` (`.claude/skills/add-feature/SKILL.md`) and follow every phase. Do not implement features outside it.
+1. **New feature / new behavior** → invoke the project skill `add-feature` (`.claude/skills/add-feature/SKILL.md`) and follow every phase. For anything in the web frontend (a page, screen, form, component or user flow) use `add-frontend-feature` (`.claude/skills/add-frontend-feature/SKILL.md`) instead. Do not implement features outside them.
 2. **Bug, failing test, unexpected behavior** → `superpowers:systematic-debugging` before proposing any fix.
 3. **Any code change** → `superpowers:test-driven-development`: failing test first, then code (for behaviour; see "What to test" for tooling and configuration).
 4. **Before saying "done", "fixed" or "passing"** → `superpowers:verification-before-completion`: run the checks and quote the real output.
