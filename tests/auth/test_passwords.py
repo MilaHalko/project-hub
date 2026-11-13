@@ -25,3 +25,11 @@ async def test_verify_accepts_right_and_rejects_wrong_password() -> None:
 
 async def test_verify_returns_false_for_invalid_hash() -> None:
     assert await PasswordHasher().verify("not-a-hash", "x") is False
+
+
+async def test_verify_dummy_returns_nothing_and_uses_the_hashers_parameters() -> None:
+    import argon2
+
+    tuned = PasswordHasher(argon2.PasswordHasher(time_cost=1, memory_cost=8, parallelism=1))
+    assert await tuned.verify_dummy("any-password") is None
+    assert "m=8,t=1,p=1" in tuned._dummy_hash  # pyright: ignore[reportPrivateUsage]

@@ -63,3 +63,44 @@ def test_database_url_is_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     assert s.database_url.get_secret_value() == url
     assert "s3cret" not in repr(s)
     assert "s3cret" not in str(s)
+
+
+def test_jwt_secret_defaults_to_none() -> None:
+    assert IsolatedSettings().jwt_secret is None
+
+
+def test_empty_jwt_secret_means_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_JWT_SECRET", "")
+    assert IsolatedSettings().jwt_secret is None
+
+
+def test_short_jwt_secret_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_JWT_SECRET", "x" * 31)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
+
+
+def test_jwt_secret_is_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    secret = "very-private-signing-key-" + "z" * 10
+    monkeypatch.setenv("APP_JWT_SECRET", secret)
+    s = IsolatedSettings()
+    assert s.jwt_secret is not None
+    assert s.jwt_secret.get_secret_value() == secret
+    assert secret not in repr(s)
+    assert secret not in str(s)
+
+
+def test_whitespace_only_jwt_secret_means_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_JWT_SECRET", "   ")
+    assert IsolatedSettings().jwt_secret is None
+
+
+def test_short_jwt_secret_error_does_not_print_the_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    secret = "mistyped-real-secret-value-31ch"
+    assert len(secret) == 31
+    monkeypatch.setenv("APP_JWT_SECRET", secret)
+    with pytest.raises(ValidationError) as exc_info:
+        IsolatedSettings()
+    assert secret not in str(exc_info.value)

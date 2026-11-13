@@ -100,6 +100,17 @@ Passwords are stored as Argon2id hashes (`argon2-cffi` defaults); the random sal
 parameters live inside the hash string, so there is no separate salt column. Hashing runs in a
 worker thread so it does not block the event loop.
 
+`POST /login` takes `login` and `password` and answers `200` with
+`{"access_token", "token_type": "bearer", "expires_in": 3600}`. The token is a JWT (HS256) valid
+for exactly one hour. An unknown login and a wrong password give the same `401`
+(`Invalid login or password`) and take about the same time (the password is verified against a
+dummy hash when the login does not exist).
+
+`APP_JWT_SECRET` signs the tokens: at least 32 characters, never committed. Generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(32))"`. An empty or whitespace-only
+value counts as not set; without it the app starts and `/health` works, but `POST /login` answers
+`500` (logged). A too-short value stops the start with an error that does not print the value.
+
 ### Known limitations and future improvements
 
 - Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
