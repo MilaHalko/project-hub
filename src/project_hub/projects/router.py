@@ -8,7 +8,7 @@ from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
 from project_hub.projects import service
 from project_hub.projects.entities import ProjectRole
-from project_hub.projects.schemas import ProjectIn, ProjectListItem, ProjectResponse
+from project_hub.projects.schemas import MemberResponse, ProjectIn, ProjectListItem, ProjectResponse
 
 router = APIRouter(tags=["projects"])
 
@@ -56,3 +56,11 @@ async def delete_project(
     project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
 ) -> None:
     await service.delete_project(uow, user, project_id)
+
+
+@router.get("/project/{project_id}/members")
+async def list_members(
+    project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
+) -> list[MemberResponse]:
+    members = await service.list_members(uow, user, project_id)
+    return [MemberResponse.from_member(member) for member in members]

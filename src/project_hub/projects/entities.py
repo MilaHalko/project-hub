@@ -35,3 +35,11 @@ class ProjectAccess:
     project: Project
     owner_login: str
     role: ProjectRole
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectMember:
+    user_id: UUID
+    login: str
+    role: ProjectRole
+    joined_at: datetime

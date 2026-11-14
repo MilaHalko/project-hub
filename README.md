@@ -224,6 +224,13 @@ may do it: a participant gets `403` `{"detail": "Only the project owner can dele
 an outsider or an unknown id gets the same `404` as for reading. The participants' access goes
 with the project (their `project_members` rows are removed).
 
+`GET /project/{project_id}/members` lists who has access: the owner first (`"role": "owner"`,
+`joined_at` equal to the project's `created_at`), then the participants in the order they joined
+(ties by login). Each item is `{"id", "login", "role", "joined_at"}`. The access rule is the same as
+for reading the project: the owner and participants get `200`, an outsider or an unknown id gets
+the `404` above. There is no paging, because a project has a handful of members. `avatar` comes
+with the frontend epic F1.
+
 Creating and deleting a project are logged at INFO by `project_hub.projects.service` as
 `project created` and `project deleted` with the login, user id and project id; the project name
 is not logged. Refused deletes (`403`, `404`) are not logged.

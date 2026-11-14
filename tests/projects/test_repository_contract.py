@@ -5,7 +5,13 @@ import pytest
 
 from project_hub.core.exceptions import ConflictError
 from project_hub.db.database import Database
-from project_hub.projects.entities import NewProject, Project, ProjectAccess, ProjectRole
+from project_hub.projects.entities import (
+    NewProject,
+    Project,
+    ProjectAccess,
+    ProjectMember,
+    ProjectRole,
+)
 from project_hub.users.entities import NewUser
 
 pytestmark = pytest.mark.anyio
@@ -341,3 +347,88 @@ async def test_delete_needs_commit(database: Database) -> None:
 
     async with database.unit_of_work() as uow:
         assert await uow.projects.get_for_user(project.id, owner.id) is not None
+
+
+async def test_list_members_owner_first_then_participants_by_join_time(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        zoe = await uow.users.add(NewUser("zoe", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+    async with database.unit_of_work() as uow:
+        await uow.projects.add_member(project.id, zoe.id)
+        await uow.commit()
+    async with database.unit_of_work() as uow:
+        await uow.projects.add_member(project.id, anna.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        members = await uow.projects.list_members(project.id)
+
+    assert [(m.user_id, m.login, m.role) for m in members] == [
+        (owner.id, "mila", ProjectRole.OWNER),
+        (zoe.id, "zoe", ProjectRole.PARTICIPANT),
+        (anna.id, "anna", ProjectRole.PARTICIPANT),
+    ]
+    assert all(type(m) is ProjectMember for m in members)
+    assert members[0].joined_at == project.created_at
+    assert members[0].joined_at < members[1].joined_at < members[2].joined_at
+
+
+async def test_list_members_owner_first_even_if_participant_joined_earlier(
+    database: Database, migrated_database_url: str
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, anna.id)
+        await uow.commit()
+    with psycopg.connect(migrated_database_url) as conn:
+        conn.execute(
+            "UPDATE project_members SET created_at = %s - interval '1 day' "
+            "WHERE project_id = %s AND user_id = %s",
+            (project.created_at, project.id, anna.id),
+        )
+
+    async with database.unit_of_work() as uow:
+        members = await uow.projects.list_members(project.id)
+
+    assert [m.user_id for m in members] == [owner.id, anna.id]
+    assert members[1].joined_at < members[0].joined_at
+
+
+async def test_list_members_unknown_project_is_empty(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.list_members(uuid4()) == []
+
+
+async def test_list_members_empty_after_delete(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, anna.id)
+        await uow.commit()
+    async with database.unit_of_work() as uow:
+        await uow.projects.delete(project.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.list_members(project.id) == []
+
+
+async def test_list_members_owner_listed_once_even_if_member(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, owner.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        members = await uow.projects.list_members(project.id)
+
+    assert [(m.user_id, m.role) for m in members] == [(owner.id, ProjectRole.OWNER)]

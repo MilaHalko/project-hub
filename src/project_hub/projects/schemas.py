@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
-from project_hub.projects.entities import ProjectAccess, ProjectRole
+from project_hub.projects.entities import ProjectAccess, ProjectMember, ProjectRole
 
 
 def _reject_control_characters(value: str) -> str:
@@ -63,3 +63,16 @@ class ProjectResponse(BaseModel):
 
 class ProjectListItem(ProjectResponse):
     documents: list[dict[str, Any]] = []
+
+
+class MemberResponse(BaseModel):
+    id: UUID
+    login: str
+    role: ProjectRole
+    joined_at: datetime
+
+    @classmethod
+    def from_member(cls, member: ProjectMember) -> Self:
+        return cls(
+            id=member.user_id, login=member.login, role=member.role, joined_at=member.joined_at
+        )
