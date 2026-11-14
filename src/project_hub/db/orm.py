@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from project_hub.db.urls import sqlalchemy_url
+from project_hub.projects.repository import ProjectRepository
+from project_hub.projects.repository_orm import OrmProjectRepository
 from project_hub.users.repository import UserRepository
 from project_hub.users.repository_orm import OrmUserRepository
 
@@ -18,10 +20,12 @@ class OrmUnitOfWork:
     """One `AsyncSession`; anything not committed is rolled back on exit."""
 
     users: UserRepository
+    projects: ProjectRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session = session_factory()
         self.users = OrmUserRepository(self._session)
+        self.projects = OrmProjectRepository(self._session)
 
     async def commit(self) -> None:
         await self._session.commit()

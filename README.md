@@ -88,6 +88,7 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 |---|---|
 | `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
+| `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
 
 ## Auth
 
@@ -159,6 +160,40 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
 - `DELETE /users/me` is not implemented; it comes after epic 4.
 - The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
   it is read from `X-Forwarded-For`).
+
+## Projects
+
+Every project route needs `Authorization: Bearer <access_token>` (`401` with
+`WWW-Authenticate: Bearer` otherwise).
+
+`POST /projects` takes `name` and `description` and answers `201` with the project; the caller
+becomes its owner:
+
+```json
+{
+  "id": "…",
+  "name": "Diploma",
+  "description": "Final project",
+  "owner": {"id": "…", "login": "mila"},
+  "my_role": "owner",
+  "created_at": "2026-11-14T10:00:00Z",
+  "updated_at": "2026-11-14T10:00:00Z"
+}
+```
+
+- `name`: leading and trailing whitespace is stripped, then 1-100 characters, with no control
+  character anywhere (Unicode category `Cc`: no newline, tab, NUL or U+007F); it is a one-line
+  title. Duplicate names are allowed, also for one owner.
+- `description`: 0-2000 characters, default `""`, kept exactly as sent (newlines and tabs are
+  fine); only NUL is rejected, because Postgres `text` cannot store it.
+- Breaking a rule gives `422`, never `500`, and nothing is stored.
+
+`GET /project/{project_id}/info` returns the same project for its owner. For anyone without
+access the answer is `404` `{"detail": "Project not found"}`, exactly as for an id that does not
+exist, so an outsider cannot tell that the project exists. An id that is not a UUID gives `422`.
+
+Creating a project is logged at INFO by `project_hub.projects.service` as `project created`
+with the login, user id and project id; the project name is not logged.
 
 ## Checks
 
