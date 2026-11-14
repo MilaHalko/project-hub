@@ -104,3 +104,25 @@ def test_short_jwt_secret_error_does_not_print_the_secret(
     with pytest.raises(ValidationError) as exc_info:
         IsolatedSettings()
     assert secret not in str(exc_info.value)
+
+
+def test_blank_s3_settings_are_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_S3_BUCKET", "  ")
+    monkeypatch.setenv("APP_S3_ENDPOINT_URL", "")
+    s = IsolatedSettings()
+    assert s.s3_bucket is None
+    assert s.s3_endpoint_url is None
+
+
+def test_s3_settings_are_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_S3_BUCKET", "project-hub-documents")
+    monkeypatch.setenv("APP_S3_ENDPOINT_URL", "http://s3:5000")
+    monkeypatch.setenv("APP_S3_REGION", "eu-central-1")
+    s = IsolatedSettings()
+    assert s.s3_bucket == "project-hub-documents"
+    assert s.s3_endpoint_url == "http://s3:5000"
+    assert s.s3_region == "eu-central-1"
+
+
+def test_s3_region_defaults_to_eu_west_1() -> None:
+    assert IsolatedSettings().s3_region == "eu-west-1"

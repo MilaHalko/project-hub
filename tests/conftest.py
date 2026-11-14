@@ -1,9 +1,11 @@
 import os
 from collections.abc import AsyncIterator, Iterator
+from uuid import uuid4
 
 import argon2
 import pytest
 from fastapi.testclient import TestClient
+from mypy_boto3_s3.client import S3Client
 from pydantic import SecretStr
 
 from project_hub.auth.passwords import PasswordHasher
@@ -21,13 +23,46 @@ from tests.support.database import (
     drop_test_database,
     truncate_tables,
 )
+from tests.support.storage import (
+    DEFAULT_S3_ENDPOINT_URL,
+    TEST_S3_REGION,
+    assertion_client,
+    empty_bucket,
+    unavailable_message,
+    unreachable_reason,
+)
 
 TEST_JWT_SECRET = "test-only-secret-" + "0" * 32
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _dummy_aws_credentials(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    empty_file = tmp_path_factory.mktemp("aws") / "empty"
+    empty_file.write_text("", encoding="utf-8")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("AWS_ACCESS_KEY_ID", "test")
+        mp.setenv("AWS_SECRET_ACCESS_KEY", "test")
+        mp.setenv("AWS_SHARED_CREDENTIALS_FILE", str(empty_file))
+        mp.setenv("AWS_CONFIG_FILE", str(empty_file))
+        mp.delenv("AWS_PROFILE", raising=False)
+        mp.delenv("AWS_SESSION_TOKEN", raising=False)
+        yield
+
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("APP_NAME", "APP_DEBUG", "APP_DB_BACKEND", "APP_DATABASE_URL", "APP_JWT_SECRET"):
+    for key in (
+        "APP_NAME",
+        "APP_DEBUG",
+        "APP_DB_BACKEND",
+        "APP_DATABASE_URL",
+        "APP_JWT_SECRET",
+        "APP_S3_BUCKET",
+        "APP_S3_ENDPOINT_URL",
+        "APP_S3_REGION",
+        "APP_DOCUMENT_MAX_BYTES",
+        "APP_DOCUMENT_MAX_FILES",
+    ):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -61,6 +96,33 @@ def migrated_database_url(database_url: str) -> str:
     return database_url
 
 
+@pytest.fixture(scope="session")
+def s3_endpoint_url() -> str:
+    url = os.environ.get("TEST_S3_ENDPOINT_URL", DEFAULT_S3_ENDPOINT_URL)
+    reason = unreachable_reason(url)
+    if reason is not None:
+        pytest.fail(unavailable_message(url, reason), pytrace=False)
+    return url
+
+
+@pytest.fixture(scope="session")
+def s3_client(s3_endpoint_url: str) -> S3Client:
+    return assertion_client(s3_endpoint_url)
+
+
+@pytest.fixture(scope="session")
+def storage_bucket(s3_client: S3Client) -> Iterator[str]:
+    bucket = f"project-hub-test-{uuid4().hex}"
+    s3_client.create_bucket(
+        Bucket=bucket, CreateBucketConfiguration={"LocationConstraint": TEST_S3_REGION}
+    )
+    try:
+        yield bucket
+    finally:
+        empty_bucket(s3_client, bucket)
+        s3_client.delete_bucket(Bucket=bucket)
+
+
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
@@ -91,11 +153,20 @@ async def database(
 
 
 @pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
-def api_client(request: pytest.FixtureRequest, migrated_database_url: str) -> Iterator[TestClient]:
+def api_client(
+    request: pytest.FixtureRequest,
+    migrated_database_url: str,
+    s3_endpoint_url: str,
+    s3_client: S3Client,
+    storage_bucket: str,
+) -> Iterator[TestClient]:
     settings = IsolatedSettings(
         db_backend=request.param,
         database_url=SecretStr(migrated_database_url),
         jwt_secret=SecretStr(TEST_JWT_SECRET),
+        s3_bucket=storage_bucket,
+        s3_endpoint_url=s3_endpoint_url,
+        s3_region=TEST_S3_REGION,
     )
     app = create_app(settings)
     # Cheapest Argon2 parameters keep the tests fast; never use them outside tests.
@@ -106,4 +177,7 @@ def api_client(request: pytest.FixtureRequest, migrated_database_url: str) -> It
         with TestClient(app) as c:
             yield c
     finally:
-        truncate_tables(migrated_database_url)
+        try:
+            truncate_tables(migrated_database_url)
+        finally:
+            empty_bucket(s3_client, storage_bucket)

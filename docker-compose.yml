@@ -16,6 +16,30 @@ services:
       timeout: 3s
       retries: 15
 
+  s3:
+    image: motoserver/moto:5.2.5
+    ports:
+      - "127.0.0.1:${APP_S3_PORT:-55435}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/moto-api/', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  storage-init:
+    build: .
+    command: ["python", "-m", "project_hub.storage.create_bucket"]
+    environment: &s3-env
+      APP_S3_BUCKET: ${APP_S3_BUCKET:-project-hub-documents}
+      APP_S3_ENDPOINT_URL: http://s3:5000
+      APP_S3_REGION: ${APP_S3_REGION:-eu-west-1}
+      # Dummy keys for the local moto emulator only; never put real AWS keys here.
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+    depends_on:
+      s3:
+        condition: service_healthy
+
   migrate:
     build: .
     command: ["python", "-m", "project_hub.db.migrate"]
@@ -31,12 +55,15 @@ services:
       APP_DB_BACKEND: ${APP_DB_BACKEND:-orm}
       APP_JWT_SECRET: ${APP_JWT_SECRET:-}
       APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
+      <<: *s3-env
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
     depends_on:
       db:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
 
 volumes:

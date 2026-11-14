@@ -98,7 +98,7 @@ def test_image_serves_health_as_non_root() -> None:
 def test_compose_stack_serves_health() -> None:
     docker = _docker()
     project = f"project-hub-smoke-{uuid.uuid4().hex}"
-    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0", "APP_S3_PORT": "0"}
     with tempfile.TemporaryDirectory() as tmp:
         empty_env_file = Path(tmp) / "empty.env"
         empty_env_file.write_text("", encoding="utf-8")
@@ -115,7 +115,7 @@ def test_compose_stack_serves_health() -> None:
             assert status == 200, f"{body}\n{compose_logs()}"
             ps = _run(*compose, "ps", "--format", "json", env=env).stdout
             running = {row["Service"]: row["State"] for row in parse_compose_ps(ps)}
-            assert running == {"db": "running", "api": "running"}, compose_logs()
+            assert running == {"db": "running", "s3": "running", "api": "running"}, compose_logs()
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
 
@@ -123,7 +123,7 @@ def test_compose_stack_serves_health() -> None:
 def test_compose_stack_migrates_database() -> None:
     docker = _docker()
     project = f"project-hub-smoke-{uuid.uuid4().hex}"
-    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0", "APP_S3_PORT": "0"}
     with tempfile.TemporaryDirectory() as tmp:
         empty_env_file = Path(tmp) / "empty.env"
         empty_env_file.write_text("", encoding="utf-8")
