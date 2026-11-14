@@ -2,9 +2,13 @@ from typing import Any
 from uuid import UUID
 
 import psycopg
+from psycopg import errors
 from psycopg.rows import class_row, dict_row
 
+from project_hub.core.exceptions import ConflictError
 from project_hub.projects.entities import NewProject, Project, ProjectAccess, ProjectRole
+
+_MEMBER_CONSTRAINT = "pk_project_members"
 
 
 class SqlProjectRepository:
@@ -47,3 +51,21 @@ class SqlProjectRepository:
         project = Project(**row)
         role = ProjectRole.OWNER if project.owner_id == user_id else ProjectRole.PARTICIPANT
         return ProjectAccess(project=project, owner_login=owner_login, role=role)
+
+    async def add_member(self, project_id: UUID, user_id: UUID) -> None:
+        await self._conn.execute("SAVEPOINT add_member")
+        try:
+            await self._conn.execute(
+                "INSERT INTO project_members (project_id, user_id) VALUES (%s, %s)",
+                (project_id, user_id),
+            )
+        except psycopg.Error as err:
+            await self._conn.execute("ROLLBACK TO SAVEPOINT add_member")
+            await self._conn.execute("RELEASE SAVEPOINT add_member")
+            if (
+                isinstance(err, errors.UniqueViolation)
+                and err.diag.constraint_name == _MEMBER_CONSTRAINT
+            ):
+                raise ConflictError("User is already a participant of this project") from err
+            raise
+        await self._conn.execute("RELEASE SAVEPOINT add_member")

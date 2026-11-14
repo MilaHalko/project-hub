@@ -211,6 +211,20 @@ def test_projects_constraints_reject_bad_rows(fresh_database_url: str) -> None:
         with pytest.raises(psycopg.errors.RestrictViolation):
             conn.execute("delete from users where id = %s", (owner[0],))
 
+        conn.execute("delete from users where id = %s", (member[0],))
+        row = conn.execute("select count(*) from project_members").fetchone()
+        assert row == (0,)
+
+        other = conn.execute(
+            "insert into users (login, password_hash) values ('bob', 'h') returning id"
+        ).fetchone()
+        assert other is not None
+        conn.execute(
+            "insert into project_members (project_id, user_id) values (%s, %s)",
+            (project[0], other[0]),
+        )
+        row = conn.execute("select count(*) from project_members").fetchone()
+        assert row == (1,)
         conn.execute("delete from projects where id = %s", (project[0],))
 
         row = conn.execute("select count(*) from project_members").fetchone()

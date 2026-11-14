@@ -1,11 +1,20 @@
 from uuid import UUID
 
 from sqlalchemy import exists, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from project_hub.core.exceptions import ConflictError
 from project_hub.projects.entities import NewProject, Project, ProjectAccess, ProjectRole
 from project_hub.projects.models import ProjectMemberModel, ProjectModel
 from project_hub.users.models import UserModel
+
+_MEMBER_CONSTRAINT = "pk_project_members"
+
+
+def _is_member_conflict(error: IntegrityError) -> bool:
+    diag = getattr(error.orig, "diag", None)
+    return getattr(diag, "constraint_name", None) == _MEMBER_CONSTRAINT
 
 
 def _to_entity(model: ProjectModel) -> Project:
@@ -51,3 +60,13 @@ class OrmProjectRepository:
             return None
         project = _to_entity(row[0])
         return ProjectAccess(project=project, owner_login=row[1], role=_role(project, user_id))
+
+    async def add_member(self, project_id: UUID, user_id: UUID) -> None:
+        try:
+            async with self._session.begin_nested():
+                self._session.add(ProjectMemberModel(project_id=project_id, user_id=user_id))
+                await self._session.flush()
+        except IntegrityError as err:
+            if _is_member_conflict(err):
+                raise ConflictError("User is already a participant of this project") from err
+            raise
