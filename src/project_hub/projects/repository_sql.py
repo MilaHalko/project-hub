@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, LiteralString
 from uuid import UUID
 
 import psycopg
@@ -6,9 +6,37 @@ from psycopg import errors
 from psycopg.rows import class_row, dict_row
 
 from project_hub.core.exceptions import ConflictError
-from project_hub.projects.entities import NewProject, Project, ProjectAccess, ProjectRole
+from project_hub.projects.entities import (
+    NewProject,
+    Project,
+    ProjectAccess,
+    ProjectRole,
+    project_role,
+)
 
 _MEMBER_CONSTRAINT = "pk_project_members"
+
+_IS_MEMBER = (
+    "EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = p.id AND m.user_id = %(user_id)s)"
+)
+_ACCESS_CONDITION: dict[ProjectRole | None, LiteralString] = {
+    None: f"(p.owner_id = %(user_id)s OR {_IS_MEMBER})",
+    ProjectRole.OWNER: "p.owner_id = %(user_id)s",
+    ProjectRole.PARTICIPANT: f"(p.owner_id <> %(user_id)s AND {_IS_MEMBER})",
+}
+_SELECT_ACCESS = (
+    "SELECT p.id, p.owner_id, p.name, p.description, p.created_at, p.updated_at, "
+    "u.login AS owner_login "
+    "FROM projects p JOIN users u ON u.id = p.owner_id "
+)
+
+
+def _to_access(row: dict[str, Any], user_id: UUID) -> ProjectAccess:
+    owner_login = row.pop("owner_login")
+    project = Project(**row)
+    return ProjectAccess(
+        project=project, owner_login=owner_login, role=project_role(project.owner_id, user_id)
+    )
 
 
 class SqlProjectRepository:
@@ -37,20 +65,25 @@ class SqlProjectRepository:
     async def get_for_user(self, project_id: UUID, user_id: UUID) -> ProjectAccess | None:
         async with self._conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                "SELECT p.id, p.owner_id, p.name, p.description, p.created_at, p.updated_at, "
-                "u.login AS owner_login "
-                "FROM projects p JOIN users u ON u.id = p.owner_id "
-                "WHERE p.id = %s AND (p.owner_id = %s OR EXISTS ("
-                "SELECT 1 FROM project_members m WHERE m.project_id = p.id AND m.user_id = %s))",
-                (project_id, user_id, user_id),
+                _SELECT_ACCESS + f"WHERE p.id = %(project_id)s AND {_ACCESS_CONDITION[None]}",
+                {"project_id": project_id, "user_id": user_id},
             )
             row = await cur.fetchone()
         if row is None:
             return None
-        owner_login = row.pop("owner_login")
-        project = Project(**row)
-        role = ProjectRole.OWNER if project.owner_id == user_id else ProjectRole.PARTICIPANT
-        return ProjectAccess(project=project, owner_login=owner_login, role=role)
+        return _to_access(row, user_id)
+
+    async def list_for_user(
+        self, user_id: UUID, *, role: ProjectRole | None, limit: int, offset: int
+    ) -> list[ProjectAccess]:
+        async with self._conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                _SELECT_ACCESS + f"WHERE {_ACCESS_CONDITION[role]} "
+                "ORDER BY p.updated_at DESC, p.id DESC LIMIT %(limit)s OFFSET %(offset)s",
+                {"user_id": user_id, "limit": limit, "offset": offset},
+            )
+            rows = await cur.fetchall()
+        return [_to_access(row, user_id) for row in rows]
 
     async def add_member(self, project_id: UUID, user_id: UUID) -> None:
         await self._conn.execute("SAVEPOINT add_member")

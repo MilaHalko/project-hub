@@ -1,5 +1,6 @@
 from uuid import UUID, uuid4
 
+import psycopg
 import pytest
 
 from project_hub.core.exceptions import ConflictError
@@ -112,3 +113,125 @@ async def test_add_member_unknown_ids_raise_and_uow_stays_usable(database: Datab
     assert not isinstance(unknown_user.value, ConflictError)
     async with database.unit_of_work() as uow:
         assert await uow.projects.get_for_user(second.id, owner.id) is not None
+
+
+def _set_updated_at(database_url: str, project_ids: list[UUID], ago: str) -> None:
+    with psycopg.connect(database_url) as conn:
+        conn.execute(
+            "UPDATE projects SET updated_at = now() - %s::interval WHERE id = ANY(%s)",
+            (ago, project_ids),
+        )
+
+
+async def test_list_for_user_returns_owned_and_shared_newest_first(
+    database: Database, migrated_database_url: str
+) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        old = await uow.projects.add(NewProject(mila.id, "Old", ""))
+        new = await uow.projects.add(NewProject(mila.id, "New", ""))
+        shared = await uow.projects.add(NewProject(anna.id, "Shared", ""))
+        await uow.projects.add(NewProject(anna.id, "Private", ""))
+        await uow.projects.add_member(shared.id, mila.id)
+        await uow.commit()
+    _set_updated_at(migrated_database_url, [old.id], "2 days")
+    _set_updated_at(migrated_database_url, [shared.id], "1 day")
+
+    async with database.unit_of_work() as uow:
+        listed = await uow.projects.list_for_user(mila.id, role=None, limit=50, offset=0)
+        expected = [
+            await uow.projects.get_for_user(project.id, mila.id) for project in (new, shared, old)
+        ]
+
+    assert listed == expected
+    assert [access.role for access in listed] == [
+        ProjectRole.OWNER,
+        ProjectRole.PARTICIPANT,
+        ProjectRole.OWNER,
+    ]
+    assert [access.owner_login for access in listed] == ["mila", "anna", "mila"]
+
+
+async def test_list_for_user_ties_ordered_by_id_desc(
+    database: Database, migrated_database_url: str
+) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        projects = [await uow.projects.add(NewProject(mila.id, f"P{i}", "")) for i in range(3)]
+        await uow.commit()
+    _set_updated_at(migrated_database_url, [project.id for project in projects], "1 hour")
+
+    async with database.unit_of_work() as uow:
+        listed = await uow.projects.list_for_user(mila.id, role=None, limit=50, offset=0)
+
+    assert [access.project.id for access in listed] == sorted(
+        (project.id for project in projects), reverse=True
+    )
+
+
+async def test_list_for_user_filters_by_role(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        owned = await uow.projects.add(NewProject(mila.id, "Owned", ""))
+        shared = await uow.projects.add(NewProject(anna.id, "Shared", ""))
+        await uow.projects.add(NewProject(anna.id, "Private", ""))
+        await uow.projects.add_member(shared.id, mila.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        as_owner = await uow.projects.list_for_user(
+            mila.id, role=ProjectRole.OWNER, limit=50, offset=0
+        )
+        as_participant = await uow.projects.list_for_user(
+            mila.id, role=ProjectRole.PARTICIPANT, limit=50, offset=0
+        )
+
+    assert [(a.project.id, a.role) for a in as_owner] == [(owned.id, ProjectRole.OWNER)]
+    assert [(a.project.id, a.role) for a in as_participant] == [
+        (shared.id, ProjectRole.PARTICIPANT)
+    ]
+
+
+async def test_list_for_user_pages_with_limit_and_offset(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        for i in range(5):
+            await uow.projects.add(NewProject(mila.id, f"P{i}", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        full = await uow.projects.list_for_user(mila.id, role=None, limit=50, offset=0)
+        pages = [
+            await uow.projects.list_for_user(mila.id, role=None, limit=2, offset=offset)
+            for offset in (0, 2, 4)
+        ]
+
+    assert len(full) == 5
+    assert [len(page) for page in pages] == [2, 2, 1]
+    assert [access for page in pages for access in page] == full
+
+
+async def test_list_for_user_owner_listed_once_even_if_member(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, mila.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        listed = await uow.projects.list_for_user(mila.id, role=None, limit=50, offset=0)
+        owned = await uow.projects.list_for_user(
+            mila.id, role=ProjectRole.OWNER, limit=50, offset=0
+        )
+        shared = await uow.projects.list_for_user(
+            mila.id, role=ProjectRole.PARTICIPANT, limit=50, offset=0
+        )
+
+    assert (
+        listed
+        == owned
+        == [ProjectAccess(project=project, owner_login="mila", role=ProjectRole.OWNER)]
+    )
+    assert shared == []
