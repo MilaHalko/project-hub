@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Hub — F2 projects mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --muted:#6b6b73; --line:#e7e7ea; --soft:#fafafa; --violet:#5b4ce0; --violet-bg:#efedff; --violet-ink:#3a2fa8; --mint:#0f9d76; --mint-bg:#e3f6ef; --mint-ink:#0b6b51; --danger:#b42318;
+    --holo: linear-gradient(115deg, #ffc9a8 0%, #ffe9a8 20%, #c4f0dc 40%, #bfe2ff 60%, #ddcbff 80%, #ffc6d8 100%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; font-size: 14px; background: #e9e9ec; color: var(--ink); padding: 32px 24px 64px; }
+  .label { max-width: 1180px; margin: 40px auto 12px; font-size: 15px; color: #444; line-height: 1.5; }
+  .label b { font-size: 18px; color: #111; margin-right: 8px; }
+  .frame { max-width: 1180px; margin: 0 auto; border-radius: 16px; overflow: hidden; background: #fff; border: 1px solid #ddd; position: relative; }
+  .pair { max-width: 1180px; margin: 0 auto; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .phone { width: 375px; flex: none; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid #ddd; position: relative; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 520px; }
+  aside { border-right: 1px solid var(--line); padding: 20px 14px; background: var(--soft); }
+  .logo { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; margin-bottom: 22px; }
+  .logo i { width: 24px; height: 24px; border-radius: 7px; background: var(--holo); border: 1px solid #111; }
+  .nav a { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .nav a.on { background: var(--violet-bg); color: var(--violet-ink); font-weight: 600; }
+  main { padding: 24px 28px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--soft); }
+  .phone main { padding: 16px; }
+
+  .btn { background: var(--ink); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: 600 13px Inter, sans-serif; white-space: nowrap; }
+  .btn2 { background: #fff; color: var(--ink); border: 1px solid #d9d9de; border-radius: 8px; padding: 9px 14px; font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .btn-danger { background: var(--danger); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: 600 13px Inter, sans-serif; }
+  .btn-danger[disabled], .btn[disabled] { opacity: .45; }
+  .btn2.danger { color: var(--danger); border-color: #f3c3bd; }
+
+  .banner { border-radius: 14px; padding: 26px 28px; background: var(--holo); margin-bottom: 18px; }
+  .banner .tag { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: .5px; }
+  .banner h1 { margin: 6px 0 4px; font-family: 'Space Mono', monospace; font-size: 32px; letter-spacing: -1px; line-height: 1.15; overflow-wrap: anywhere; }
+  .banner p { margin: 0; color: #2b2b30; max-width: 70ch; white-space: pre-line; }
+  .phone .banner { padding: 20px; } .phone .banner h1 { font-size: 26px; }
+  .head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .head .actions { display: flex; gap: 8px; flex: none; }
+  .phone .head { flex-direction: column; } .phone .head .actions { width: 100%; } .phone .head .actions button { flex: 1; }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; padding: 3px; background: var(--soft); }
+  .tabs span { padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .tabs span.on { background: #fff; color: var(--ink); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+  .phone .toolbar { flex-direction: column; align-items: stretch; } .phone .tabs { display: flex; } .phone .tabs span { flex: auto; text-align: center; padding: 11px 8px; }
+
+  .tbl { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); background: var(--soft); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 12px 14px; border-bottom: 1px solid #f1f1f3; vertical-align: top; } tr:last-child td { border-bottom: 0; }
+  td a.name { font-weight: 600; color: var(--ink); text-decoration: none; } td a.name:hover { color: var(--violet); text-decoration: underline; }
+  td small { display: block; color: var(--muted); margin-top: 2px; max-width: 56ch; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  td.meta { color: var(--muted); white-space: nowrap; }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+  .own { background: var(--violet-bg); color: var(--violet-ink); } .par { background: var(--mint-bg); color: var(--mint-ink); }
+  .more { display: flex; justify-content: center; margin-top: 14px; }
+
+  .cards { border: 1px solid var(--line); border-radius: 10px; }
+  .card { padding: 12px 14px; border-bottom: 1px solid #f1f1f3; display: grid; gap: 4px; }
+  .card:last-child { border-bottom: 0; }
+  .card .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .card a { font-weight: 600; color: var(--ink); text-decoration: none; }
+  .card small { color: var(--muted); font-size: 12px; }
+  .card .desc { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .empty { border: 1px solid var(--line); border-radius: 10px; padding: 40px 24px; text-align: center; }
+  .empty h2 { margin: 0 0 6px; font-size: 17px; }
+  .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 46ch; }
+  .err { border: 1px solid #f3c3bd; background: #fff7f6; border-radius: 10px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .err p { margin: 0; }
+  .skel td span { display: block; height: 10px; border-radius: 99px; background: #efeff2; }
+
+  .details { border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; }
+  .details div { padding: 14px 16px; border-right: 1px solid var(--line); } .details div:last-child { border-right: 0; }
+  .details dt { color: var(--muted); font-size: 12px; margin-bottom: 4px; } .details dd { margin: 0; font-weight: 500; }
+  .phone .details { grid-template-columns: 1fr; } .phone .details div { border-right: 0; border-bottom: 1px solid var(--line); } .phone .details div:last-child { border-bottom: 0; }
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 12px; } .crumbs a { color: var(--violet); text-decoration: none; font-weight: 500; }
+
+  .scrim { position: absolute; inset: 0; background: rgba(17,17,17,.38); display: grid; place-items: center; padding: 16px; }
+  .dialog { background: #fff; border-radius: 14px; width: 100%; max-width: 460px; padding: 22px 24px; box-shadow: 0 18px 48px rgba(17,17,17,.22); }
+  .dialog h2 { margin: 0 0 16px; font-size: 18px; }
+  .dialog p { margin: 0 0 14px; line-height: 1.5; }
+  .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .phone .scrim { place-items: end center; padding: 0; } .phone .dialog { border-radius: 16px 16px 0 0; max-width: none; } .phone .dialog .btns { flex-direction: column-reverse; } .phone .dialog .btns button { width: 100%; height: 42px; }
+  .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .field input, .field textarea { width: 100%; border: 1px solid #d9d9de; border-radius: 8px; padding: 9px 12px; font: 14px Inter, sans-serif; color: var(--ink); }
+  .field input { height: 40px; } .field textarea { min-height: 110px; resize: vertical; line-height: 1.45; }
+  .field .hint { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .field.bad input { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+  .field .msg { color: var(--danger); font-size: 12px; margin-top: 6px; }
+  .toast { position: absolute; right: 20px; bottom: 20px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; display: flex; gap: 10px; align-items: center; box-shadow: 0 8px 24px rgba(17,17,17,.08); font-weight: 500; }
+  .toast i { width: 18px; height: 18px; border-radius: 50%; background: var(--mint); color: #fff; font-style: normal; font-size: 11px; display: grid; place-items: center; }
+  .phone .toast { left: 16px; right: 16px; justify-content: center; }
+  .note { max-width: 1180px; margin: 10px auto 0; color: #555; font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="label"><b>1. Projects list</b> Tabs All / Owned / Shared with me (kept in the address: <code>/projects?role=owner</code>). Columns only from data the API has today; the name is the link to the project page. "Show more" appears only when a 21st project came back.</div>
+<div class="frame">
+  <div class="app">
+    <aside>
+      <div class="logo"><i></i>Project Hub</div>
+      <nav class="nav"><a class="on" href="#">▣ Projects</a><a href="#">◯ Profile</a><a href="#">↩ Log out</a></nav>
+    </aside>
+    <main>
+      <div class="banner">
+        <div class="tag">HI, ALEX</div>
+        <h1>Your projects</h1>
+        <p>Projects you own and projects you were invited to.</p>
+      </div>
+      <div class="toolbar">
+        <div class="tabs" role="tablist"><span class="on">All</span><span>Owned</span><span>Shared with me</span></div>
+        <button class="btn">+ New project</button>
+      </div>
+      <div class="tbl"><table>
+        <tr><th>Project</th><th>Role</th><th>Owner</th><th>Updated</th></tr>
+        <tr><td><a class="name" href="#">Website redesign</a><small>New home page, catalogue and order form for a coffee shop</small></td><td><span class="pill own">Owner</span></td><td class="meta">alex (you)</td><td class="meta" title="Nov 15, 2026, 10:42">2 hours ago</td></tr>
+        <tr><td><a class="name" href="#">Thesis materials</a><small>Chapter drafts, references and the reading list</small></td><td><span class="pill par">Participant</span></td><td class="meta">sam</td><td class="meta">yesterday</td></tr>
+        <tr><td><a class="name" href="#">Final project</a><small>Requirements, architecture, slides</small></td><td><span class="pill own">Owner</span></td><td class="meta">alex (you)</td><td class="meta">Nov 12</td></tr>
+        <tr><td><a class="name" href="#">Reading club</a><small style="font-style:italic">No description</small></td><td><span class="pill par">Participant</span></td><td class="meta">anna</td><td class="meta">Nov 3</td></tr>
+      </table></div>
+      <div class="more"><button class="btn2">Show more</button></div>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>2. List states</b> First load: three grey placeholder rows. Error: one line and a retry. Empty: All and Owned invite to create (the toolbar button hides, so there is one primary button); Shared with me only explains.</div>
+<div class="frame"><main>
+  <div class="toolbar"><div class="tabs"><span class="on">All</span><span>Owned</span><span>Shared with me</span></div><button class="btn">+ New project</button></div>
+  <div class="tbl"><table class="skel">
+    <tr><th>Project</th><th>Role</th><th>Owner</th><th>Updated</th></tr>
+    <tr><td><span style="width:46%"></span><span style="width:70%;margin-top:8px"></span></td><td><span style="width:60px"></span></td><td><span style="width:40px"></span></td><td><span style="width:70px"></span></td></tr>
+    <tr><td><span style="width:38%"></span><span style="width:58%;margin-top:8px"></span></td><td><span style="width:60px"></span></td><td><span style="width:40px"></span></td><td><span style="width:70px"></span></td></tr>
+    <tr><td><span style="width:52%"></span><span style="width:64%;margin-top:8px"></span></td><td><span style="width:60px"></span></td><td><span style="width:40px"></span></td><td><span style="width:70px"></span></td></tr>
+  </table></div>
+  <div style="height:20px"></div>
+  <div class="err" role="alert"><p>Couldn't load your projects.</p><button class="btn2">Try again</button></div>
+  <div style="height:20px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="empty"><h2>Create your first project</h2><p>A project keeps your documents and the people you work with in one place.</p><button class="btn">+ New project</button></div>
+    <div class="empty"><h2>Nothing shared with you yet</h2><p>When someone invites you to a project, it shows up here.</p></div>
+  </div>
+</main></div>
+
+<div class="label"><b>3. New project dialog</b> The same dialog edits a project (title "Edit project", button "Save changes"). The name is checked before sending; the counter shows the description limit. After "Create project" the new project page opens with the toast "Project created".</div>
+<div class="frame" style="min-height:560px">
+  <div class="app" style="filter:saturate(.9)">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">▣ Projects</a><a href="#">◯ Profile</a><a href="#">↩ Log out</a></nav></aside>
+    <main><div class="banner"><div class="tag">HI, ALEX</div><h1>Your projects</h1><p>Projects you own and projects you were invited to.</p></div></main>
+  </div>
+  <div class="scrim" style="grid-template-columns:repeat(2, 460px);gap:24px">
+    <div class="dialog" role="dialog" aria-labelledby="d1">
+      <h2 id="d1">New project</h2>
+      <div class="field"><label>Name</label><input value="Website redesign"></div>
+      <div class="field"><label>Description <span style="color:var(--muted);font-weight:400">(optional)</span></label><textarea>New home page, catalogue and order form for a coffee shop.</textarea><div class="hint"><span></span><span>57 / 2000</span></div></div>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn">Create project</button></div>
+    </div>
+    <div class="dialog" role="dialog" aria-labelledby="d2">
+      <h2 id="d2">Edit project</h2>
+      <div class="field bad"><label>Name</label><input value=""><div class="msg">Enter a project name.</div></div>
+      <div class="field"><label>Description <span style="color:var(--muted);font-weight:400">(optional)</span></label><textarea>New home page, catalogue and order form for a coffee shop.</textarea><div class="hint"><span></span><span>57 / 2000</span></div></div>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn">Save changes</button></div>
+    </div>
+  </div>
+</div>
+<p class="note">Form errors: empty name "Enter a project name."; over 100 characters "Use 100 characters or fewer."; tab or line break in the name "Remove tabs and line breaks from the name."; description over 2000 "Use 2000 characters or fewer." A 422 the form did not foresee is shown above the buttons as the API's own text. Network down: "Couldn't create the project. Try again." (edit: "Couldn't save the changes. Try again."); the dialog stays open with what was typed.</p>
+
+<div class="label"><b>4. Project page, owner</b> Holographic header with role badge, name, description, Edit and Delete project. Below it the facts the API returns today. Documents (F4) and members (F3) appear under it later; no empty placeholders now.</div>
+<div class="frame">
+  <div class="app" style="min-height:440px">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">▣ Projects</a><a href="#">◯ Profile</a><a href="#">↩ Log out</a></nav></aside>
+    <main>
+      <div class="crumbs"><a href="#">Projects</a> / Website redesign</div>
+      <div class="banner">
+        <div class="head">
+          <div><span class="pill own" style="background:#fff">Owner</span>
+            <h1>Website redesign</h1>
+            <p>New home page, catalogue and order form for a coffee shop.
+Deadline: end of November.</p></div>
+          <div class="actions"><button class="btn2">Edit</button><button class="btn2 danger">Delete project</button></div>
+        </div>
+      </div>
+      <dl class="details">
+        <div><dt>Owner</dt><dd>alex (you)</dd></div>
+        <div><dt>Created</dt><dd>Nov 12, 2026</dd></div>
+        <div><dt>Updated</dt><dd title="Nov 15, 2026, 10:42">2 hours ago</dd></div>
+      </dl>
+    </main>
+  </div>
+  <div class="toast"><i>✓</i>Project created</div>
+</div>
+
+<div class="label"><b>5. Project page, participant</b> Same header with the mint badge; Edit only. The server still refuses a participant's delete (403), Swagger shows that at the defense.</div>
+<div class="frame">
+  <div class="app" style="min-height:380px">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">▣ Projects</a><a href="#">◯ Profile</a><a href="#">↩ Log out</a></nav></aside>
+    <main>
+      <div class="crumbs"><a href="#">Projects</a> / Thesis materials</div>
+      <div class="banner"><div class="head">
+        <div><span class="pill par" style="background:#fff">Participant</span><h1>Thesis materials</h1><p>Chapter drafts, references and the reading list.</p></div>
+        <div class="actions"><button class="btn2">Edit</button></div>
+      </div></div>
+      <dl class="details">
+        <div><dt>Owner</dt><dd>sam</dd></div>
+        <div><dt>Created</dt><dd>Oct 28, 2026</dd></div>
+        <div><dt>Updated</dt><dd>yesterday</dd></div>
+      </dl>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>6. Delete confirmation</b> The owner types the project name; "Delete project" stays disabled until it matches exactly. After deleting: back to the list, toast "Project deleted".</div>
+<div class="frame" style="min-height:440px">
+  <div class="app" style="min-height:440px">
+    <aside><div class="logo"><i></i>Project Hub</div></aside>
+    <main><div class="banner"><h1>Website redesign</h1></div></main>
+  </div>
+  <div class="scrim" style="grid-template-columns:repeat(2, 460px);gap:24px">
+    <div class="dialog" role="alertdialog" aria-labelledby="d3">
+      <h2 id="d3">Delete this project?</h2>
+      <p>This deletes <b>Website redesign</b> with all its documents and removes everyone's access. You can't undo this.</p>
+      <div class="field"><label>Type the project name to confirm</label><input value="Website red"></div>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn-danger" disabled>Delete project</button></div>
+    </div>
+    <div class="dialog" role="alertdialog" aria-labelledby="d4">
+      <h2 id="d4">Delete this project?</h2>
+      <p>This deletes <b>Website redesign</b> with all its documents and removes everyone's access. You can't undo this.</p>
+      <div class="field"><label>Type the project name to confirm</label><input value="Website redesign"></div>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn-danger">Delete project</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="label"><b>7. Project not found</b> Unknown id, a deleted project, or one without access: the API answers 404 to all three, so the page says the same.</div>
+<div class="frame">
+  <div class="app" style="min-height:300px">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">▣ Projects</a><a href="#">◯ Profile</a><a href="#">↩ Log out</a></nav></aside>
+    <main><div class="empty" style="margin-top:24px"><h2>Project not found</h2><p>It may have been deleted, or you don't have access to it.</p><button class="btn2">Back to projects</button></div></main>
+  </div>
+</div>
+
+<div class="label"><b>8. Phone, 375 px</b> List as cards, tabs full width; project page stacks; dialogs slide up from the bottom with full-width buttons.</div>
+<div class="pair">
+  <div class="phone">
+    <div class="topbar"><div class="logo" style="margin:0"><i></i>Project Hub</div><button class="btn2">☰ Menu</button></div>
+    <main>
+      <div class="banner"><div class="tag">HI, ALEX</div><h1>Your projects</h1><p>Projects you own and projects you were invited to.</p></div>
+      <div class="toolbar"><div class="tabs"><span class="on">All</span><span>Owned</span><span>Shared with me</span></div><button class="btn" style="height:40px">+ New project</button></div>
+      <div class="cards">
+        <div class="card"><div class="top"><a href="#">Website redesign</a><span class="pill own">Owner</span></div><div class="desc">New home page, catalogue and order form for a coffee shop</div><small>alex (you), updated 2 hours ago</small></div>
+        <div class="card"><div class="top"><a href="#">Thesis materials</a><span class="pill par">Participant</span></div><div class="desc">Chapter drafts, references and the reading list</div><small>sam, updated yesterday</small></div>
+        <div class="card"><div class="top"><a href="#">Final project</a><span class="pill own">Owner</span></div><div class="desc">Requirements, architecture, slides</div><small>alex (you), updated Nov 12</small></div>
+      </div>
+      <div class="more"><button class="btn2" style="width:100%;height:40px">Show more</button></div>
+    </main>
+  </div>
+  <div class="phone">
+    <div class="topbar"><div class="logo" style="margin:0"><i></i>Project Hub</div><button class="btn2">☰ Menu</button></div>
+    <main>
+      <div class="crumbs"><a href="#">Projects</a> / Website redesign</div>
+      <div class="banner"><div class="head">
+        <div><span class="pill own" style="background:#fff">Owner</span><h1>Website redesign</h1><p>New home page, catalogue and order form for a coffee shop.</p></div>
+        <div class="actions"><button class="btn2">Edit</button><button class="btn2 danger">Delete project</button></div>
+      </div></div>
+      <dl class="details">
+        <div><dt>Owner</dt><dd>alex (you)</dd></div>
+        <div><dt>Created</dt><dd>Nov 12, 2026</dd></div>
+        <div><dt>Updated</dt><dd>2 hours ago</dd></div>
+      </dl>
+    </main>
+  </div>
+  <div class="phone" style="min-height:620px">
+    <div class="topbar"><div class="logo" style="margin:0"><i></i>Project Hub</div><button class="btn2">☰ Menu</button></div>
+    <main><div class="banner"><h1>Website redesign</h1></div></main>
+    <div class="scrim">
+      <div class="dialog" role="alertdialog" aria-labelledby="d5">
+        <h2 id="d5">Delete this project?</h2>
+        <p>This deletes <b>Website redesign</b> with all its documents and removes everyone's access. You can't undo this.</p>
+        <div class="field"><label>Type the project name to confirm</label><input value=""></div>
+        <div class="btns"><button class="btn2">Cancel</button><button class="btn-danger" disabled>Delete project</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
