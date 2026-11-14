@@ -88,6 +88,7 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 |---|---|
 | `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
+| `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
 
 ## Auth
 
@@ -156,9 +157,83 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
 
 - Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
   count failed attempts per login and per IP and answer `429` after a threshold.
-- `DELETE /users/me` is not implemented; it comes after epic 4.
+- `DELETE /users/me` is not implemented; it comes after epic 6, because deleting a user must also
+  delete their projects and their S3 files. Until then `projects.owner_id` is `RESTRICT`, so a
+  user who owns projects cannot be deleted. The planned endpoint answers a clear `409` such as
+  `{"detail": "Delete your projects first"}`, never a bare `500`, and the frontend explains why
+  and links to "My projects" (`GET /projects?role=owner`).
+- Projects: an owner cannot remove a participant and a participant cannot leave (needs invites,
+  epic 5); no search by name (`GET /projects?q=`); no total count for paging (ask for `limit + 1`
+  items); no index on `updated_at`; no transfer of ownership.
 - The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
   it is read from `X-Forwarded-For`).
+
+## Projects
+
+Every project route needs `Authorization: Bearer <access_token>` (`401` with
+`WWW-Authenticate: Bearer` otherwise).
+
+`POST /projects` takes `name` and `description` and answers `201` with the project; the caller
+becomes its owner:
+
+```json
+{
+  "id": "…",
+  "name": "Diploma",
+  "description": "Final project",
+  "owner": {"id": "…", "login": "mila"},
+  "my_role": "owner",
+  "created_at": "2026-11-14T10:00:00Z",
+  "updated_at": "2026-11-14T10:00:00Z"
+}
+```
+
+- `name`: leading and trailing whitespace is stripped, then 1-100 characters, with no control
+  character anywhere (Unicode category `Cc`: no newline, tab, NUL or U+007F); it is a one-line
+  title. Duplicate names are allowed, also for one owner.
+- `description`: 0-2000 characters, default `""`, kept exactly as sent (newlines and tabs are
+  fine); only NUL is rejected, because Postgres `text` cannot store it.
+- Breaking a rule gives `422`, never `500`, and nothing is stored.
+
+`GET /project/{project_id}/info` returns the same project for its owner. For anyone without
+access the answer is `404` `{"detail": "Project not found"}`, exactly as for an id that does not
+exist, so an outsider cannot tell that the project exists. An id that is not a UUID gives `422`.
+Participants (added by invites in epic 5) read and edit like the owner.
+
+`PUT /project/{project_id}/info` replaces both `name` and `description` with the same rules as
+creation and answers `200` with the updated project. The owner and participants may use it; the
+owner and `my_role` do not change. An omitted `description` becomes `""`, so send the current one
+to keep it. It sets `updated_at`, which moves the project to the top of `GET /projects`.
+Outsiders and unknown ids get the same `404` as for reading; a bad body gives `422` and changes
+nothing.
+
+`GET /projects` lists every project the caller owns or participates in, each in the same shape
+plus `"documents": []` (documents are filled in epic 6). The list is ordered by `updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
+Query parameters:
+
+- `limit`: 1-100, default 50; `offset`: 0-100000, default 0.
+- `role`: `owner` (only my projects) or `participant` (only projects shared with me); absent
+  means both.
+- Any other value gives `422`.
+
+The response is a plain list with no total count: to know whether there is a next page, ask for
+`limit + 1` items.
+
+`DELETE /project/{project_id}` deletes the project and answers `204` with no body. Only the owner
+may do it: a participant gets `403` `{"detail": "Only the project owner can delete the project"}`;
+an outsider or an unknown id gets the same `404` as for reading. The participants' access goes
+with the project (their `project_members` rows are removed).
+
+`GET /project/{project_id}/members` lists who has access: the owner first (`"role": "owner"`,
+`joined_at` equal to the project's `created_at`), then the participants in the order they joined
+(ties by login). Each item is `{"id", "login", "role", "joined_at"}`. The access rule is the same as
+for reading the project: the owner and participants get `200`, an outsider or an unknown id gets
+the `404` above. There is no paging, because a project has a handful of members. `avatar` comes
+with the frontend epic F1.
+
+Creating and deleting a project are logged at INFO by `project_hub.projects.service` as
+`project created` and `project deleted` with the login, user id and project id; the project name
+is not logged. Refused deletes (`403`, `404`) are not logged.
 
 ## Checks
 
