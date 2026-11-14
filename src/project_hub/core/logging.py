@@ -1,8 +1,13 @@
 import logging
 import sys
+from typing import TextIO
 
 _LOGGER_NAME = "project_hub"
 _FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+
+class _ProjectHubHandler(logging.StreamHandler[TextIO]):
+    """Marks the handler installed by `configure_logging`, so repeat calls do not add another."""
 
 
 def configure_logging() -> None:
@@ -13,8 +18,7 @@ def configure_logging() -> None:
     """
     logger = logging.getLogger(_LOGGER_NAME)
     logger.setLevel(logging.INFO)
-    if not any(getattr(h, "_project_hub", False) for h in logger.handlers):
-        handler = logging.StreamHandler(sys.stderr)
+    if not any(isinstance(h, _ProjectHubHandler) for h in logger.handlers):
+        handler = _ProjectHubHandler(sys.stderr)
         handler.setFormatter(logging.Formatter(_FORMAT))
-        handler._project_hub = True  # pyright: ignore[reportAttributeAccessIssue]
         logger.addHandler(handler)
