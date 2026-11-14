@@ -1,0 +1,32 @@
+.bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  overflow: hidden;
+  z-index: 1000;
+  background: var(--color-violet-bg);
+  pointer-events: none;
+}
+
+.runner {
+  width: 40%;
+  height: 100%;
+  background: var(--color-violet);
+  animation: slide 1.2s ease-in-out infinite;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runner {
+    width: 100%;
+    animation: none;
+  }
+}
