@@ -69,7 +69,7 @@ The ORM and non-ORM implementations must be interchangeable:
 | 2 | ✅ CI (PR #4) | GitHub Actions: lint, type check, tests for both DB backends, image build | 1b |
 | 8a | Terraform infrastructure | Persistent and ephemeral layers (see [AWS cost strategy](#aws-cost-strategy)) | 2 |
 | 8b | Deploy on merge | Push the image to ECR on every merge; deploy to ECS when the ephemeral layer is up | 8a |
-| 3 | 🚧 Users and auth | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency | 1b |
+| 3 | ✅ Users and auth (PR #8) | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency; extras: `POST /logout`, `GET /users/me`, `PUT /users/me/password`, security events log | 1b |
 | 4 | Projects and access | Project CRUD, owner/participant roles, access checks on every request, owner-only delete | 3 |
 | 5 | Invites | `POST /project/<id>/invite?user=<login>`, owner only | 4 |
 | 6 | Documents and S3 | Upload, download, update and delete documents; delete files with the project | 4 |
