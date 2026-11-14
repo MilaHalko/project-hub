@@ -52,8 +52,7 @@ class OrmUserRepository:
         return None if model is None else _to_entity(model)
 
     async def increment_token_version(self, user_id: UUID) -> User | None:
-        # One UPDATE ... SET token_version = token_version + 1 (atomic, no read first).
-        # populate_existing refreshes a UserModel already loaded in this session.
+        # Without populate_existing, a UserModel already loaded in this session keeps stale values.
         statement = (
             update(UserModel)
             .where(UserModel.id == user_id)
@@ -65,7 +64,6 @@ class OrmUserRepository:
         return None if model is None else _to_entity(model)
 
     async def update_password(self, user_id: UUID, password_hash: str) -> User | None:
-        # Same single-statement pattern as increment_token_version: hash and version together.
         statement = (
             update(UserModel)
             .where(UserModel.id == user_id)
