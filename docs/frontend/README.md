@@ -1,8 +1,9 @@
 # Frontend docs
 
-The web frontend of Project Hub: a React app served by the API at `/app/`. It is
-an addition beyond the spec and has its own plan, separate from the backend
-roadmap.
+The web frontend of Project Hub: a React app in its own nginx container, which
+also proxies the API under `/api/`. It is an addition beyond the spec and has
+its own plan, separate from the backend roadmap. The code and how to run it:
+[`frontend/README.md`](../../frontend/README.md).
 
 | File | What it holds |
 |---|---|

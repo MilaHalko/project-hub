@@ -31,13 +31,13 @@ an addition beyond the spec; the backend plan lives in
 
 | # | Epic | Scope | Depends on |
 |---|---|---|---|
-| F0 | Scaffold and shell | `frontend/` with Vite, React, TypeScript, ESLint, Prettier, Vitest, Playwright with `@axe-core/playwright`; CI jobs `frontend` and `e2e`; Node stage in the Dockerfile and `.dockerignore` entries; FastAPI serves `/app/` with the SPA fallback, cache headers and the security headers (CSP, `Referrer-Policy`, `nosniff`); style tokens and self-hosted fonts; app shell: sidebar layout, global loader bar, toasts, not-found page. Proven by a first end-to-end test that opens `/app/` with the axe check | the tooling PR #9 (`add-frontend-feature` skill) merged and the plugins `frontend-design`, `design`, `playwright` installed; no API epic |
+| F0 | Scaffold and shell | `frontend/` with Vite, React, TypeScript, ESLint, Prettier, Vitest, Playwright with `@axe-core/playwright`; workflow `frontend.yml` with jobs `frontend` and `e2e`; `frontend/Dockerfile` (Node build, then nginx) with the SPA fallback, cache headers, security headers (CSP, `Referrer-Policy`, `nosniff`) and the API proxied under `/api/`; `frontend/compose.yml` adding the `web` service; no backend change; style tokens and self-hosted fonts; app shell: sidebar layout, global loader bar, toasts, not-found page. Proven by a first end-to-end test that opens the app with the axe check | the tooling PR #9 (`add-frontend-feature` skill) merged and the plugins `frontend-design`, `design`, `playwright` installed; no API epic |
 | F1 | Sign in and profile | Register, log in, log out, session expired on 401, token in `sessionStorage`, guarded routes; profile page with password change. Default avatars derived from the user id (frontend only) | F0, 3 ✅ |
 | F1b | Avatar picker | Backend slice: `users.avatar`, migration, both repository backends, `PATCH /users/me` with the preset names, avatar in the `owner` object and in `GET /project/<id>/members`; frontend: picker on the profile page | F1, 4 (migration order and the `owner` object) |
 | F2 | Projects | Projects list with tabs All / Owned / Shared with me, "Show more" paging, empty state; create and edit project; project page with the holographic header; delete for the owner only, with confirmation | 4 |
 | F3 | Members and invites | Invite by login (owner only); members panel with avatars and roles | 5 (members list comes with 4) |
 | F4 | Documents | Upload (drag and drop or picker, pdf/docx), list with sizes, download, replace, delete with confirmation; the used-space bar appears by itself when 7a adds the fields | 6 (space bar: 7a) |
-| F5 | Share and join | "Send a link by email" form (owner); join landing page `/app/join`; the `GET /join` browser redirect if epic 10 takes the proposal | 10 |
+| F5 | Share and join | "Send a link by email" form (owner); join landing page `/join` on the web app; the `GET /join` browser redirect only if epic 10 chooses it | 10 |
 | F6 | Ready for the defense | One end-to-end test for the whole demo scenario (two users, eight steps); phone-width pass on every screen; `design:accessibility-review`; README section "How to demo" (UI part and Swagger part) | F1–F5; before checkpoint 4 (final demo) |
 
 ## Order and parallel work
@@ -93,7 +93,7 @@ before it is built.
   user who still owns projects gets 409 (`projects.owner_id` is `ON DELETE
   RESTRICT`). The UI shows a dialog that explains the account still owns
   projects and cannot be deleted yet, with a link to "My projects"
-  (`/app/projects?role=owner`, backed by `GET /projects?role=owner`), so a
+  (`/projects?role=owner`, backed by `GET /projects?role=owner`), so a
   delete never looks like a silent failure. Requested by the user via epic 4.
 - **Search in the projects list.** Client-side filter of loaded projects.
 - **Upload progress bar.** Needs `XMLHttpRequest` (`fetch` reports no upload
@@ -111,5 +111,6 @@ Rejected: PDF preview in the browser (cost, no docx), a second UI language.
 | HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo | backend 8a |
 | Document download: through the API or a presigned S3 URL | backend 6 |
 | Direct browser upload to S3 (needs a bucket CORS rule) or through the API | backend 6 |
-| `GET /join`: redirect to `/app/join` (proposed) or email links straight to `/app/join` | backend 10 |
+| `GET /join`: email links to the web app's `/join` page (proposed) or the API redirects a browser there | backend 10 |
+| Cloud hosting of the frontend: S3 static site or a second container; it does not touch backend 8a and 8b | frontend, after F6 |
 | Share by email: owner only, like invites? | backend 10 |
