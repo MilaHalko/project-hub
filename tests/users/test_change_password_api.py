@@ -52,6 +52,18 @@ def test_wrong_current_password_is_400_and_changes_nothing(api_client: TestClien
     assert api_client.post("/login", json={"login": "mila", "password": NEW}).status_code == 401
 
 
+def test_non_english_current_password_is_400_not_422(api_client: TestClient) -> None:
+    register(api_client)
+    token = login(api_client)
+    r = api_client.put(
+        "/users/me/password",
+        headers=bearer(token),
+        json={"current_password": "пароль-12345", "new_password": NEW, "repeat_new_password": NEW},
+    )
+    assert r.status_code == 400
+    assert r.json() == {"detail": "Current password is incorrect"}
+
+
 @pytest.mark.parametrize(
     ("new", "repeat"),
     [
