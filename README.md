@@ -191,6 +191,7 @@ becomes its owner:
 `GET /project/{project_id}/info` returns the same project for its owner. For anyone without
 access the answer is `404` `{"detail": "Project not found"}`, exactly as for an id that does not
 exist, so an outsider cannot tell that the project exists. An id that is not a UUID gives `422`.
+Participants (added by invites in epic 5) read and edit like the owner.
 
 Creating a project is logged at INFO by `project_hub.projects.service` as `project created`
 with the login, user id and project id; the project name is not logged.
