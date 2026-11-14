@@ -5,6 +5,8 @@ import psycopg
 from psycopg_pool import AsyncConnectionPool
 
 from project_hub.db.urls import psycopg_url
+from project_hub.projects.repository import ProjectRepository
+from project_hub.projects.repository_sql import SqlProjectRepository
 from project_hub.users.repository import UserRepository
 from project_hub.users.repository_sql import SqlUserRepository
 
@@ -15,6 +17,7 @@ class SqlUnitOfWork:
     """One pooled connection; anything not committed is rolled back on exit."""
 
     users: UserRepository
+    projects: ProjectRepository
 
     def __init__(self, pool: AsyncConnectionPool[psycopg.AsyncConnection[Any]]) -> None:
         self._pool = pool
@@ -35,6 +38,7 @@ class SqlUnitOfWork:
         # Not `pool.connection()`: its context manager commits an open transaction on exit.
         self._conn = await self._pool.getconn()
         self.users = SqlUserRepository(self._conn)
+        self.projects = SqlProjectRepository(self._conn)
         return self
 
     async def __aexit__(
