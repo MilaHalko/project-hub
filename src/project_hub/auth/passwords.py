@@ -15,7 +15,6 @@ class PasswordHasher:
         return await to_thread.run_sync(self._hasher.hash, password)
 
     async def verify(self, password_hash: str, password: str) -> bool:
-        """Return False on a wrong password or an unparseable hash; never raise for those."""
         try:
             return await to_thread.run_sync(self._hasher.verify, password_hash, password)
         except (VerificationError, InvalidHashError):

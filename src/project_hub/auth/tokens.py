@@ -37,7 +37,6 @@ class TokenService:
         return jwt.encode(claims, self._secret, algorithm=ALGORITHM)  # pyright: ignore[reportUnknownMemberType]
 
     def decode(self, token: str) -> TokenClaims:
-        """Verify signature (HS256 only), expiry and claims; raise ``AuthenticationError``."""
         try:
             claims = jwt.decode(  # pyright: ignore[reportUnknownMemberType]
                 token,
