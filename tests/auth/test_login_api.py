@@ -50,6 +50,13 @@ def test_password_is_checked_exactly_as_typed(api_client: TestClient) -> None:
     assert trimmed.status_code == 401
 
 
+def test_login_with_non_english_password_is_401_not_422(api_client: TestClient) -> None:
+    register(api_client)
+    r = api_client.post("/login", json={"login": "mila", "password": "пароль-12345"})
+    assert r.status_code == 401
+    assert r.json() == {"detail": "Invalid login or password"}
+
+
 def test_login_without_jwt_secret_is_500(migrated_database_url: str) -> None:
     settings = IsolatedSettings(database_url=SecretStr(migrated_database_url))
     assert settings.jwt_secret is None

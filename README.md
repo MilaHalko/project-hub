@@ -97,8 +97,10 @@ on success it answers `201` with `id`, `login` and `created_at` (never the passw
 - `login`: 3-32 characters from `A-Z a-z 0-9 _ . -`, case-sensitive, never trimmed. A taken
   login gives `409`.
 - `password`: 8-128 characters of printable ASCII only (English letters, digits, keyboard
-  symbols and spaces; Cyrillic, accents, emoji, tabs and newlines give `422`), stored exactly as typed, and it must not equal the login.
-  `repeat_password` must match it.
+  symbols and spaces; Cyrillic, accents, emoji, tabs and newlines give `422`), stored exactly
+  as typed, and it must not equal the login. `repeat_password` must match it. The rule applies
+  to new passwords only: the `password` of `/login` and `current_password` accept any characters,
+  so a wrong one is a `401` or `400`, never a `422`.
 - Invalid input gives `422`. The error list never echoes the submitted values, so a rejected
   password does not end up in a response or a log.
 
@@ -134,17 +136,18 @@ and the next `POST /login` gives a working token again.
 `repeat_new_password` and answers `200` with a fresh token, like `/login`. The new hash and
 `token_version + 1` are stored in one statement, so every other session ends (old tokens get `401`).
 A wrong `current_password` gives `400`. `new_password` follows the same rules as at registration
-(8-128 printable ASCII characters, must match the repeat, must differ from the current one and from the login) and
-breaking them gives `422`. There are two `422` shapes: pydantic body errors are a list
-(`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the service and gives
-`{"detail": "Password must not equal the login"}`. Neither echoes the submitted passwords.
+(8-128 printable ASCII characters, must match the repeat, must differ from the current one and
+from the login) and breaking them gives `422`. There are two `422` shapes: pydantic body errors
+are a list (`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the
+service and gives `{"detail": "Password must not equal the login"}`. Neither echoes the
+submitted passwords.
 
 Security events are logged at INFO by `project_hub.auth.service` (`user registered`, `login
 succeeded`, `login failed`, `logout`, `password changed`) with the login and user id; passwords,
 hashes and tokens never appear in the log. An unknown login in `login failed` is masked to its
-first two characters (`my***`), since it may be a password typed into the login field. The app writes `project_hub.*` records at INFO and
-above to stderr (also under `uvicorn`); a missing `APP_JWT_SECRET` logs one startup warning
-(`APP_JWT_SECRET is not set; login is disabled`).
+first two characters (`my***`), since it may be a password typed into the login field. The app
+writes `project_hub.*` records at INFO and above to stderr (also under `uvicorn`); a missing
+`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`).
 
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
