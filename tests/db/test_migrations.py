@@ -68,6 +68,7 @@ def test_upgrade_creates_users_table(fresh_database_url: str) -> None:
         ("login", "text", "NO"),
         ("password_hash", "text", "NO"),
         ("created_at", "timestamp with time zone", "NO"),
+        ("token_version", "integer", "NO"),
     }
     constraints = _fetchall(
         fresh_database_url,
@@ -95,7 +96,37 @@ def test_downgrade_then_upgrade_round_trip(fresh_database_url: str) -> None:
 def test_upgrade_twice_is_noop(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     upgrade(fresh_database_url)
-    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0001",)]
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0002",)]
+
+
+def _users_columns(url: str) -> set[object]:
+    rows = _fetchall(
+        url,
+        "select column_name from information_schema.columns "
+        "where table_schema = 'public' and table_name = 'users'",
+    )
+    return {row[0] for row in rows}
+
+
+def test_token_version_defaults_to_zero_for_existing_rows(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url, "0001")
+    with psycopg.connect(fresh_database_url) as conn:
+        conn.execute("insert into users (login, password_hash) values ('old', 'h')")
+
+    upgrade(fresh_database_url)
+
+    rows = _fetchall(fresh_database_url, "select token_version from users where login = 'old'")
+    assert rows == [(0,)]
+
+
+def test_downgrade_to_0001_drops_token_version(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+    assert "token_version" in _users_columns(fresh_database_url)
+
+    downgrade(fresh_database_url, "0001")
+
+    assert _users_exists(fresh_database_url)
+    assert "token_version" not in _users_columns(fresh_database_url)
 
 
 def test_orm_metadata_matches_migrated_schema(fresh_database_url: str) -> None:

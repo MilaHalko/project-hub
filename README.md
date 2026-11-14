@@ -84,6 +84,82 @@ poetry run alembic revision -m "describe the change"
 Then fill in `upgrade()` and `downgrade()` in the new file under
 `src/project_hub/db/migrations/versions/`.
 
+| Revision | Change |
+|---|---|
+| `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
+| `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
+
+## Auth
+
+`POST /auth` registers a user. The JSON body takes `login`, `password` and `repeat_password`;
+on success it answers `201` with `id`, `login` and `created_at` (never the password or its hash).
+
+- `login`: 3-32 characters from `A-Z a-z 0-9 _ . -`, case-sensitive, never trimmed. A taken
+  login gives `409`.
+- `password`: 8-128 characters of printable ASCII only (English letters, digits, keyboard
+  symbols and spaces; Cyrillic, accents, emoji, tabs and newlines give `422`), stored exactly
+  as typed, and it must not equal the login. `repeat_password` must match it. The rule applies
+  to new passwords only: the `password` of `/login` and `current_password` accept any characters,
+  so a wrong one is a `401` or `400`, never a `422`.
+- Invalid input gives `422`. The error list never echoes the submitted values, so a rejected
+  password does not end up in a response or a log.
+
+Passwords are stored as Argon2id hashes (`argon2-cffi` defaults); the random salt and the
+parameters live inside the hash string, so there is no separate salt column. Hashing runs in a
+worker thread so it does not block the event loop.
+
+`POST /login` takes `login` and `password` and answers `200` with
+`{"access_token", "token_type": "bearer", "expires_in": 3600}`. The token is a JWT (HS256) valid
+for exactly one hour. An unknown login and a wrong password give the same `401`
+(`Invalid login or password`) and take about the same time (the password is verified against a
+dummy hash when the login does not exist).
+
+`APP_JWT_SECRET` signs the tokens: at least 32 characters, never committed. Generate one with
+`python -c "import secrets; print(secrets.token_urlsafe(32))"`. An empty or whitespace-only
+value counts as not set; without it the app starts and `/health` works, but `POST /login` answers
+`500` (logged). A too-short value stops the start with an error that does not print the value, and
+database errors are logged without bound parameters (no password hashes in logs).
+
+`GET /users/me` returns the current user (`id`, `login`, `created_at`). Send the token as
+`Authorization: Bearer <access_token>`. The token is checked for signature (HS256 only), expiry and
+the required claims (`sub`, `ver`, `iat`, `exp`); the user must still exist and its `ver` must match
+the user's current `token_version`. Anything else, including a missing header, gives `401` with
+`WWW-Authenticate: Bearer`. In Swagger (`/docs`) click "Authorize" and paste the `access_token`
+from `POST /login`.
+
+`POST /logout` (with the token) answers `204` with no body and ends every session of the user, on
+every device. Each user has a `token_version` number that every token carries as its `ver` claim;
+logout adds one to it, so all tokens issued before (with the old `ver`) get `401` from then on,
+and the next `POST /login` gives a working token again.
+
+`PUT /users/me/password` (with the token) takes `current_password`, `new_password` and
+`repeat_new_password` and answers `200` with a fresh token, like `/login`. The new hash and
+`token_version + 1` are stored in one statement, so every other session ends (old tokens get `401`).
+A wrong `current_password` gives `400`. `new_password` follows the same rules as at registration
+(8-128 printable ASCII characters, must match the repeat, must differ from the current one and
+from the login) and breaking them gives `422`. There are two `422` shapes: pydantic body errors
+are a list (`{"detail": [{"loc", "msg", "type"}]}`), while the login rule is checked in the
+service and gives `{"detail": "Password must not equal the login"}`. Neither echoes the
+submitted passwords.
+
+Security events are logged at INFO by `project_hub.auth.service` (`user registered`, `login
+succeeded`, `login failed`, `logout`, `password changed`) with the login and user id; passwords,
+hashes and tokens never appear in the log. An unknown login in `login failed` is masked to its
+first two characters (`my***`), since it may be a password typed into the login field. The app
+writes `project_hub.*` records at INFO and above to stderr (also under `uvicorn`); a missing
+`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`).
+
+Later routes that need a logged-in user take the `CurrentUser` dependency
+(`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
+
+### Known limitations and future improvements
+
+- Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
+  count failed attempts per login and per IP and answer `429` after a threshold.
+- `DELETE /users/me` is not implemented; it comes after epic 4.
+- The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
+  it is read from `X-Forwarded-For`).
+
 ## Checks
 
 ```bash
@@ -127,6 +203,10 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   It lives outside `core/` because the Unit of Work imports feature repositories.
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
+- `auth/` holds registration, login and tokens: `passwords.py` (Argon2 hashing), `tokens.py`
+  (JWT issue and decode), `schemas.py`, `service.py`, `router.py` and `dependencies.py`
+  (`CurrentUser`). `users/` also has `router.py` (`GET /users/me`), `service.py` and
+  `schemas.py` for the user data other modules need.
 - Feature modules depend on `core/`; `core/` never imports from feature modules.
 - A module that needs another module calls that module's `service`, never its repository.
 - Tests mirror this layout under `tests/<feature>/`.
