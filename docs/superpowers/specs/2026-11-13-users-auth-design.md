@@ -265,7 +265,11 @@ time and cannot be told apart by timing.
 `auth/service.py` uses a module logger (`logging.getLogger(__name__)`) and logs
 at `INFO`: `user registered`, `login succeeded`, `login failed`, `logout`,
 `password changed`, each with the login (and user id when known). Never a
-password, a hash or a token.
+password, a hash or a token. For an unknown login only the first two characters
+are logged (`my***`), because it may be a password typed into the login field
+(user, 2026-11-14). The client IP address is not logged yet: it comes with
+epic 8, where behind the load balancer it has to be read from
+`X-Forwarded-For`.
 
 ### Database
 
@@ -384,7 +388,8 @@ Security units
     `POST /login` answers 500 with the generic body `{"detail": "Internal Server Error"}`.
 33. Registration, a successful and a failed login, logout and a password change
     each write one `INFO` log record from `project_hub.auth.service`; no record
-    contains the password, the hash or the token.
+    contains the password, the hash or the token; an unknown login is logged
+    masked as its first two characters plus `***`.
 
 Checked by commands in verification, not by pytest (testing rule)
 

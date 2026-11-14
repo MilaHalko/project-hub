@@ -141,7 +141,8 @@ breaking them gives `422`. There are two `422` shapes: pydantic body errors are 
 
 Security events are logged at INFO by `project_hub.auth.service` (`user registered`, `login
 succeeded`, `login failed`, `logout`, `password changed`) with the login and user id; passwords,
-hashes and tokens never appear in the log. The app writes `project_hub.*` records at INFO and
+hashes and tokens never appear in the log. An unknown login in `login failed` is masked to its
+first two characters (`my***`), since it may be a password typed into the login field. The app writes `project_hub.*` records at INFO and
 above to stderr (also under `uvicorn`); a missing `APP_JWT_SECRET` logs one startup warning
 (`APP_JWT_SECRET is not set; login is disabled`).
 
@@ -153,6 +154,8 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
 - Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
   count failed attempts per login and per IP and answer `429` after a threshold.
 - `DELETE /users/me` is not implemented; it comes after epic 4.
+- The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
+  it is read from `X-Forwarded-For`).
 
 ## Checks
 
