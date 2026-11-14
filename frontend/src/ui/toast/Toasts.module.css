@@ -85,11 +85,10 @@
 
 @media (max-width: 767.98px) {
   .wrapper {
-    right: auto;
-    left: 50%;
+    inset-inline: 16px;
     bottom: 16px;
-    transform: translateX(-50%);
-    width: calc(100vw - 32px);
+    width: auto;
+    max-width: none;
   }
 }
 
