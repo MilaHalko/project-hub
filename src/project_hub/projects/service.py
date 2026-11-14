@@ -41,3 +41,14 @@ async def list_projects(
     uow: UnitOfWork, user: User, *, role: ProjectRole | None, limit: int, offset: int
 ) -> list[ProjectAccess]:
     return await uow.projects.list_for_user(user.id, role=role, limit=limit, offset=offset)
+
+
+async def update_project(
+    uow: UnitOfWork, user: User, project_id: UUID, data: ProjectIn
+) -> ProjectAccess:
+    access = await get_project(uow, user, project_id)
+    updated = await uow.projects.update(project_id, data.name, data.description)
+    if updated is None:
+        raise NotFoundError("Project not found")
+    await uow.commit()
+    return ProjectAccess(project=updated, owner_login=access.owner_login, role=access.role)

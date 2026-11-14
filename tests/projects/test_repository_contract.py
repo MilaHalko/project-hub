@@ -235,3 +235,61 @@ async def test_list_for_user_owner_listed_once_even_if_member(database: Database
         == [ProjectAccess(project=project, owner_login="mila", role=ProjectRole.OWNER)]
     )
     assert shared == []
+
+
+async def test_update_changes_fields_and_updated_at(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", "Old"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        updated = await uow.projects.update(project.id, "Thesis", "New")
+        await uow.commit()
+
+    assert updated is not None
+    assert (updated.id, updated.owner_id) == (project.id, owner.id)
+    assert (updated.name, updated.description) == ("Thesis", "New")
+    assert updated.created_at == project.created_at
+    assert updated.updated_at > project.created_at
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+    assert access is not None
+    assert access.project == updated
+
+
+async def test_update_unknown_id_returns_none(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.update(uuid4(), "Thesis", "New") is None
+
+
+async def test_update_is_fresh_after_earlier_read(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", "Old"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        before = await uow.projects.get_for_user(project.id, owner.id)
+        await uow.projects.update(project.id, "Thesis", "New")
+        after = await uow.projects.get_for_user(project.id, owner.id)
+
+    assert before is not None
+    assert before.project.name == "Diploma"
+    assert after is not None
+    assert (after.project.name, after.project.description) == ("Thesis", "New")
+
+
+async def test_update_needs_commit(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", "Old"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.update(project.id, "Thesis", "New")
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+    assert access is not None
+    assert access.project == project

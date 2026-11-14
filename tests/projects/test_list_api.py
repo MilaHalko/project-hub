@@ -113,3 +113,21 @@ def test_boundary_query_is_accepted(api_client: TestClient, params: dict[str, in
     r = api_client.get("/projects", headers=bearer(token), params=params)
 
     assert r.status_code == 200
+
+
+def test_update_moves_project_to_top(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+    first = create_project(api_client, token, "First")
+    second = create_project(api_client, token, "Second")
+    third = create_project(api_client, token, "Third")
+    before = api_client.get("/projects", headers=bearer(token)).json()
+    assert [item["id"] for item in before] == [third["id"], second["id"], first["id"]]
+
+    r = api_client.put(
+        f"/project/{first['id']}/info", headers=bearer(token), json={"name": "Renamed"}
+    )
+
+    assert r.status_code == 200
+    after = api_client.get("/projects", headers=bearer(token)).json()
+    assert [item["id"] for item in after] == [first["id"], third["id"], second["id"]]
+    assert after[0]["name"] == "Renamed"
