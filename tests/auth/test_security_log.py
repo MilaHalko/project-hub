@@ -81,10 +81,11 @@ def test_failed_login_message_cannot_be_forged_with_newlines(
 ) -> None:
     with caplog.at_level(logging.INFO, logger=LOGGER):
         r = api_client.post(
-            "/login", json={"login": "mila\nlogin succeeded", "password": "wrong-pass-99"}
+            "/login", json={"login": "\nlogin succeeded", "password": "wrong-pass-99"}
         )
     assert r.status_code == 401
     (record,) = _auth_records(caplog)
+    assert _field(record, "login") == "\nl***"
     assert "\n" not in record.getMessage()
     assert _field(record, "event") == "login failed"
     assert not hasattr(record, "user_id")
