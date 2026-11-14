@@ -62,7 +62,6 @@ async def login(
 
 
 async def logout(uow: UnitOfWork, user: User) -> None:
-    """End every session of the user: tokens with the old version are refused from now on."""
     await users_service.revoke_tokens(uow, user.id)
     await uow.commit()
     _log_event("logout", user.login, user.id)
@@ -75,7 +74,6 @@ async def change_password(
     user: User,
     data: ChangePasswordRequest,
 ) -> TokenResponse:
-    """Replace the password; every older token stops working, a fresh one is returned."""
     if not await hasher.verify(user.password_hash, data.current_password.get_secret_value()):
         raise DomainError("Current password is incorrect")
     new_password = data.new_password.get_secret_value()

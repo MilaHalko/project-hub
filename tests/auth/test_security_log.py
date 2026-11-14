@@ -71,4 +71,4 @@ def test_failed_login_message_cannot_be_forged_with_newlines(
     (record,) = _auth_records(caplog)
     assert "\n" not in record.getMessage()
     assert _field(record, "event") == "login failed"
-    assert not hasattr(record, "user_id")  # unknown login: nobody to name
+    assert not hasattr(record, "user_id")
