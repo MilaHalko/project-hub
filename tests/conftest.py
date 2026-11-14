@@ -1,9 +1,12 @@
 import os
 from collections.abc import AsyncIterator, Iterator
 
+import argon2
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
+from project_hub.auth.passwords import PasswordHasher
 from project_hub.db.database import Database
 from project_hub.db.migrate import upgrade
 from project_hub.db.orm import OrmDatabase
@@ -19,10 +22,12 @@ from tests.support.database import (
     truncate_tables,
 )
 
+TEST_JWT_SECRET = "test-only-secret-" + "0" * 32
+
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("APP_NAME", "APP_DEBUG", "APP_DB_BACKEND", "APP_DATABASE_URL"):
+    for key in ("APP_NAME", "APP_DEBUG", "APP_DB_BACKEND", "APP_DATABASE_URL", "APP_JWT_SECRET"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -83,3 +88,22 @@ async def database(
             await db.close()
         finally:
             truncate_tables(migrated_database_url)
+
+
+@pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
+def api_client(request: pytest.FixtureRequest, migrated_database_url: str) -> Iterator[TestClient]:
+    settings = IsolatedSettings(
+        db_backend=request.param,
+        database_url=SecretStr(migrated_database_url),
+        jwt_secret=SecretStr(TEST_JWT_SECRET),
+    )
+    app = create_app(settings)
+    # Cheapest Argon2 parameters keep the tests fast; never use them outside tests.
+    app.state.password_hasher = PasswordHasher(
+        argon2.PasswordHasher.from_parameters(argon2.profiles.CHEAPEST)
+    )
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        truncate_tables(migrated_database_url)

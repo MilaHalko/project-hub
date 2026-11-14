@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,7 @@ def _to_entity(model: UserModel) -> User:
         login=model.login,
         password_hash=model.password_hash,
         created_at=model.created_at,
+        token_version=model.token_version,
     )
 
 
@@ -48,4 +49,27 @@ class OrmUserRepository:
     async def get_by_login(self, login: str) -> User | None:
         result = await self._session.execute(select(UserModel).where(UserModel.login == login))
         model = result.scalar_one_or_none()
+        return None if model is None else _to_entity(model)
+
+    async def increment_token_version(self, user_id: UUID) -> User | None:
+        # Without populate_existing, a UserModel already loaded in this session keeps stale values.
+        statement = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(token_version=UserModel.token_version + 1)
+            .returning(UserModel)
+            .execution_options(populate_existing=True)
+        )
+        model = (await self._session.execute(statement)).scalar_one_or_none()
+        return None if model is None else _to_entity(model)
+
+    async def update_password(self, user_id: UUID, password_hash: str) -> User | None:
+        statement = (
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(password_hash=password_hash, token_version=UserModel.token_version + 1)
+            .returning(UserModel)
+            .execution_options(populate_existing=True)
+        )
+        model = (await self._session.execute(statement)).scalar_one_or_none()
         return None if model is None else _to_entity(model)

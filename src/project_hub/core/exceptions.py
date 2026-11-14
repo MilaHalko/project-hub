@@ -20,3 +20,7 @@ class ConflictError(DomainError):
 
 class AuthenticationError(DomainError):
     """Raise when the caller's credentials are missing or invalid."""
+
+
+class ValidationFailedError(DomainError):
+    """Raise when the input is well-formed but breaks a business rule."""

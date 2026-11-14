@@ -23,7 +23,7 @@ class SqlUserRepository:
             async with self._conn.cursor(row_factory=class_row(User)) as cur:
                 await cur.execute(
                     "INSERT INTO users (login, password_hash) VALUES (%s, %s) "
-                    "RETURNING id, login, password_hash, created_at",
+                    "RETURNING id, login, password_hash, created_at, token_version",
                     (user.login, user.password_hash),
                 )
                 row = await cur.fetchone()
@@ -44,12 +44,29 @@ class SqlUserRepository:
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         return await self._fetch_one(
-            "SELECT id, login, password_hash, created_at FROM users WHERE id = %s", (user_id,)
+            "SELECT id, login, password_hash, created_at, token_version FROM users WHERE id = %s",
+            (user_id,),
         )
 
     async def get_by_login(self, login: str) -> User | None:
         return await self._fetch_one(
-            "SELECT id, login, password_hash, created_at FROM users WHERE login = %s", (login,)
+            "SELECT id, login, password_hash, created_at, token_version FROM users "
+            "WHERE login = %s",
+            (login,),
+        )
+
+    async def increment_token_version(self, user_id: UUID) -> User | None:
+        return await self._fetch_one(
+            "UPDATE users SET token_version = token_version + 1 WHERE id = %s "
+            "RETURNING id, login, password_hash, created_at, token_version",
+            (user_id,),
+        )
+
+    async def update_password(self, user_id: UUID, password_hash: str) -> User | None:
+        return await self._fetch_one(
+            "UPDATE users SET password_hash = %s, token_version = token_version + 1 "
+            "WHERE id = %s RETURNING id, login, password_hash, created_at, token_version",
+            (password_hash, user_id),
         )
 
     async def _fetch_one(self, query: LiteralString, params: tuple[object, ...]) -> User | None:
