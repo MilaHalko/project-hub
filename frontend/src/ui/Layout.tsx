@@ -2,6 +2,7 @@ import { LayoutGrid, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import styles from "./Layout.module.css";
+import { LoaderBar } from "./LoaderBar";
 
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -29,6 +30,7 @@ export function Layout() {
 
   return (
     <div className={styles.shell}>
+      <LoaderBar />
       <a className={styles.skip} href="#main">
         Skip to content
       </a>
