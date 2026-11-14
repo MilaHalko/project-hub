@@ -8,3 +8,4 @@ docs/
 .env
 .claude/
 dist/
+frontend/
