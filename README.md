@@ -157,7 +157,14 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
 
 - Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
   count failed attempts per login and per IP and answer `429` after a threshold.
-- `DELETE /users/me` is not implemented; it comes after epic 4.
+- `DELETE /users/me` is not implemented; it comes after epic 6, because deleting a user must also
+  delete their projects and their S3 files. Until then `projects.owner_id` is `RESTRICT`, so a
+  user who owns projects cannot be deleted. The planned endpoint answers a clear `409` such as
+  `{"detail": "Delete your projects first"}`, never a bare `500`, and the frontend explains why
+  and links to "My projects" (`GET /projects?role=owner`).
+- Projects: an owner cannot remove a participant and a participant cannot leave (needs invites,
+  epic 5); no search by name (`GET /projects?q=`); no total count for paging (ask for `limit + 1`
+  items); no index on `updated_at`; no transfer of ownership.
 - The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
   it is read from `X-Forwarded-For`).
 
@@ -212,8 +219,14 @@ Query parameters:
 The response is a plain list with no total count: to know whether there is a next page, ask for
 `limit + 1` items.
 
-Creating a project is logged at INFO by `project_hub.projects.service` as `project created`
-with the login, user id and project id; the project name is not logged.
+`DELETE /project/{project_id}` deletes the project and answers `204` with no body. Only the owner
+may do it: a participant gets `403` `{"detail": "Only the project owner can delete the project"}`;
+an outsider or an unknown id gets the same `404` as for reading. The participants' access goes
+with the project (their `project_members` rows are removed).
+
+Creating and deleting a project are logged at INFO by `project_hub.projects.service` as
+`project created` and `project deleted` with the login, user id and project id; the project name
+is not logged. Refused deletes (`403`, `404`) are not logged.
 
 ## Checks
 

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, exists, func, or_, select, update
+from sqlalchemy import ColumnElement, Select, delete, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -107,6 +107,12 @@ class OrmProjectRepository:
         )
         model = (await self._session.execute(statement)).scalar_one_or_none()
         return None if model is None else _to_entity(model)
+
+    async def delete(self, project_id: UUID) -> bool:
+        statement = (
+            delete(ProjectModel).where(ProjectModel.id == project_id).returning(ProjectModel.id)
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none() is not None
 
     async def add_member(self, project_id: UUID, user_id: UUID) -> None:
         try:

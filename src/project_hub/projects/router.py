@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from project_hub.auth.dependencies import CurrentUser
 from project_hub.db.dependencies import get_uow
@@ -47,3 +47,12 @@ async def update_project(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ProjectResponse:
     return ProjectResponse.from_access(await service.update_project(uow, user, project_id, data))
+
+
+@router.delete(
+    "/project/{project_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response
+)
+async def delete_project(
+    project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
+) -> None:
+    await service.delete_project(uow, user, project_id)

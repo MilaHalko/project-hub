@@ -95,6 +95,11 @@ class SqlProjectRepository:
             )
             return await cur.fetchone()
 
+    async def delete(self, project_id: UUID) -> bool:
+        async with self._conn.cursor() as cur:
+            await cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))
+            return cur.rowcount > 0
+
     async def add_member(self, project_id: UUID, user_id: UUID) -> None:
         await self._conn.execute("SAVEPOINT add_member")
         try:

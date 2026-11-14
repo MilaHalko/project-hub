@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from project_hub.core.exceptions import NotFoundError
+from project_hub.core.exceptions import NotFoundError, PermissionDeniedError
 from project_hub.db.uow import UnitOfWork
 from project_hub.projects.entities import NewProject, ProjectAccess, ProjectRole
 from project_hub.projects.schemas import ProjectIn
@@ -52,3 +52,13 @@ async def update_project(
         raise NotFoundError("Project not found")
     await uow.commit()
     return ProjectAccess(project=updated, owner_login=access.owner_login, role=access.role)
+
+
+async def delete_project(uow: UnitOfWork, user: User, project_id: UUID) -> None:
+    access = await get_project(uow, user, project_id)
+    if access.role is ProjectRole.PARTICIPANT:
+        raise PermissionDeniedError("Only the project owner can delete the project")
+    if not await uow.projects.delete(project_id):
+        raise NotFoundError("Project not found")
+    await uow.commit()
+    _log_event("project deleted", user, project_id)
