@@ -1,0 +1,35 @@
+:root {
+  --color-ink: #111111;
+  --color-muted: #6b6b73;
+  --color-line: #e7e7ea;
+  --color-soft: #fafafa;
+  --color-surface: #ffffff;
+  --color-violet: #5b4ce0;
+  --color-violet-bg: #efedff;
+  --color-violet-ink: #3a2fa8;
+  --color-mint: #0f9d76;
+  --color-mint-bg: #e3f6ef;
+  --color-mint-ink: #0b6b51;
+  --color-warn: #e0821b;
+  --color-danger: #b42318;
+  --holo: linear-gradient(
+    115deg,
+    #ffc9a8 0%,
+    #ffe9a8 20%,
+    #c4f0dc 40%,
+    #bfe2ff 60%,
+    #ddcbff 80%,
+    #ffc6d8 100%
+  );
+
+  --radius-control: 8px;
+  --radius-panel: 10px;
+  --radius-banner: 14px;
+  --radius-badge: 6px;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --text-body: 14px;
+  --text-table: 13px;
+  --text-small: 12px;
+}
