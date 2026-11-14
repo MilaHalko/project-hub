@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 from project_hub.db.base import Base
 from project_hub.db.migrate import downgrade, upgrade
 from project_hub.db.urls import sqlalchemy_url
+from project_hub.projects.models import ProjectMemberModel, ProjectModel
 from project_hub.users.models import UserModel
 from tests.support.database import DEFAULT_ADMIN_URL, create_test_database, drop_test_database
 
@@ -96,7 +97,7 @@ def test_downgrade_then_upgrade_round_trip(fresh_database_url: str) -> None:
 def test_upgrade_twice_is_noop(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     upgrade(fresh_database_url)
-    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0002",)]
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0003",)]
 
 
 def _users_columns(url: str) -> set[object]:
@@ -129,9 +130,122 @@ def test_downgrade_to_0001_drops_token_version(fresh_database_url: str) -> None:
     assert "token_version" not in _users_columns(fresh_database_url)
 
 
+def _columns(url: str, table: str) -> set[tuple[object, ...]]:
+    with psycopg.connect(url) as conn:
+        rows = conn.execute(
+            "select column_name, data_type, is_nullable from information_schema.columns "
+            "where table_schema = 'public' and table_name = %s",
+            (table,),
+        ).fetchall()
+    return set(rows)
+
+
+def _exists(url: str, table: str) -> bool:
+    with psycopg.connect(url) as conn:
+        row = conn.execute("select to_regclass(%s) is not null", (f"public.{table}",)).fetchone()
+    assert row is not None
+    return row[0] is True
+
+
+def test_upgrade_creates_projects_tables(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    assert _columns(fresh_database_url, "projects") == {
+        ("id", "uuid", "NO"),
+        ("owner_id", "uuid", "NO"),
+        ("name", "text", "NO"),
+        ("description", "text", "NO"),
+        ("created_at", "timestamp with time zone", "NO"),
+        ("updated_at", "timestamp with time zone", "NO"),
+    }
+    assert _columns(fresh_database_url, "project_members") == {
+        ("project_id", "uuid", "NO"),
+        ("user_id", "uuid", "NO"),
+        ("created_at", "timestamp with time zone", "NO"),
+    }
+    indexes = {
+        row[0]
+        for row in _fetchall(
+            fresh_database_url, "select indexname from pg_indexes where schemaname = 'public'"
+        )
+    }
+    assert {"ix_projects_owner_id", "ix_project_members_user_id"} <= indexes
+    constraints = {
+        row[0] for row in _fetchall(fresh_database_url, "select conname from pg_constraint")
+    }
+    assert {
+        "fk_projects_owner_id_users",
+        "ck_projects_name_length",
+        "ck_projects_description_length",
+        "fk_project_members_project_id_projects",
+        "fk_project_members_user_id_users",
+        "pk_project_members",
+    } <= constraints
+
+
+def test_projects_constraints_reject_bad_rows(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+    with psycopg.connect(fresh_database_url, autocommit=True) as conn:
+        owner = conn.execute(
+            "insert into users (login, password_hash) values ('mila', 'h') returning id"
+        ).fetchone()
+        member = conn.execute(
+            "insert into users (login, password_hash) values ('anna', 'h') returning id"
+        ).fetchone()
+        assert owner is not None
+        assert member is not None
+        for name in ("x" * 101, ""):
+            with pytest.raises(psycopg.errors.CheckViolation):
+                conn.execute(
+                    "insert into projects (owner_id, name) values (%s, %s)", (owner[0], name)
+                )
+        project = conn.execute(
+            "insert into projects (owner_id, name) values (%s, 'Diploma') returning id",
+            (owner[0],),
+        ).fetchone()
+        assert project is not None
+        conn.execute(
+            "insert into project_members (project_id, user_id) values (%s, %s)",
+            (project[0], member[0]),
+        )
+        with pytest.raises(psycopg.errors.RestrictViolation):
+            conn.execute("delete from users where id = %s", (owner[0],))
+
+        conn.execute("delete from users where id = %s", (member[0],))
+        row = conn.execute("select count(*) from project_members").fetchone()
+        assert row == (0,)
+
+        other = conn.execute(
+            "insert into users (login, password_hash) values ('bob', 'h') returning id"
+        ).fetchone()
+        assert other is not None
+        conn.execute(
+            "insert into project_members (project_id, user_id) values (%s, %s)",
+            (project[0], other[0]),
+        )
+        row = conn.execute("select count(*) from project_members").fetchone()
+        assert row == (1,)
+        conn.execute("delete from projects where id = %s", (project[0],))
+
+        row = conn.execute("select count(*) from project_members").fetchone()
+    assert row == (0,)
+
+
+def test_downgrade_to_0002_drops_projects(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    downgrade(fresh_database_url, "0002")
+
+    assert not _exists(fresh_database_url, "projects")
+    assert not _exists(fresh_database_url, "project_members")
+    assert _users_exists(fresh_database_url)
+
+
 def test_orm_metadata_matches_migrated_schema(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     assert UserModel.__tablename__ in Base.metadata.tables
+    assert ProjectModel.__tablename__ in Base.metadata.tables
+    assert ProjectMemberModel.__tablename__ in Base.metadata.tables
     engine = create_engine(sqlalchemy_url(fresh_database_url))
     try:
         with engine.connect() as conn:
