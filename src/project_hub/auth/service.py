@@ -42,6 +42,11 @@ async def register(uow: UnitOfWork, hasher: PasswordHasher, data: RegisterReques
     return user
 
 
+def _mask(login: str) -> str:
+    # An unknown login may actually be a password typed into the login field.
+    return login[:2] + "***"
+
+
 async def login(
     uow: UnitOfWork, hasher: PasswordHasher, tokens: TokenService, data: LoginRequest
 ) -> TokenResponse:
@@ -49,7 +54,7 @@ async def login(
     password = data.password.get_secret_value()
     if user is None:
         await hasher.verify_dummy(password)
-        _log_event("login failed", data.login)
+        _log_event("login failed", _mask(data.login))
         raise AuthenticationError("Invalid login or password")
     if not await hasher.verify(user.password_hash, password):
         _log_event("login failed", data.login, user.id)

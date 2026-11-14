@@ -58,6 +58,22 @@ def test_security_events_are_logged_without_secrets(
                 assert secret not in text
     assert _field(records[0], "login") == "mila"
     assert _field(records[0], "user_id") == UUID(str(registered.json()["id"]))
+    assert _field(records[1], "login") == "mila"  # known login, wrong password: logged in full
+
+
+def test_unknown_login_is_masked_in_the_log(
+    api_client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    typed_into_login = "my-secret-pw-123"  # e.g. a password typed into the login field
+    with caplog.at_level(logging.INFO, logger=LOGGER):
+        r = api_client.post("/login", json={"login": typed_into_login, "password": "x"})
+    assert r.status_code == 401
+    (record,) = _auth_records(caplog)
+    assert _field(record, "event") == "login failed"
+    assert _field(record, "login") == "my***"
+    assert "login='my***'" in record.getMessage()
+    assert typed_into_login not in record.getMessage()
+    assert typed_into_login not in str(record.__dict__)
 
 
 def test_failed_login_message_cannot_be_forged_with_newlines(
