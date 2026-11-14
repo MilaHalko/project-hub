@@ -31,6 +31,7 @@ End-to-end workflow for implementing a feature. Every phase below names a Superp
   - Prefer a real database (testcontainers / docker compose) over mocks for integration tests when the project supports it.
   - On an unexpected failure use `superpowers:systematic-debugging` — no guess-and-retry.
   - Commit per micro-feature as described in "Commits" in `CLAUDE.md`: one slice per commit with a plain-words subject; review and lint fixes are folded into the slice they belong to.
+  - Comments and docstrings follow "Comments" in `CLAUDE.md`: none by default, only a hidden reason that makes the code unsafe to change; never delete an existing one without the user asking.
 
 ## Phase 5 — Verify: `superpowers:verification-before-completion`
 - Run the full checks fresh: linter, type checker, full test suite. Report each command with its actual result (e.g. `poetry run pytest` → 48 passed).
