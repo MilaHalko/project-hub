@@ -1,6 +1,6 @@
 import unicodedata
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Any, Self
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, StringConstraints
@@ -59,3 +59,7 @@ class ProjectResponse(BaseModel):
             created_at=project.created_at,
             updated_at=project.updated_at,
         )
+
+
+class ProjectListItem(ProjectResponse):
+    documents: list[dict[str, Any]] = []

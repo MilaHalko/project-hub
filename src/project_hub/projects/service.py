@@ -35,3 +35,9 @@ async def get_project(uow: UnitOfWork, user: User, project_id: UUID) -> ProjectA
     if access is None:
         raise NotFoundError("Project not found")
     return access
+
+
+async def list_projects(
+    uow: UnitOfWork, user: User, *, role: ProjectRole | None, limit: int, offset: int
+) -> list[ProjectAccess]:
+    return await uow.projects.list_for_user(user.id, role=role, limit=limit, offset=offset)

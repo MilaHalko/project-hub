@@ -1,13 +1,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from project_hub.auth.dependencies import CurrentUser
 from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
 from project_hub.projects import service
-from project_hub.projects.schemas import ProjectIn, ProjectResponse
+from project_hub.projects.entities import ProjectRole
+from project_hub.projects.schemas import ProjectIn, ProjectListItem, ProjectResponse
 
 router = APIRouter(tags=["projects"])
 
@@ -17,6 +18,18 @@ async def create_project(
     data: ProjectIn, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
 ) -> ProjectResponse:
     return ProjectResponse.from_access(await service.create_project(uow, user, data))
+
+
+@router.get("/projects")
+async def list_projects(
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    role: ProjectRole | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0, le=100_000)] = 0,
+) -> list[ProjectListItem]:
+    accesses = await service.list_projects(uow, user, role=role, limit=limit, offset=offset)
+    return [ProjectListItem.from_access(access) for access in accesses]
 
 
 @router.get("/project/{project_id}/info")

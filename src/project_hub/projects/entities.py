@@ -9,6 +9,10 @@ class ProjectRole(StrEnum):
     PARTICIPANT = "participant"
 
 
+def project_role(owner_id: UUID, user_id: UUID) -> ProjectRole:
+    return ProjectRole.OWNER if owner_id == user_id else ProjectRole.PARTICIPANT
+
+
 @dataclass(frozen=True, slots=True)
 class NewProject:
     owner_id: UUID

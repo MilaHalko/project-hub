@@ -193,6 +193,18 @@ access the answer is `404` `{"detail": "Project not found"}`, exactly as for an 
 exist, so an outsider cannot tell that the project exists. An id that is not a UUID gives `422`.
 Participants (added by invites in epic 5) read and edit like the owner.
 
+`GET /projects` lists every project the caller owns or participates in, each in the same shape
+plus `"documents": []` (documents are filled in epic 6). The list is ordered by `updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
+Query parameters:
+
+- `limit`: 1-100, default 50; `offset`: 0-100000, default 0.
+- `role`: `owner` (only my projects) or `participant` (only projects shared with me); absent
+  means both.
+- Any other value gives `422`.
+
+The response is a plain list with no total count: to know whether there is a next page, ask for
+`limit + 1` items.
+
 Creating a project is logged at INFO by `project_hub.projects.service` as `project created`
 with the login, user id and project id; the project name is not logged.
 
