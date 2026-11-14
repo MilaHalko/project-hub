@@ -33,7 +33,8 @@ log in as Anna and get 404 for Mila's project.
 - Access is checked on every request through `CurrentUser`.
 - Additions accepted by the user (see [Beyond the spec](#beyond-the-spec)): a
   stable sort order, `limit`/`offset` paging and a `role` filter on
-  `GET /projects`, and security-log records for project creation and deletion.
+  `GET /projects`, security-log records for project creation and deletion, and
+  `GET /project/<id>/members` (requested by the frontend session).
 
 ## Non-goals
 
@@ -108,10 +109,11 @@ Proposed to the user with what, why and cost; decisions of 2026-11-14.
 | 2 | Paging `GET /projects?limit=&offset=`; the response stays a plain list | **accepted** |
 | 3 | Filter `GET /projects?role=owner\|participant` (tabs "My projects" / "Shared with me") | **accepted** |
 | 4 | Security-log records `project created` and `project deleted` | **accepted** |
-| 5 | Participant list in project info | postponed → [Future improvements](#future-improvements) |
+| 5 | Participant list in project info | superseded by #9, a separate endpoint |
 | 6 | Owner removes a participant; participant leaves a project | postponed → Future improvements |
 | 7 | `DELETE /users/me` | postponed → Future improvements |
 | 8 | Search by name `?q=` | rejected for now → Future improvements |
+| 9 | `GET /project/<id>/members`: who has access, owner first (the approved frontend mockup has a "Members" panel; requested by the frontend session) | **accepted** (replaces #5) |
 
 ## Design
 
@@ -121,13 +123,13 @@ New package `src/project_hub/projects/`, following `users/`:
 
 | File | Holds |
 |---|---|
-| `entities.py` | `ProjectRole` (`StrEnum`: `owner`, `participant`), `NewProject`, `Project`, `ProjectAccess` (frozen, slotted dataclasses) |
+| `entities.py` | `ProjectRole` (`StrEnum`: `owner`, `participant`), `NewProject`, `Project`, `ProjectAccess`, `ProjectMember` (frozen, slotted dataclasses) |
 | `repository.py` | `ProjectRepository` Protocol |
 | `models.py` | `ProjectModel`, `ProjectMemberModel` (SQLAlchemy) |
 | `repository_orm.py`, `repository_sql.py` | the two implementations |
 | `schemas.py` | request and response models |
 | `service.py` | access rules, logging; no HTTP |
-| `router.py` | the five routes |
+| `router.py` | the six routes |
 
 `db/uow.py` gets `projects: ProjectRepository`; `db/orm.py` and `db/sql.py` build
 the matching repository; `main.py` includes the router.
@@ -139,6 +141,9 @@ the matching repository; `main.py` includes the router.
 - `ProjectAccess(project: Project, owner_login: str, role: ProjectRole)` — a project
   as seen by one user: what the API returns needs the owner's login and the
   caller's role, and both come from the same query that checks access.
+- `ProjectMember(user_id: UUID, login: str, role: ProjectRole, joined_at: datetime)` —
+  one row of the members list; `joined_at` is the project's `created_at` for the
+  owner and `project_members.created_at` for a participant.
 
 ### Database — migration `0003`
 
@@ -198,6 +203,7 @@ class ProjectRepository(Protocol):
     async def update(self, project_id: UUID, name: str, description: str) -> Project | None: ...
     async def delete(self, project_id: UUID) -> bool: ...
     async def add_member(self, project_id: UUID, user_id: UUID) -> None: ...
+    async def list_members(self, project_id: UUID) -> list[ProjectMember]: ...
 ```
 
 - `get_for_user` returns `None` both when the project does not exist and when the
@@ -214,6 +220,8 @@ class ProjectRepository(Protocol):
   failures leave the Unit of Work usable (savepoint pattern from `users`). It does
   not check that the user is not the owner; that is the invite service's rule in
   epic 5.
+- `list_members` returns the owner first, then participants by `joined_at`, then
+  `login`; `[]` for an unknown project. It does not check access; the service does.
 
 ### Service and access rules
 
@@ -225,6 +233,7 @@ class ProjectRepository(Protocol):
 | `list_projects` | `list_for_user(caller, …)` |
 | `get_project` | `get_for_user`; `None` → `NotFoundError("Project not found")` |
 | `update_project` | `get_project` first (404 for outsiders), then `update`, commit; `None` from `update` (deleted meanwhile) → 404 |
+| `list_members` | `get_project` first (404 for outsiders), then `list_members` |
 | `delete_project` | `get_project` first (404 for outsiders); role `participant` → `PermissionDeniedError("Only the project owner can delete the project")`; `delete`, commit; log `project deleted` |
 
 **Seam for epic 6:** `delete_project` is the only way a project is deleted. Epic 6
@@ -250,6 +259,7 @@ that is not a UUID gives 422.
 | `GET /project/{id}/info` | 200, project | 404 |
 | `PUT /project/{id}/info` | 200, updated project | 404, 422 |
 | `DELETE /project/{id}` | 204, no body | 404 outsider, 403 participant |
+| `GET /project/{id}/members` | 200, `[{id, login, role, joined_at}]`, owner first | 404 |
 
 **Project in a response** (`ProjectResponse`):
 
@@ -286,6 +296,11 @@ that is not a UUID gives 422.
 **Query parameters of `GET /projects`:** `limit` 1–100, default 50; `offset`
 0–100000, default 0 (the upper bound keeps the value inside Postgres `bigint`);
 `role` `owner` or `participant`, default both. Anything else gives 422.
+
+**Members list** (`MemberResponse`): `{"id", "login", "role": "owner"|"participant",
+"joined_at"}`. No paging: a course-sized project has a handful of members. No
+`avatar` yet: the frontend epic F1 adds `users.avatar`, and the members response can
+gain it then.
 
 ### Docs
 
@@ -393,9 +408,21 @@ Migration
     (`CHECK`), and deleting a user who owns a project fails (`RESTRICT`).
 36. The ORM models match the migrated schema (`compare_metadata` is empty).
 
+Members — `GET /project/{id}/members` (addition 9)
+
+37. Given the owner of a project with two participants, then 200 and the list is
+    the owner (`role == "owner"`, `joined_at` == the project's `created_at`)
+    followed by both participants in the order they were added, each with `id`,
+    `login`, `role == "participant"` and `joined_at`.
+38. Given a participant, then the same list.
+39. Given an outsider or an unknown id, then 404 `{"detail": "Project not found"}`;
+    without a token, 401.
+40. Contract: `list_members` returns the owner first, then participants by
+    `joined_at`; `[]` for an unknown project; after `delete` of the project, `[]`.
+
 Checks
 
-37. `ruff check`, `ruff format --check`, `pyright` (strict) and the full `pytest`
+41. `ruff check`, `ruff format --check`, `pyright` (strict) and the full `pytest`
     (both backends and the `docker`-marked tests) are green locally and in CI.
 
 ## Future improvements
@@ -404,7 +431,6 @@ Recorded so they are not proposed again by accident.
 
 | Improvement | Why not now |
 |---|---|
-| Participant list in project info (`GET /project/<id>/info` shows who has access, owner first) | Before invites (epic 5) the list could hold only the owner; build it with invites |
 | Owner removes a participant; participant leaves a project | Needs invites (epic 5) to be meaningful |
 | `DELETE /users/me` | Deleting a user must delete their projects and, after epic 6, their S3 files; build it after epic 6 (`owner_id … RESTRICT` prevents an accidental half-delete until then). Planned behavior while the user still owns projects (user, 2026-11-14): a clear `409` such as `{"detail": "Delete your projects first"}`, never a bare 500, and the frontend shows a dialog that explains why and links to "My projects" (`GET /projects?role=owner`). The frontend session was told about this |
 | Search by name `GET /projects?q=` | Few projects per user; needs escaping of `%` and `_` in `ILIKE`; add when lists grow |
