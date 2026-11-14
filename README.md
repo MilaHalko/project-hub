@@ -4,6 +4,8 @@ Project Hub is a FastAPI service for managing projects. This repository holds th
 skeleton: an app factory, typed settings and a health endpoint. See
 [`docs/initial-spec.md`](docs/initial-spec.md) for the product spec.
 
+The web frontend lives in its own container; see [`frontend/README.md`](frontend/README.md).
+
 ## Requirements
 
 - Python 3.13 and [Poetry](https://python-poetry.org/) 2.2+.
