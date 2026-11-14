@@ -125,7 +125,7 @@ The demo scenario the UI must support end to end (F6 automates it):
 
 | Option | Trade-off | Decision |
 |---|---|---|
-| **Same repository: code in `frontend/`, docs in `docs/frontend/`** | One PR for a feature that touches API and UI, end-to-end tests run against the same `docker compose` stack, one repository for the mentor. Cost: two toolchains side by side. The frontend keeps its own Dockerfile, compose file and workflow inside `frontend/` and `.github/workflows/frontend.yml`, so the backend files stay untouched | **Chosen** (user, 2026-11-14) |
+| **Same repository: code in `frontend/`, docs in `docs/frontend/`** | End-to-end tests run against the same `docker compose` stack, one repository for the mentor. Cost: two toolchains side by side. The frontend keeps its own Dockerfile, compose file and workflow inside `frontend/` and `.github/workflows/frontend.yml`, so the backend files stay untouched. Frontend work never changes the backend: an API change the UI needs is a separate backend PR, merged first | **Chosen** (user, 2026-11-14) |
 | Separate repository | Fits separate teams with separate releases; here it would mean cross-repo image builds or separate hosting, CORS, two PRs merged in the right order | Rejected |
 
 The frontend's plan stays out of the backend roadmap. The backend roadmap gets
@@ -292,10 +292,11 @@ Component tests sit next to the component (`*.test.tsx`).
 - The choice is stored on the server so other users see it: a nullable
   `users.avatar` column holding the icon name only (never a file), a migration,
   both repository backends, and `PATCH /users/me` that accepts only the known
-  names (422 otherwise). This backend slice is built in frontend epic F1b with
-  the backend rules (TDD, both backends, `python-development` agents), after
-  epic 4 is merged: epic 4 adds migration `0003` and the `owner` object, so
-  running both at once would give Alembic two heads and conflicting edits.
+  names (422 otherwise). This is a separate backend task, built with the
+  `add-feature` skill in its own session, branch and PR, after epic 4 is merged
+  (epic 4 adds migration `0003` and the `owner` object, so running both at once
+  would give Alembic two heads and conflicting edits). It is merged before F1b;
+  F1b only uses the API.
 - With no choice stored, the frontend derives an icon from the user id, so
   everyone sees the same default everywhere.
 - Uploading one's own picture (S3) is a future improvement, see the roadmap.
