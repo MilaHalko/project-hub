@@ -7,7 +7,7 @@ _FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 
 class _ProjectHubHandler(logging.StreamHandler[TextIO]):
-    pass
+    """Marks the handler installed by `configure_logging`, so repeat calls do not add another."""
 
 
 def configure_logging() -> None:
