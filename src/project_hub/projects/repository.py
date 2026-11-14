@@ -1,7 +1,13 @@
 from typing import Protocol
 from uuid import UUID
 
-from project_hub.projects.entities import NewProject, Project, ProjectAccess, ProjectRole
+from project_hub.projects.entities import (
+    NewProject,
+    Project,
+    ProjectAccess,
+    ProjectMember,
+    ProjectRole,
+)
 
 
 class ProjectRepository(Protocol):
@@ -18,3 +24,5 @@ class ProjectRepository(Protocol):
     async def delete(self, project_id: UUID) -> bool: ...
 
     async def add_member(self, project_id: UUID, user_id: UUID) -> None: ...
+
+    async def list_members(self, project_id: UUID) -> list[ProjectMember]: ...

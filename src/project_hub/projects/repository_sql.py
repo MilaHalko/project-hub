@@ -10,6 +10,7 @@ from project_hub.projects.entities import (
     NewProject,
     Project,
     ProjectAccess,
+    ProjectMember,
     ProjectRole,
     project_role,
 )
@@ -117,3 +118,29 @@ class SqlProjectRepository:
                 raise ConflictError("User is already a participant of this project") from err
             raise
         await self._conn.execute("RELEASE SAVEPOINT add_member")
+
+    async def list_members(self, project_id: UUID) -> list[ProjectMember]:
+        async with self._conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT user_id, login, role, joined_at FROM ("
+                "SELECT u.id AS user_id, u.login, 'owner' AS role, 0 AS rank, "
+                "p.created_at AS joined_at "
+                "FROM projects p JOIN users u ON u.id = p.owner_id WHERE p.id = %(project_id)s "
+                "UNION ALL "
+                "SELECT u.id, u.login, 'participant', 1, m.created_at "
+                "FROM project_members m JOIN projects p ON p.id = m.project_id "
+                "JOIN users u ON u.id = m.user_id "
+                "WHERE m.project_id = %(project_id)s AND m.user_id <> p.owner_id"
+                ") members ORDER BY rank, joined_at, login",
+                {"project_id": project_id},
+            )
+            rows = await cur.fetchall()
+        return [
+            ProjectMember(
+                user_id=row["user_id"],
+                login=row["login"],
+                role=ProjectRole(row["role"]),
+                joined_at=row["joined_at"],
+            )
+            for row in rows
+        ]

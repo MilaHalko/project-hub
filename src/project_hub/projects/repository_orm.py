@@ -1,6 +1,16 @@
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, delete, exists, func, or_, select, update
+from sqlalchemy import (
+    ColumnElement,
+    Select,
+    delete,
+    exists,
+    func,
+    literal,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +19,7 @@ from project_hub.projects.entities import (
     NewProject,
     Project,
     ProjectAccess,
+    ProjectMember,
     ProjectRole,
     project_role,
 )
@@ -123,3 +134,41 @@ class OrmProjectRepository:
             if _is_member_conflict(err):
                 raise ConflictError("User is already a participant of this project") from err
             raise
+
+    async def list_members(self, project_id: UUID) -> list[ProjectMember]:
+        owner = (
+            select(
+                UserModel.id.label("user_id"),
+                UserModel.login.label("login"),
+                literal(0).label("rank"),
+                ProjectModel.created_at.label("joined_at"),
+            )
+            .join(ProjectModel, ProjectModel.owner_id == UserModel.id)
+            .where(ProjectModel.id == project_id)
+        )
+        participants = (
+            select(
+                UserModel.id.label("user_id"),
+                UserModel.login.label("login"),
+                literal(1).label("rank"),
+                ProjectMemberModel.created_at.label("joined_at"),
+            )
+            .join(ProjectMemberModel, ProjectMemberModel.user_id == UserModel.id)
+            .join(ProjectModel, ProjectModel.id == ProjectMemberModel.project_id)
+            .where(
+                ProjectMemberModel.project_id == project_id,
+                ProjectMemberModel.user_id != ProjectModel.owner_id,
+            )
+        )
+        union = owner.union_all(participants).subquery()
+        statement = select(union).order_by(union.c.rank, union.c.joined_at, union.c.login)
+        rows = (await self._session.execute(statement)).all()
+        return [
+            ProjectMember(
+                user_id=row.user_id,
+                login=row.login,
+                role=ProjectRole.OWNER if row.rank == 0 else ProjectRole.PARTICIPANT,
+                joined_at=row.joined_at,
+            )
+            for row in rows
+        ]
