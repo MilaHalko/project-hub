@@ -187,8 +187,9 @@ Open questions for the mentors (answers go here, decided by 8a at the latest):
 
 ## Frontend requests
 
-The project has a web frontend beyond the spec: a React app served by the API at
-`/app/`. Its plan lives apart from this roadmap, in
+The project has a web frontend beyond the spec: a React app in its own nginx
+container that proxies the API under `/api/`, so the API itself does not change
+for it. Its plan lives apart from this roadmap, in
 [`docs/frontend/`](../frontend/README.md) (design, epics F0–F6, style). This
 section lists what the frontend needs from the API, so each API epic sees it
 when it starts. An API epic that picks up a request treats it like any other
@@ -206,7 +207,7 @@ build it), **done** (merged), **later** (postponed).
 | Decide how `GET /document/<id>` downloads: file through the API or a presigned S3 URL | A clicked link cannot carry the `Authorization` header; the frontend adapts to either | 6 | F4 | proposed |
 | If uploads go straight to S3 with presigned URLs: a bucket CORS rule for the app's origin, and the bucket origin in the app's CSP `connect-src` | The browser calls S3 directly | 6, 8a | F4 | proposed |
 | Used space and limit per project in project responses | The used-space bar; hidden until these fields exist, no stub | 7a | F4 | proposed |
-| `GET /join` without an `Authorization` header from a browser answers `303` to `/app/join?token=…` (see the deferred question below) | A clicked email link carries no JWT | 10 | F5 | proposed |
+| The email links to the web app's `/join?token=…` page, which calls `GET /join` with the Bearer header; alternative: `GET /join` without an `Authorization` header from a browser answers `303` to that page (see the deferred question below) | A clicked email link carries no JWT | 10 | F5 | proposed |
 | HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo only | Passwords and tokens in plain text otherwise (Swagger too) | 8a | — | proposed |
 | Totals for the projects list (projects, documents, space) | Summary counters above the list; `GET /projects` has no total count | — | — | later |
 | `DELETE /users/me` answering 409 "Delete your projects first" while the user owns projects | Account deletion dialog that never fails silently | after 6 | — | later |
@@ -219,4 +220,4 @@ build it), **done** (merged), **later** (postponed).
 | Upload path: through the API or presigned S3 URL | 6 |
 | Which images exist for the resize Lambda (documents are only pdf and docx) | 7b |
 | Email share details | 10 |
-| How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry). Proposed by the [frontend plan](../frontend/2026-11-14-frontend-design.md#get-join-in-a-browser-proposal-for-epic-10): the email keeps the spec link `/join?token=…`; a browser request without a JWT gets `303` to the web page `/app/join?token=…`, which signs the user in and then calls `GET /join` with the header | 10 |
+| How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry). Proposed by the [frontend plan](../frontend/2026-11-14-frontend-design.md#get-join-in-a-browser-proposal-for-epic-10): the email links to the web app's page `/join?token=…`, which signs the user in and then calls `GET /join` with the header; the alternative keeps the spec link in the email and answers a browser request without a JWT with `303` to that page | 10 |
