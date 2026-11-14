@@ -293,3 +293,51 @@ async def test_update_needs_commit(database: Database) -> None:
         access = await uow.projects.get_for_user(project.id, owner.id)
     assert access is not None
     assert access.project == project
+
+
+def _member_count(database_url: str, project_id: UUID) -> int:
+    with psycopg.connect(database_url) as conn:
+        row = conn.execute(
+            "SELECT count(*) FROM project_members WHERE project_id = %s", (project_id,)
+        ).fetchone()
+    assert row is not None
+    return int(row[0])
+
+
+async def test_delete_removes_project_and_members(
+    database: Database, migrated_database_url: str
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, anna.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        deleted = await uow.projects.delete(project.id)
+        await uow.commit()
+
+    assert deleted is True
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.get_for_user(project.id, owner.id) is None
+        assert await uow.projects.get_for_user(project.id, anna.id) is None
+    assert _member_count(migrated_database_url, project.id) == 0
+
+
+async def test_delete_unknown_id_returns_false(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.delete(uuid4()) is False
+
+
+async def test_delete_needs_commit(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.delete(project.id)
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.get_for_user(project.id, owner.id) is not None
