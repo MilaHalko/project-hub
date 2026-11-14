@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Hub — approved look</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --muted:#6b6b73; --line:#e7e7ea; --soft:#fafafa; --violet:#5b4ce0; --violet-bg:#efedff; --violet-ink:#3a2fa8; --mint:#0f9d76; --mint-bg:#e3f6ef; --mint-ink:#0b6b51;
+    --holo: linear-gradient(115deg, #ffc9a8 0%, #ffe9a8 20%, #c4f0dc 40%, #bfe2ff 60%, #ddcbff 80%, #ffc6d8 100%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #e9e9ec; color: var(--ink); padding: 32px 24px 64px; }
+  .label { max-width: 1180px; margin: 36px auto 12px; font-size: 15px; color: #444; } .label b { font-size: 18px; color: #111; margin-right: 8px; }
+  .frame { max-width: 1180px; margin: 0 auto; border-radius: 16px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 540px; }
+  aside { border-right: 1px solid var(--line); padding: 20px 14px; background: var(--soft); }
+  .logo { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; margin-bottom: 22px; }
+  .logo i { width: 24px; height: 24px; border-radius: 7px; background: var(--holo); border: 1px solid #111; }
+  .nav a { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; color: inherit; text-decoration: none; font-size: 14px; }
+  .nav a.on { background: var(--violet-bg); color: var(--violet-ink); font-weight: 600; }
+  main { padding: 24px 28px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .btn { background: var(--ink); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 13px; }
+  .btn2 { background: #fff; color: var(--ink); border: 1px solid #d9d9de; border-radius: 8px; padding: 9px 14px; font-weight: 500; font-size: 13px; }
+  .banner { position: relative; border-radius: 14px; padding: 26px 28px; background: var(--holo); margin-bottom: 18px; overflow: hidden; }
+  .banner .tag { font-family: 'Space Mono', monospace; font-size: 12px; letter-spacing: .5px; }
+  .banner h1 { margin: 6px 0 4px; font-family: 'Space Mono', monospace; font-size: 32px; letter-spacing: -1px; }
+  .banner p { margin: 0; font-size: 14px; color: #2b2b30; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .stat small { color: var(--muted); font-size: 12px; } .stat div div { font-size: 26px; font-weight: 500; margin-top: 4px; }
+  .stat .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th { text-align: left; font-weight: 500; color: var(--muted); background: var(--soft); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  td { padding: 12px 14px; border-bottom: 1px solid #f1f1f3; } tr:last-child td { border-bottom: 0; }
+  td b { font-weight: 600; } td small { display: block; color: #888; }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+  .own { background: var(--violet-bg); color: var(--violet-ink); } .par { background: var(--mint-bg); color: var(--mint-ink); }
+  .bar { height: 6px; border-radius: 99px; background: #eee; width: 110px; display: inline-block; vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--violet), #8f7cff); }
+  .bar.hi i { background: linear-gradient(90deg, #e0821b, #f2a64a); }
+  .avs { display: flex; } .avs span { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; margin-left: -6px; font-size: 10px; display: grid; place-items: center; font-weight: 600; } .avs span:first-child { margin-left: 0; }
+  a.link { color: var(--violet); text-decoration: none; font-weight: 500; }
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .doc { display: grid; grid-template-columns: 34px 1fr 90px 110px 90px; align-items: center; gap: 12px; padding: 11px 14px; border-bottom: 1px solid #f1f1f3; font-size: 13px; }
+  .doc:last-child { border-bottom: 0; }
+  .ft { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+  .pdf { background: #ffe9e4; color: #a3341c; } .docx { background: #e6efff; color: #2353b8; }
+  .side { border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .side h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+  .member { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 6px 0; }
+  .member .av { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 600; background: #eee; }
+  .drop { border: 1.5px dashed #c9c3ff; background: #f8f7ff; border-radius: 10px; padding: 14px; text-align: center; font-size: 13px; color: var(--violet-ink); margin-bottom: 14px; }
+  .login { display: grid; grid-template-columns: 1fr 1fr; min-height: 460px; }
+  .login .art { background: var(--holo); padding: 40px; display: flex; flex-direction: column; justify-content: flex-end; }
+  .login .art h2 { font-family: 'Space Mono', monospace; font-size: 40px; letter-spacing: -1.5px; margin: 0 0 8px; }
+  .login .form { padding: 56px 64px; }
+  .field { margin-bottom: 14px; } .field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .field input { width: 100%; height: 40px; border: 1px solid #d9d9de; border-radius: 8px; padding: 0 12px; font-size: 14px; font-family: inherit; }
+</style>
+</head>
+<body>
+
+<div class="label"><b>1. Projects list</b> strict layout, holographic banner behind the title, violet and mint accents</div>
+<div class="frame">
+  <div class="app">
+    <aside>
+      <div class="logo"><i></i>Project Hub</div>
+      <nav class="nav">
+        <a class="on" href="#">▣ Projects</a>
+        <a href="#">◯ Profile</a>
+        <a href="#">↩ Log out</a>
+      </nav>
+    </aside>
+    <main>
+      <div class="banner">
+        <div class="tag">HI, ALEX</div>
+        <h1>Your projects</h1>
+        <p>Projects you own and projects you were invited to.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div><small>Projects</small><div>4</div></div><span class="ic" style="background:var(--violet-bg);color:var(--violet-ink)">▣</span></div>
+        <div class="stat"><div><small>Documents</small><div>23</div></div><span class="ic" style="background:var(--mint-bg);color:var(--mint-ink)">▤</span></div>
+        <div class="stat"><div><small>Space used</small><div>55 MB</div></div><span class="ic" style="background:#fff2e2;color:#9a5a0c">◔</span></div>
+      </div>
+      <div class="row" style="margin-bottom:12px"><b style="font-size:15px">All projects</b><button class="btn">+ New project</button></div>
+      <div class="tbl"><table>
+        <tr><th>Project</th><th>Role</th><th>Documents</th><th>Space</th><th>Members</th></tr>
+        <tr><td><b>Website redesign</b><small>New home page, catalogue and order form</small></td><td><span class="pill own">Owner</span></td><td>12</td><td><span class="bar"><i style="width:36%"></i></span>18 / 50 MB</td><td><div class="avs"><span style="background:var(--violet-bg)">AL</span><span style="background:var(--mint-bg)">SM</span><span style="background:#eee">+2</span></div></td></tr>
+        <tr><td><b>Thesis materials</b><small>Chapter drafts, references</small></td><td><span class="pill par">Participant</span></td><td>7</td><td><span class="bar hi"><i style="width:82%"></i></span>41 / 50 MB</td><td><div class="avs"><span style="background:var(--mint-bg)">SM</span><span style="background:var(--violet-bg)">AL</span></div></td></tr>
+        <tr><td><b>Final project</b><small>Requirements, architecture, slides</small></td><td><span class="pill own">Owner</span></td><td>4</td><td><span class="bar"><i style="width:12%"></i></span>6 / 50 MB</td><td><div class="avs"><span style="background:var(--violet-bg)">AL</span></div></td></tr>
+      </table></div>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>2. Project page</b> holographic banner behind the project name, documents, members, invite</div>
+<div class="frame">
+  <div class="app">
+    <aside>
+      <div class="logo"><i></i>Project Hub</div>
+      <nav class="nav">
+        <a class="on" href="#">▣ Projects</a>
+        <a href="#">◯ Profile</a>
+        <a href="#">↩ Log out</a>
+      </nav>
+    </aside>
+    <main>
+      <div class="crumbs"><a class="link" href="#">Projects</a> / Website redesign</div>
+      <div class="banner" style="padding:22px 26px">
+        <div class="row"><div><span class="pill own" style="background:#fff">Owner</span>
+          <h1 style="font-size:28px">Website redesign</h1>
+          <p>New home page, catalogue and order form for a coffee shop.</p></div>
+          <div style="display:flex;gap:8px;align-self:flex-start"><button class="btn2">Edit</button><button class="btn2" style="color:#b42318;border-color:#f3c3bd">Delete project</button></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:18px">
+        <div>
+          <div class="drop">Drop a PDF or DOCX here or <u>choose a file</u> · 18 of 50 MB used</div>
+          <div class="tbl">
+            <div class="doc"><span class="ft pdf">PDF</span><div><b>Client brief.pdf</b><small style="display:block;color:#888">updated yesterday</small></div><span>2.4 MB</span><span style="color:var(--muted)">alex</span><a class="link" href="#">Download</a></div>
+            <div class="doc"><span class="ft docx">DOCX</span><div><b>Site map.docx</b><small style="display:block;color:#888">Nov 12</small></div><span>0.8 MB</span><span style="color:var(--muted)">sam</span><a class="link" href="#">Download</a></div>
+            <div class="doc"><span class="ft pdf">PDF</span><div><b>Mockups v2.pdf</b><small style="display:block;color:#888">Nov 10</small></div><span>11.2 MB</span><span style="color:var(--muted)">alex</span><a class="link" href="#">Download</a></div>
+          </div>
+        </div>
+        <div class="side">
+          <h4>Members</h4>
+          <div class="member"><span class="av" style="background:var(--violet-bg)">AL</span>alex <span class="pill own" style="margin-left:auto">Owner</span></div>
+          <div class="member"><span class="av" style="background:var(--mint-bg)">SM</span>sam <span class="pill par" style="margin-left:auto">Participant</span></div>
+          <div class="field" style="margin:14px 0 8px"><input placeholder="User login" aria-label="User login"></div>
+          <button class="btn" style="width:100%">Invite</button>
+          <div style="text-align:center;margin-top:10px"><a class="link" href="#" style="font-size:13px">Send a link by email</a></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>3. Log in</b> holographic panel left with the product name, form right</div>
+<div class="frame">
+  <div class="login">
+    <div class="art"><div style="font-family:'Space Mono',monospace;font-size:12px">PROJECT_HUB</div><h2>Your team's projects and documents</h2><p style="margin:0;font-size:14px;color:#2b2b30">Create projects, upload files, invite people.</p></div>
+    <div class="form">
+      <h2 style="margin:0 0 6px;font-size:24px">Log in</h2>
+      <p style="margin:0 0 24px;color:var(--muted);font-size:14px">No account? <a class="link" href="#">Create one</a></p>
+      <div class="field"><label for="l">Login</label><input id="l" value="alex"></div>
+      <div class="field"><label for="p">Password</label><input id="p" type="password" value="password123"></div>
+      <button class="btn" style="width:100%;height:42px;margin-top:8px">Log in</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

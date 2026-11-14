@@ -185,6 +185,33 @@ Open questions for the mentors (answers go here, decided by 8a at the latest):
 - **What to test:** see "What to test" in `CLAUDE.md`. Tests prove behaviour;
   tooling and configuration are proven by commands that really run them.
 
+## Frontend requests
+
+The project has a web frontend beyond the spec: a React app served by the API at
+`/app/`. Its plan lives apart from this roadmap, in
+[`docs/frontend/`](../frontend/README.md) (design, epics F0–F6, style). This
+section lists what the frontend needs from the API, so each API epic sees it
+when it starts. An API epic that picks up a request treats it like any other
+addition: propose, argue, and the user decides; a rejected or postponed request
+is written down in that epic's design doc and its status updated here.
+
+Status: **proposed** (nobody has agreed yet), **accepted** (the API epic will
+build it), **done** (merged), **later** (postponed).
+
+| Request | Why the frontend needs it | API epic | Frontend epic | Status |
+|---|---|---|---|---|
+| `GET /project/<id>/members` → `[{id, login, role, joined_at}]`, owner first, then participants in join order; no paging; same access rule as `GET /project/<id>/info` (404 without access, 401 without a token) | The project page shows a members panel; the info response has only `owner` and `my_role` | 4 (addition #9 of its design) | F3 | accepted |
+| `users.avatar` (name of a preset icon, nullable) and `PATCH /users/me` accepting only known names; also in member and owner objects | Users pick a preset avatar that others see | built in frontend epic F1b with the backend rules, after 4 (migration order) | F1b | accepted |
+| Document metadata includes size, content type and upload date | The documents list shows them | 6 | F4 | proposed |
+| Decide how `GET /document/<id>` downloads: file through the API or a presigned S3 URL | A clicked link cannot carry the `Authorization` header; the frontend adapts to either | 6 | F4 | proposed |
+| If uploads go straight to S3 with presigned URLs: a bucket CORS rule for the app's origin, and the bucket origin in the app's CSP `connect-src` | The browser calls S3 directly | 6, 8a | F4 | proposed |
+| Used space and limit per project in project responses | The used-space bar; hidden until these fields exist, no stub | 7a | F4 | proposed |
+| `GET /join` without an `Authorization` header from a browser answers `303` to `/app/join?token=…` (see the deferred question below) | A clicked email link carries no JWT | 10 | F5 | proposed |
+| HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo only | Passwords and tokens in plain text otherwise (Swagger too) | 8a | — | proposed |
+| Totals for the projects list (projects, documents, space) | Summary counters above the list; `GET /projects` has no total count | — | — | later |
+| `DELETE /users/me` answering 409 "Delete your projects first" while the user owns projects | Account deletion dialog that never fails silently | after 6 | — | later |
+| Upload of one's own avatar picture | Custom avatars beyond the presets | — | — | later |
+
 ## Deferred to implementation
 
 | Question | Decided in |
@@ -192,4 +219,4 @@ Open questions for the mentors (answers go here, decided by 8a at the latest):
 | Upload path: through the API or presigned S3 URL | 6 |
 | Which images exist for the resize Lambda (documents are only pdf and docx) | 7b |
 | Email share details | 10 |
-| How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry) | 10 |
+| How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry). Proposed by the [frontend plan](../frontend/2026-11-14-frontend-design.md#get-join-in-a-browser-proposal-for-epic-10): the email keeps the spec link `/join?token=…`; a browser request without a JWT gets `303` to the web page `/app/join?token=…`, which signs the user in and then calls `GET /join` with the header | 10 |
