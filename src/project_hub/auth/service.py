@@ -43,7 +43,6 @@ async def register(uow: UnitOfWork, hasher: PasswordHasher, data: RegisterReques
 
 
 def _mask(login: str) -> str:
-    # An unknown login may actually be a password typed into the login field.
     return login[:2] + "***"
 
 

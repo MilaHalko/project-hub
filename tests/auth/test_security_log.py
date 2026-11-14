@@ -58,13 +58,13 @@ def test_security_events_are_logged_without_secrets(
                 assert secret not in text
     assert _field(records[0], "login") == "mila"
     assert _field(records[0], "user_id") == UUID(str(registered.json()["id"]))
-    assert _field(records[1], "login") == "mila"  # known login, wrong password: logged in full
+    assert _field(records[1], "login") == "mila"
 
 
 def test_unknown_login_is_masked_in_the_log(
     api_client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    typed_into_login = "my-secret-pw-123"  # e.g. a password typed into the login field
+    typed_into_login = "my-secret-pw-123"
     with caplog.at_level(logging.INFO, logger=LOGGER):
         r = api_client.post("/login", json={"login": typed_into_login, "password": "x"})
     assert r.status_code == 401
