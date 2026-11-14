@@ -193,6 +193,13 @@ access the answer is `404` `{"detail": "Project not found"}`, exactly as for an 
 exist, so an outsider cannot tell that the project exists. An id that is not a UUID gives `422`.
 Participants (added by invites in epic 5) read and edit like the owner.
 
+`PUT /project/{project_id}/info` replaces both `name` and `description` with the same rules as
+creation and answers `200` with the updated project. The owner and participants may use it; the
+owner and `my_role` do not change. An omitted `description` becomes `""`, so send the current one
+to keep it. It sets `updated_at`, which moves the project to the top of `GET /projects`.
+Outsiders and unknown ids get the same `404` as for reading; a bad body gives `422` and changes
+nothing.
+
 `GET /projects` lists every project the caller owns or participates in, each in the same shape
 plus `"documents": []` (documents are filled in epic 6). The list is ordered by `updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
 Query parameters:

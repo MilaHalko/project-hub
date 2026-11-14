@@ -37,3 +37,13 @@ async def read_project(
     project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
 ) -> ProjectResponse:
     return ProjectResponse.from_access(await service.get_project(uow, user, project_id))
+
+
+@router.put("/project/{project_id}/info")
+async def update_project(
+    project_id: UUID,
+    data: ProjectIn,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> ProjectResponse:
+    return ProjectResponse.from_access(await service.update_project(uow, user, project_id, data))

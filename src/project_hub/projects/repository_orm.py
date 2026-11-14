@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import ColumnElement, Select, exists, or_, select
+from sqlalchemy import ColumnElement, Select, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,6 +95,18 @@ class OrmProjectRepository:
         )
         rows = (await self._session.execute(statement)).all()
         return [_to_access(model, owner_login, user_id) for model, owner_login in rows]
+
+    async def update(self, project_id: UUID, name: str, description: str) -> Project | None:
+        # Without populate_existing, a ProjectModel loaded earlier in this session stays stale.
+        statement = (
+            update(ProjectModel)
+            .where(ProjectModel.id == project_id)
+            .values(name=name, description=description, updated_at=func.now())
+            .returning(ProjectModel)
+            .execution_options(populate_existing=True)
+        )
+        model = (await self._session.execute(statement)).scalar_one_or_none()
+        return None if model is None else _to_entity(model)
 
     async def add_member(self, project_id: UUID, user_id: UUID) -> None:
         try:

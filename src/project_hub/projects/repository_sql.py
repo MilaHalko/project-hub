@@ -85,6 +85,16 @@ class SqlProjectRepository:
             rows = await cur.fetchall()
         return [_to_access(row, user_id) for row in rows]
 
+    async def update(self, project_id: UUID, name: str, description: str) -> Project | None:
+        async with self._conn.cursor(row_factory=class_row(Project)) as cur:
+            await cur.execute(
+                "UPDATE projects SET name = %s, description = %s, updated_at = now() "
+                "WHERE id = %s "
+                "RETURNING id, owner_id, name, description, created_at, updated_at",
+                (name, description, project_id),
+            )
+            return await cur.fetchone()
+
     async def add_member(self, project_id: UUID, user_id: UUID) -> None:
         await self._conn.execute("SAVEPOINT add_member")
         try:

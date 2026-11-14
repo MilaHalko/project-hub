@@ -4,6 +4,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.projects.invalid_bodies import INVALID_BODIES
 from tests.support.auth import bearer, signed_in
 from tests.support.projects import create_project
 
@@ -59,21 +60,7 @@ def test_create_strips_name(api_client: TestClient) -> None:
     assert body["name"] == "Diploma"
 
 
-@pytest.mark.parametrize(
-    "payload",
-    [
-        pytest.param({"name": ""}, id="empty-name"),
-        pytest.param({"name": "   "}, id="blank-name"),
-        pytest.param({"name": "x" * 101}, id="name-101"),
-        pytest.param({"name": "Dip\x00loma"}, id="name-nul"),
-        pytest.param({"name": "Dip\nloma"}, id="name-newline"),
-        pytest.param({"name": "Dip\tloma"}, id="name-tab"),
-        pytest.param({"name": "Dip\x7floma"}, id="name-del"),
-        pytest.param({"name": "ok", "description": "x" * 2001}, id="description-2001"),
-        pytest.param({"name": "ok", "description": "a\x00b"}, id="description-nul"),
-        pytest.param({}, id="name-missing"),
-    ],
-)
+@pytest.mark.parametrize("payload", INVALID_BODIES)
 def test_create_invalid_body_is_422(
     api_client: TestClient, migrated_database_url: str, payload: dict[str, Any]
 ) -> None:
