@@ -12,6 +12,7 @@ from project_hub.core.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    ServiceUnavailableError,
     ValidationFailedError,
 )
 
@@ -24,6 +25,7 @@ _STATUS_BY_ERROR: dict[type[DomainError], HTTPStatus] = {
     ConflictError: HTTPStatus.CONFLICT,
     AuthenticationError: HTTPStatus.UNAUTHORIZED,
     ValidationFailedError: HTTPStatus.UNPROCESSABLE_ENTITY,
+    ServiceUnavailableError: HTTPStatus.SERVICE_UNAVAILABLE,
 }
 
 

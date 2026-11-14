@@ -33,25 +33,30 @@ Interactive API docs are served at <http://localhost:8000/docs>.
 docker compose up --build
 ```
 
-This starts PostgreSQL 18 (`db`), a one-shot `migrate` service and the API (`api`).
+This starts PostgreSQL 18 (`db`), the moto S3 emulator (`s3`), two one-shot services
+(`migrate`, `storage-init`) and the API (`api`).
 `migrate` waits for the database to be healthy, runs `python -m project_hub.db.migrate`
-(`alembic upgrade head`) and exits; the API starts only after `migrate` completed
-successfully and is served at <http://localhost:8000>.
+(`alembic upgrade head`) and exits; `storage-init` waits for `s3`, runs
+`python -m project_hub.storage.create_bucket` (creates `APP_S3_BUCKET` if it is missing) and
+exits. The API starts only after both completed successfully and is served at
+<http://localhost:8000>.
 
 | Service | Host port | Override with |
 |---|---|---|
 | `api` | 8000 | `APP_PORT` |
 | `db` | 55433 | `APP_DB_PORT` |
+| `s3` | 55435 | `APP_S3_PORT` |
+| `storage-init` | — | one-shot, exits 0 |
 
 The database uses 55433 so it does not clash with local Postgres servers on 5432 or 5433. Set the variables
 in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docker compose up`.
 The `POSTGRES_*` values are local development credentials only; they take effect only when
 the database volume is first created (run `docker compose down -v` to reset it).
 
-Tests that need a database expect the `db` service to be running:
+The tests expect the `db` and `s3` services to be running:
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait db s3
 ```
 
 Stop everything with `docker compose down` (add `-v` to delete the database volume).
@@ -91,6 +96,26 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 | `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
 | `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
+
+## File storage
+
+Files are stored in S3 through the small `FileStorage` interface (`storage/files.py`:
+`put`, `get`, `delete`), implemented with boto3 in `storage/s3.py`. Locally and in CI the
+S3 API is served by [moto](https://github.com/getmoto/moto) (`motoserver/moto`), so no AWS
+account is needed. moto keeps files in memory: they are lost when the `s3` container stops,
+while the database rows stay (run `docker compose down -v` to reset both).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_S3_BUCKET` | unset | Bucket for files; when unset the app starts without file storage and logs a warning |
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto (compose uses `http://s3:5000`), unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
+Blank values count as unset. AWS credentials are not app settings: boto3 reads its standard
+chain (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` locally, the task role in AWS). Compose,
+CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put real AWS
+keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
+missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
 
 ## Auth
 
@@ -243,7 +268,7 @@ is not logged. Refused deletes (`403`, `404`) are not logged.
 poetry run ruff check
 poetry run ruff format --check
 poetry run pyright
-docker compose up -d --wait db   # tests need Postgres
+docker compose up -d --wait db s3   # tests need Postgres and the S3 emulator
 poetry run pytest
 ```
 
@@ -254,11 +279,18 @@ pytest reads it only from the shell environment, not from `.env`, so use
 `export TEST_DATABASE_URL=...`, and keep its port and credentials in step with `APP_DB_PORT`
 and `POSTGRES_*` if you change them.
 
+Storage tests and API tests use a throwaway bucket (`project-hub-test-<random>`) on the
+compose `s3` service, emptied after each test and deleted when the session ends. Set
+`TEST_S3_ENDPOINT_URL` (default `http://localhost:55435`, in step with `APP_S3_PORT`) to use a
+different emulator; like `TEST_DATABASE_URL` it is read only from the shell. When the emulator
+does not answer, the run fails with a hint instead of skipping. The tests replace any AWS
+credentials in the environment with the dummy `test`/`test` keys.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`.
 
-- Job `checks`: the commands from `## Checks` on Python 3.13 with a Postgres service, then a
+- Job `checks`: the commands from `## Checks` on Python 3.13 with Postgres and moto services, then a
   step that fails unless the contract tests passed with both database backends (`orm` and `sql`).
 - Job `docker`: `poetry run pytest -m docker`, the image and compose smoke tests, in parallel.
 
@@ -278,6 +310,9 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   `urls.py` (converts the plain Postgres URL for SQLAlchemy),
   `dependencies.py` (`get_uow`), `migrate.py` (runs `upgrade head`) and `migrations/`.
   It lives outside `core/` because the Unit of Work imports feature repositories.
+- `storage/` holds file storage: `files.py` (`FileStorage` protocol, `StorageUnavailableError`),
+  `s3.py` (boto3 implementation), `create_bucket.py` (creates the bucket for compose) and
+  `dependencies.py` (`Storage`).
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
 - `auth/` holds registration, login and tokens: `passwords.py` (Argon2 hashing), `tokens.py`

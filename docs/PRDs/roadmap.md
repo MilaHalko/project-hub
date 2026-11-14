@@ -129,8 +129,9 @@ Checkpoints (`terraform apply` → deploy → verify → `terraform destroy`):
 
 Notes:
 
-- Daily development is local: Postgres in `docker-compose`, S3 and Lambda
-  emulated with LocalStack.
+- Daily development is local: Postgres in `docker-compose`, S3 emulated with
+  moto server locally and in CI (LocalStack needs an auth token since 2026.03,
+  and agents never handle keys). Epics 7a/7b re-check Lambda emulation.
 - CI always pushes the image to ECR (persistent layer). The ECS deploy step runs
   only when the ephemeral layer is up, controlled by a repository variable, so
   merges do not fail while it is destroyed.
