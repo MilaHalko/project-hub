@@ -1,0 +1,37 @@
+.banner {
+  margin-bottom: 18px;
+  padding: 26px 28px;
+  border-radius: var(--radius-banner);
+  background: var(--holo);
+  color: var(--color-ink);
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-small);
+  letter-spacing: 0.5px;
+}
+
+.title {
+  margin: 6px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  overflow-wrap: anywhere;
+}
+
+.body {
+  color: var(--color-ink);
+}
+
+@media (max-width: 767.98px) {
+  .banner {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+}
