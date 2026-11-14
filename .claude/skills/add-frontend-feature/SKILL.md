@@ -11,6 +11,8 @@ End-to-end workflow for a frontend feature. It is `add-feature` with the fronten
 
 **Frontend space:** the frontend has its own plan in `docs/frontend/` (design doc, roadmap, decisions), kept apart from the backend roadmap `docs/PRDs/roadmap.md`. Read it first. Stack, style and folder layout come from there; do not re-ask what it already decides. If it does not exist yet, say so and ask before choosing a stack.
 
+**The frontend never changes the backend.** A frontend branch and PR touch only `frontend/`, `docs/frontend/`, the frontend CI workflow and the "Frontend requests" section of `docs/PRDs/roadmap.md`, never backend files: `src/` (migrations included), `tests/`, `pyproject.toml`, `poetry.lock`, the root `Dockerfile` and `docker-compose.yml`, or `.github/workflows/ci.yml`. The user defends and submits the backend alone, so every backend change is a backend feature: it goes through `add-feature` in its own session, branch and PR, with its own brainstorm and the user's yes, and is merged before the frontend work that needs it.
+
 **Time pressure changes the size of each phase, never the list of phases.** "Quick", "for the demo", "just make it look decent" means fewer screens and less polish, not skipping tests, the browser run, the accessibility gate or the review.
 
 ## Phase 1 — Clarify: `superpowers:brainstorming`
@@ -18,7 +20,7 @@ End-to-end workflow for a frontend feature. It is `add-feature` with the fronten
 - For every screen list its states: loading, empty, error (401, 403, 404, 422, network down), success.
 - The spec is the floor (see "The spec is the floor, not the ceiling" in `docs/PRDs/roadmap.md`): propose useful extras with what, why, cost and a recommendation; build none without the user's yes; record rejected ones in the design doc.
 - Output **acceptance criteria** ("Given X, when Y, then Z"). Behaviour is proven by a test (component or end-to-end); tooling by a command that runs it ("What to test" in `CLAUDE.md`).
-- If the feature needs a backend change (new endpoint, CORS origin, a field), list it as its own criterion. It is built with the backend rules: `python-development:python-development-fastapi-pro`, pytest against real Postgres on both DB backends.
+- If the feature needs a backend change (a new endpoint, a field, a CORS origin), do not build it here. Add it to the "Frontend requests" table in `docs/PRDs/roadmap.md` with status **proposed**, tell the user it needs a backend task with `add-feature` first, and stop this feature until that backend PR is merged or the user changes the feature so it no longer needs it.
 - Get the user's explicit approval before moving on.
 
 ## Phase 2 — Look: `frontend-design:frontend-design`
@@ -45,7 +47,6 @@ End-to-end workflow for a frontend feature. It is `add-feature` with the fronten
 Run fresh and quote each command with its real result:
 - lint, type check, component tests, production build;
 - end-to-end tests (with the axe checks) against the running stack;
-- backend checks too if the backend changed (`poetry run ruff check`, `pyright`, `pytest`).
 
 Then look at it in a real browser with the playwright tools (`mcp__plugin_playwright_playwright__*`): walk each flow, take screenshots at desktop and phone width (about 1280 and 375 px), and check the browser console has no errors. Show the screenshots to the user.
 
@@ -55,7 +56,7 @@ Security checklist (each item: done, or why it does not apply):
 - the JWT lives in memory; `sessionStorage` only with the user's yes; never `localStorage`, never in a URL;
 - no raw HTML from data (`innerHTML`, `dangerouslySetInnerHTML`, `v-html`) unless sanitized, and the user is told why it is needed;
 - no secrets in frontend code or its env files: everything shipped to the browser is public;
-- backend CORS allows only the known frontend origins, never `*` with credentials;
+- the API is reached through the same-origin proxy, so the backend needs no CORS; if a cross-origin call is ever needed, it is a backend request (see Phase 1), never `*` with credentials;
 - a Content Security Policy is set where the app is served, without `unsafe-inline` scripts;
 - dependency audit (`npm audit --audit-level=high` or the stack's equivalent) has no open high or critical issue; the lockfile is committed.
 
@@ -82,6 +83,7 @@ Present the options and a short report: criteria → tests table, verification c
 | "I'll pick React, it's quick" | The stack is decided in `docs/frontend/`. Read it. |
 | "localStorage is simpler for the token" | Any injected script can read it. Memory, or sessionStorage with the user's yes. |
 | "I'll style it after it works" | The look is agreed in Phase 2, before code. |
+| "The endpoint is tiny, I'll add it in this PR" / "the plan says this frontend epic builds it" | Backend code is never written in a frontend branch. Record the request in the roadmap; it is built by `add-feature` in a backend PR first. |
 | "One commit for the page, one for tests" | One commit is one slice: the screen, its tests and its config together. |
 
 ## Small changes
