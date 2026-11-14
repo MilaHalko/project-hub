@@ -45,6 +45,14 @@ The user reads the history to understand what was done, so every commit is one l
 - Plan tasks are shaped as such slices, so one task ends in one or a few slice commits.
 - Never add a `Co-Authored-By: Claude` trailer.
 
+## Comments
+
+- **Default: no comments and no docstrings.** Names, types and tests explain the code.
+- **Write one only when the code looks safe to remove or change but is not**: it explains a hidden reason that would break something. Examples: the docstring on the empty marker class `_ProjectHubHandler` (`configure_logging` relies on it to avoid adding a second handler), `populate_existing` (logout breaks without it), a check that exists because `bool` is a subclass of `int`.
+- **Not allowed**: a comment that retells what the code does, or gives a reason already clear from names and tests (for example `# known login, wrong password: logged in full` above an assertion that checks exactly that).
+- **Never delete an existing comment or docstring** unless the user asks, or the code it explains is deleted or changed so that it no longer applies.
+- Every implementation brief to a subagent carries this rule, and every diff is checked for new `#` and `"""` lines before committing.
+
 ## Security
 
 Treat every Security Guidance warning as a blocker: fix it, or explain to the user why it is a false positive. Never ignore one silently.
