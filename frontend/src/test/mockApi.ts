@@ -15,6 +15,14 @@ const defaultRoutes: Record<string, Route> = {
   "GET /api/projects?limit=21&offset=0": { status: 200, body: [] },
 };
 
+const defaultPatterns: [RegExp, Answer][] = [
+  [/^GET \/api\/project\/[^/]+\/members$/, { status: 200, body: [] }],
+];
+
+function defaultFor(key: string): Answer | undefined {
+  return defaultPatterns.find(([pattern]) => pattern.test(key))?.[1];
+}
+
 export function mockApi(
   givenRoutes: Record<string, Route>,
 ): Mock<typeof fetch> {
@@ -35,7 +43,7 @@ export function mockApi(
           ? input.href
           : input.url;
     const key = `${init?.method ?? "GET"} ${url}`;
-    const route = routes[key];
+    const route = routes[key] ?? defaultFor(key);
     if (route === undefined) {
       unknown.push(key);
       throw new Error(`No mocked answer for ${key}`);
