@@ -81,3 +81,17 @@ async def invite_member(
 ) -> MemberResponse:
     member = await service.invite(uow, caller, project_id, login)
     return MemberResponse.from_member(member)
+
+
+@router.delete(
+    "/project/{project_id}/members/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+async def remove_member(
+    project_id: UUID,
+    user_id: UUID,
+    caller: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> None:
+    await service.remove_member(uow, caller, project_id, user_id)

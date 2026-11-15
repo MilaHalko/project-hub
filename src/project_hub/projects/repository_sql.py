@@ -132,6 +132,14 @@ class SqlProjectRepository:
         joined_at: datetime = row[0]
         return joined_at
 
+    async def remove_member(self, project_id: UUID, user_id: UUID) -> bool:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM project_members WHERE project_id = %s AND user_id = %s",
+                (project_id, user_id),
+            )
+            return cur.rowcount > 0
+
     async def list_members(self, project_id: UUID) -> list[ProjectMember]:
         async with self._conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(

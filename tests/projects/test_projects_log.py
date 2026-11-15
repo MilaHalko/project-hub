@@ -108,3 +108,51 @@ def test_invite_is_logged_only_when_it_happens(
     assert _field(record, "user_id") == UUID(mila_id)
     assert _field(record, "project_id") == UUID(created["id"])
     assert _field(record, "member_id") == UUID(zoe_id)
+
+
+def test_remove_and_leave_are_logged_only_when_they_happen(
+    api_client: TestClient, migrated_database_url: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    mila_id, mila = signed_in(api_client)
+    anna_id, anna = signed_in(api_client, "anna")
+    zoe_id, _ = signed_in(api_client, "zoe")
+    _, stranger = signed_in(api_client, "stranger")
+    created = create_project(api_client, mila)
+    add_participant(migrated_database_url, created["id"], anna_id)
+    add_participant(migrated_database_url, created["id"], zoe_id)
+    base = f"/project/{created['id']}/members"
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger=LOGGER):
+        assert api_client.delete(f"{base}/{zoe_id}", headers=bearer(anna)).status_code == 403
+        assert api_client.delete(f"{base}/{mila_id}", headers=bearer(mila)).status_code == 409
+        assert api_client.delete(f"{base}/{uuid4()}", headers=bearer(mila)).status_code == 404
+        assert api_client.delete(f"{base}/{anna_id}", headers=bearer(stranger)).status_code == 404
+        assert (
+            api_client.delete(
+                f"/project/{uuid4()}/members/{anna_id}", headers=bearer(mila)
+            ).status_code
+            == 404
+        )
+        assert not [r for r in caplog.records if r.name == LOGGER]
+
+        assert api_client.delete(f"{base}/{zoe_id}", headers=bearer(mila)).status_code == 204
+
+    (removed,) = [r for r in caplog.records if r.name == LOGGER]
+    assert removed.levelno == logging.INFO
+    assert _field(removed, "event") == "participant removed"
+    assert _field(removed, "login") == "mila"
+    assert _field(removed, "user_id") == UUID(mila_id)
+    assert _field(removed, "member_id") == UUID(zoe_id)
+    assert _field(removed, "project_id") == UUID(created["id"])
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger=LOGGER):
+        assert api_client.delete(f"{base}/{anna_id}", headers=bearer(anna)).status_code == 204
+
+    (left,) = [r for r in caplog.records if r.name == LOGGER]
+    assert _field(left, "event") == "participant left"
+    assert _field(left, "login") == "anna"
+    assert _field(left, "user_id") == UUID(anna_id)
+    assert _field(left, "member_id") == UUID(anna_id)
+    assert _field(left, "project_id") == UUID(created["id"])
