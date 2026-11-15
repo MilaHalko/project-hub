@@ -17,6 +17,7 @@ const defaultRoutes: Record<string, Route> = {
 
 const defaultPatterns: [RegExp, Answer][] = [
   [/^GET \/api\/project\/[^/]+\/members$/, { status: 200, body: [] }],
+  [/^GET \/api\/project\/[^/]+\/documents$/, { status: 200, body: [] }],
 ];
 
 function defaultFor(key: string): Answer | undefined {
