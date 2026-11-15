@@ -148,6 +148,20 @@ def test_invite_bad_user_param_is_422(api_client: TestClient, params: dict[str, 
     assert [m["login"] for m in members(api_client, mila, created["id"])] == ["mila"]
 
 
+def test_invite_user_with_nul_names_the_login(api_client: TestClient) -> None:
+    _, mila = signed_in(api_client)
+    created = create_project(api_client, mila)
+
+    r = api_client.post(
+        f"/project/{created['id']}/invite", params={"user": "an\x00na"}, headers=bearer(mila)
+    )
+
+    assert r.status_code == 422
+    assert [(e["loc"], e["msg"]) for e in r.json()["detail"]] == [
+        (["query", "user"], "Value error, Login must not contain NUL characters")
+    ]
+
+
 def test_invite_bad_project_id_is_422(api_client: TestClient) -> None:
     _, mila = signed_in(api_client)
 

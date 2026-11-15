@@ -23,9 +23,11 @@ ProjectName = Annotated[
     StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
     AfterValidator(_reject_control_characters),
 ]
-ProjectDescription = Annotated[str, StringConstraints(max_length=2000), AfterValidator(reject_nul)]
+ProjectDescription = Annotated[
+    str, StringConstraints(max_length=2000), AfterValidator(reject_nul("Description"))
+]
 InviteLogin = Annotated[
-    str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul)
+    str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul("Login"))
 ]
 
 
