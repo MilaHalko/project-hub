@@ -1,0 +1,29 @@
+import { apiFetch } from "./client";
+
+export type ProjectRole = "owner" | "participant";
+
+export type Project = {
+  id: string;
+  name: string;
+  description: string;
+  owner: { id: string; login: string };
+  my_role: ProjectRole;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listProjects({
+  role,
+  limit,
+  offset,
+}: {
+  role?: ProjectRole;
+  limit: number;
+  offset: number;
+}): Promise<Project[]> {
+  const query = new URLSearchParams();
+  if (role) query.set("role", role);
+  query.set("limit", String(limit));
+  query.set("offset", String(offset));
+  return apiFetch<Project[]>(`/projects?${query.toString()}`);
+}

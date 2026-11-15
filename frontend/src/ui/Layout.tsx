@@ -67,8 +67,7 @@ export function Layout() {
           data-open={menuOpen}
         >
           <NavLink
-            to="/"
-            end
+            to="/projects"
             className={styles.link}
             onClick={() => {
               setMenuOpen(false);

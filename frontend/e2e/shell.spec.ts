@@ -29,7 +29,7 @@ test("shows not found for an unknown path", async ({ page, request }) => {
   ).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("link", { name: "Go to projects" }).click();
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/projects");
   await expect(
     page.getByRole("heading", { name: "Your projects" }),
   ).toBeFocused();
