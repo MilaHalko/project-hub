@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
+from project_hub.core.text import reject_nul
 from project_hub.documents.entities import Document
 from project_hub.documents.schemas import DocumentResponse
 from project_hub.projects.entities import ProjectAccess, ProjectMember, ProjectRole
@@ -17,26 +18,14 @@ def _reject_control_characters(value: str) -> str:
     return value
 
 
-def _reject_nul(value: str) -> str:
-    if "\x00" in value:
-        raise ValueError("Description must not contain NUL characters")
-    return value
-
-
-def _reject_nul_in_login(value: str) -> str:
-    if "\x00" in value:
-        raise ValueError("Login must not contain NUL characters")
-    return value
-
-
 ProjectName = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
     AfterValidator(_reject_control_characters),
 ]
-ProjectDescription = Annotated[str, StringConstraints(max_length=2000), AfterValidator(_reject_nul)]
+ProjectDescription = Annotated[str, StringConstraints(max_length=2000), AfterValidator(reject_nul)]
 InviteLogin = Annotated[
-    str, StringConstraints(min_length=1, max_length=32), AfterValidator(_reject_nul_in_login)
+    str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul)
 ]
 
 
