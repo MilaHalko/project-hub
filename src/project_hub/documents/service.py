@@ -4,7 +4,7 @@ from uuid import UUID
 
 from project_hub.core.exceptions import NotFoundError
 from project_hub.db.uow import UnitOfWork
-from project_hub.documents.entities import Document, NewDocument, new_storage_key
+from project_hub.documents.entities import Document, NewDocument, ReplacedFile, new_storage_key
 from project_hub.documents.validation import ValidFile
 from project_hub.projects.service import get_project
 from project_hub.storage.files import FileStorage, discard_quietly
@@ -85,3 +85,35 @@ async def get_document(uow: UnitOfWork, user: User, document_id: UUID) -> Docume
 
 async def download_document(storage: FileStorage, document: Document) -> bytes:
     return await storage.get(document.storage_key)
+
+
+async def replace_document(
+    uow: UnitOfWork,
+    storage: FileStorage,
+    user: User,
+    document: Document,
+    file: ValidFile,
+) -> Document:
+    new_key = new_storage_key(document.project_id)
+    await storage.put(new_key, file.data, file.content_type)
+    try:
+        replaced = await uow.documents.replace_file(
+            document.id,
+            ReplacedFile(
+                name=file.name,
+                content_type=file.content_type,
+                size=len(file.data),
+                storage_key=new_key,
+                uploaded_by=user.id,
+            ),
+        )
+        if replaced is None:
+            raise NotFoundError("Document not found")
+        await uow.projects.touch(document.project_id)
+        await uow.commit()
+    except Exception:
+        await discard_quietly(storage, [new_key], project_id=document.project_id)
+        raise
+    _log_event("document replaced", user, document.project_id, document.id)
+    await discard_quietly(storage, [document.storage_key], project_id=document.project_id)
+    return replaced

@@ -2,9 +2,16 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from project_hub.db.database import Database
-from project_hub.documents.entities import PDF_CONTENT_TYPE, Document, NewDocument
+from project_hub.documents.entities import (
+    DOCX_CONTENT_TYPE,
+    PDF_CONTENT_TYPE,
+    Document,
+    NewDocument,
+    ReplacedFile,
+)
 from project_hub.projects.entities import NewProject
 from project_hub.users.entities import NewUser
 
@@ -137,3 +144,66 @@ async def test_list_for_project_orders_newest_first_and_filters_project(
         assert listed == sorted([first, second], key=lambda d: d.id, reverse=True)
         assert await uow.documents.list_for_project(other.id) == [elsewhere]
         assert await uow.documents.list_for_project(uuid4()) == []
+
+
+async def test_replace_file_changes_fields_keeps_created_at(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        await uow.projects.add_member(project.id, anna.id)
+        added = await uow.documents.add(_new(project.id, mila.id))
+        await uow.commit()
+
+    replacement = ReplacedFile(
+        name="notes.docx",
+        content_type=DOCX_CONTENT_TYPE,
+        size=7,
+        storage_key="projects/p/documents/new",
+        uploaded_by=anna.id,
+    )
+    async with database.unit_of_work() as uow:
+        replaced = await uow.documents.replace_file(added.id, replacement)
+        assert replaced is not None
+        assert await uow.documents.get(added.id) == replaced
+        assert await uow.documents.replace_file(uuid4(), replacement) is None
+        await uow.commit()
+
+    assert (replaced.id, replaced.project_id, replaced.created_at) == (
+        added.id,
+        added.project_id,
+        added.created_at,
+    )
+    assert (replaced.name, replaced.content_type, replaced.size) == (
+        "notes.docx",
+        DOCX_CONTENT_TYPE,
+        7,
+    )
+    assert replaced.storage_key == "projects/p/documents/new"
+    assert (replaced.uploaded_by, replaced.uploader_login) == (anna.id, "anna")
+    assert replaced.updated_at > added.updated_at
+    async with database.unit_of_work() as uow:
+        assert await uow.documents.get(added.id) == replaced
+
+
+async def test_replace_file_with_unknown_uploader_raises_and_uow_stays_usable(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        added = await uow.documents.add(_new(project.id, mila.id))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        broken = ReplacedFile("n.pdf", PDF_CONTENT_TYPE, 1, "projects/p/documents/n", uuid4())
+        with pytest.raises((IntegrityError, psycopg.errors.ForeignKeyViolation)):
+            await uow.documents.replace_file(added.id, broken)
+
+        fine = ReplacedFile("ok.pdf", PDF_CONTENT_TYPE, 2, "projects/p/documents/ok", mila.id)
+        replaced = await uow.documents.replace_file(added.id, fine)
+        await uow.commit()
+
+    assert replaced is not None and replaced.name == "ok.pdf"
+    async with database.unit_of_work() as uow:
+        assert await uow.documents.get(added.id) == replaced

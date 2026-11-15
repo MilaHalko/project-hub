@@ -70,6 +70,23 @@ def upload(
     )
 
 
+def replace(
+    client: TestClient,
+    token: str,
+    document_id: str,
+    files: list[tuple[str, bytes]],
+    field: str = "file",
+) -> httpx2.Response:
+    return client.put(
+        f"/document/{document_id}",
+        headers={
+            **bearer(token),
+            "Content-Type": f"multipart/form-data; boundary={_BOUNDARY}",
+        },
+        content=_multipart(files, field),
+    )
+
+
 def uploaded(
     client: TestClient, token: str, project_id: str, files: list[tuple[str, bytes]]
 ) -> list[dict[str, Any]]:
