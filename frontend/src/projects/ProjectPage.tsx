@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../api/errors";
 import { getProject, type Project } from "../api/projects";
+import { LeaveProjectDialog } from "../members/LeaveProjectDialog";
+import { MembersPanel } from "../members/MembersPanel";
 import { Banner } from "../ui/Banner";
 import { Button, buttonClassName } from "../ui/Button";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
@@ -86,6 +88,7 @@ export function ProjectPage() {
   });
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const name = project.data?.name;
 
   useEffect(() => {
@@ -166,6 +169,16 @@ export function ProjectPage() {
                 Delete project
               </Button>
             )}
+            {data.my_role === "participant" && (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setLeaving(true);
+                }}
+              >
+                Leave project
+              </Button>
+            )}
           </>
         }
       >
@@ -173,12 +186,22 @@ export function ProjectPage() {
           <p className={styles.description}>{data.description}</p>
         )}
       </Banner>
-      <Details project={data} />
+      <div className={styles.body}>
+        <Details project={data} />
+        <MembersPanel project={data} />
+      </div>
       <ProjectDialog
         open={editing}
         project={data}
         onClose={() => {
           setEditing(false);
+        }}
+      />
+      <LeaveProjectDialog
+        open={leaving}
+        project={data}
+        onClose={() => {
+          setLeaving(false);
         }}
       />
       <DeleteProjectDialog

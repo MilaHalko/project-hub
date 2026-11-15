@@ -27,14 +27,23 @@ test("opens a project from the list and shows its header and details", async ({
   ).toBeFocused();
   await expect(page).toHaveTitle("Website redesign — Project Hub");
   const owner = page.getByText("Owner", { exact: true });
-  await expect(owner).toHaveCount(2);
-  await expect(owner.first()).toBeVisible();
-  await expect(owner.last()).toBeVisible();
+  await expect(owner).toHaveCount(3);
+  await expect(owner.nth(0)).toBeVisible();
+  await expect(owner.nth(1)).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: /Members/ })
+      .getByRole("listitem")
+      .filter({ hasText: user.login })
+      .getByText("Owner", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Delete project" }),
   ).toBeVisible();
-  await expect(page.getByText(`${user.login} (you)`)).toBeVisible();
+  await expect(
+    page.locator("dd").getByText(`${user.login} (you)`),
+  ).toBeVisible();
   await expect(page.getByText("just now")).toBeVisible();
   const description = page.getByText("Line one");
   await expect(description).toHaveText("Line one\nLine two");
