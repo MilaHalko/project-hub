@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, LiteralString
 from uuid import UUID
 
@@ -5,7 +6,7 @@ import psycopg
 from psycopg import errors
 from psycopg.rows import class_row, dict_row
 
-from project_hub.core.exceptions import ConflictError
+from project_hub.core.exceptions import ConflictError, NotFoundError
 from project_hub.projects.entities import (
     NewProject,
     Project,
@@ -16,6 +17,7 @@ from project_hub.projects.entities import (
 )
 
 _MEMBER_CONSTRAINT = "pk_project_members"
+_MEMBER_PROJECT_FK = "fk_project_members_project_id_projects"
 
 _IS_MEMBER = (
     "EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = p.id AND m.user_id = %(user_id)s)"
@@ -106,13 +108,16 @@ class SqlProjectRepository:
             await cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))
             return cur.rowcount > 0
 
-    async def add_member(self, project_id: UUID, user_id: UUID) -> None:
+    async def add_member(self, project_id: UUID, user_id: UUID) -> datetime:
         await self._conn.execute("SAVEPOINT add_member")
         try:
-            await self._conn.execute(
-                "INSERT INTO project_members (project_id, user_id) VALUES (%s, %s)",
-                (project_id, user_id),
-            )
+            async with self._conn.cursor() as cur:
+                await cur.execute(
+                    "INSERT INTO project_members (project_id, user_id) VALUES (%s, %s) "
+                    "RETURNING created_at",
+                    (project_id, user_id),
+                )
+                row = await cur.fetchone()
         except psycopg.Error as err:
             await self._conn.execute("ROLLBACK TO SAVEPOINT add_member")
             await self._conn.execute("RELEASE SAVEPOINT add_member")
@@ -121,8 +126,24 @@ class SqlProjectRepository:
                 and err.diag.constraint_name == _MEMBER_CONSTRAINT
             ):
                 raise ConflictError("User is already a participant of this project") from err
+            if (
+                isinstance(err, errors.ForeignKeyViolation)
+                and err.diag.constraint_name == _MEMBER_PROJECT_FK
+            ):
+                raise NotFoundError("Project not found") from err
             raise
         await self._conn.execute("RELEASE SAVEPOINT add_member")
+        assert row is not None
+        joined_at: datetime = row[0]
+        return joined_at
+
+    async def remove_member(self, project_id: UUID, user_id: UUID) -> bool:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "DELETE FROM project_members WHERE project_id = %s AND user_id = %s",
+                (project_id, user_id),
+            )
+            return cur.rowcount > 0
 
     async def list_members(self, project_id: UUID) -> list[ProjectMember]:
         async with self._conn.cursor(row_factory=dict_row) as cur:
