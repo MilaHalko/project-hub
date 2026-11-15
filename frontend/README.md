@@ -60,6 +60,24 @@ npx playwright install chromium   # once
 npm run e2e                       # E2E_BASE_URL overrides http://127.0.0.1:8080
 ```
 
+Every page except log in needs a token, so tests start from `e2e/auth.ts`: `createUser(request)`
+registers a unique login through `POST /api/auth` and returns its login and password;
+`signIn(page, request)` (optionally with such a user) gets a token through `POST /api/login` and
+puts it in `sessionStorage` before the app starts, once per tab, so a reload after a logout does
+not bring the token back. A test that expects a 4xx answer adds
+`test.use({ expectedApiStatuses: [401] })`, otherwise the console error Chromium logs for it fails
+the test. To keep a local stack apart from other checkouts, run it under its own project name and
+ports, for example
+`APP_DB_PORT=55441 APP_PORT=8011 WEB_PORT=8091 APP_JWT_SECRET=$(openssl rand -hex 32) docker compose -p f1auth -f docker-compose.yml -f frontend/compose.yml up -d --build --wait`
+from the repository root, then `E2E_BASE_URL=http://127.0.0.1:8091 npm run e2e`.
+
+For the next epics: `signIn` seeds the token only once per tab and leaves the marker key
+`project-hub.e2e-seeded` in `sessionStorage`. In unit tests `mockApi` answers `GET /api/users/me`
+by default, so a test only lists the routes it cares about. `apiFetch` has the option
+`endsSessionOn401`: a 401 clears the token and sends the user to log in, and only the logout call
+turns it off. Page headings come from `Banner`, or from any plain `h1`; after navigation
+`useFocusHeadingOnNavigate` gives that `h1` `tabindex="-1"` and focuses it.
+
 ## CI
 
 `.github/workflows/frontend.yml` runs on pull requests and pushes to `main` that touch

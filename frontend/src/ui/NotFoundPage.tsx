@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { Banner } from "./Banner";
-import styles from "./NotFoundPage.module.css";
+import { buttonClassName } from "./Button";
 
 export function NotFoundPage() {
   return (
@@ -11,7 +11,7 @@ export function NotFoundPage() {
           projects.
         </p>
       </Banner>
-      <Link to="/" className={styles.primary}>
+      <Link to="/" className={buttonClassName()}>
         Go to projects
       </Link>
     </>
