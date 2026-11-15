@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Hub — F4 documents mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --muted:#6b6b73; --line:#e7e7ea; --soft:#fafafa; --violet:#5b4ce0; --violet-bg:#efedff; --violet-ink:#3a2fa8; --mint:#0f9d76; --mint-bg:#e3f6ef; --mint-ink:#0b6b51; --danger:#b42318;
+    --holo: linear-gradient(115deg, #ffc9a8 0%, #ffe9a8 20%, #c4f0dc 40%, #bfe2ff 60%, #ddcbff 80%, #ffc6d8 100%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; font-size: 14px; background: #e9e9ec; color: var(--ink); padding: 32px 24px 64px; }
+  .label { max-width: 1180px; margin: 40px auto 12px; font-size: 15px; color: #444; line-height: 1.5; }
+  .label b { font-size: 18px; color: #111; margin-right: 8px; }
+  .frame { max-width: 1180px; margin: 0 auto; border-radius: 16px; overflow: hidden; background: #fff; border: 1px solid #ddd; position: relative; }
+  .pair { max-width: 1180px; margin: 0 auto; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .phone { width: 375px; flex: none; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid #ddd; position: relative; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 520px; }
+  aside { border-right: 1px solid var(--line); padding: 20px 14px; background: var(--soft); }
+  .logo { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; margin-bottom: 22px; }
+  .logo i { width: 24px; height: 24px; border-radius: 7px; background: var(--holo); border: 1px solid #111; }
+  .nav a { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .nav a.on { background: var(--violet-bg); color: var(--violet-ink); font-weight: 600; }
+  main { padding: 24px 28px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--soft); }
+  .phone main { padding: 16px; }
+
+  .btn { background: var(--ink); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: 600 13px Inter, sans-serif; white-space: nowrap; }
+  .btn2 { background: #fff; color: var(--ink); border: 1px solid #d9d9de; border-radius: 8px; padding: 9px 14px; font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .btn2.sm { padding: 6px 10px; font-size: 12px; }
+  .btn2.danger { color: var(--danger); border-color: #f3c3bd; }
+  .btn-danger { background: var(--danger); color: #fff; border: 0; border-radius: 8px; padding: 9px 14px; font: 600 13px Inter, sans-serif; }
+  .link { background: none; border: 0; padding: 0; color: var(--violet-ink); font: 600 13px Inter, sans-serif; text-decoration: underline; text-underline-offset: 2px; }
+
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 12px; } .crumbs a { color: var(--violet); text-decoration: none; font-weight: 500; }
+  .banner { border-radius: 14px; padding: 22px 26px; background: var(--holo); margin-bottom: 18px; }
+  .banner h1 { margin: 6px 0 4px; font-family: 'Space Mono', monospace; font-size: 28px; letter-spacing: -1px; line-height: 1.15; }
+  .banner p { margin: 0; color: #2b2b30; }
+  .head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+  .head .actions { display: flex; gap: 8px; flex: none; }
+  .phone .head { flex-direction: column; } .phone .head .actions { width: 100%; } .phone .head .actions button { flex: 1; }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block; }
+  .own { background: var(--violet-bg); color: var(--violet-ink); } .par { background: var(--mint-bg); color: var(--mint-ink); }
+
+  .body { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 18px; align-items: start; }
+  .phone .body { grid-template-columns: 1fr; }
+  .details { border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
+  .details div { padding: 14px 16px; border-right: 1px solid var(--line); } .details div:last-child { border-right: 0; }
+  .details dt { color: var(--muted); font-size: 12px; margin-bottom: 4px; } .details dd { margin: 0; font-weight: 500; }
+  .phone .details { grid-template-columns: 1fr; } .phone .details div { border-right: 0; border-bottom: 1px solid var(--line); } .phone .details div:last-child { border-bottom: 0; }
+  .side { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); font-size: 13px; }
+  .side h2 { font-size: 15px; color: var(--ink); margin: 0 0 10px; }
+
+  h2.sec { font-size: 17px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  h2.sec .count { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+
+  .drop { border: 1.5px dashed #c9c3ff; background: #f8f7ff; border-radius: 10px; padding: 16px; text-align: center; color: var(--violet-ink); margin-bottom: 12px; }
+  .drop p { margin: 0; font-size: 13px; } .drop small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .drop.over { border-style: solid; border-color: var(--violet); background: var(--violet-bg); font-weight: 600; padding: 26px 16px; }
+
+  .ups { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+  .up { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f1f1f3; font-size: 13px; }
+  .up:last-child { border-bottom: 0; }
+  .up .st { color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .up .err { color: var(--danger); font-size: 12px; margin-top: 2px; }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #d6d2ff; border-top-color: var(--violet); display: inline-block; }
+
+  .docs { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+  .doc { display: grid; grid-template-columns: 34px minmax(0,1fr) 64px auto; gap: 12px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #f1f1f3; font-size: 13px; }
+  .doc:last-child { border-bottom: 0; }
+  .doc b { overflow-wrap: anywhere; font-weight: 600; }
+  .doc small { display: block; color: var(--muted); margin-top: 2px; font-size: 12px; }
+  .doc .size { color: var(--muted); text-align: right; white-space: nowrap; }
+  .doc .acts { display: flex; gap: 6px; }
+  .doc.busy { background: #fcfcff; }
+  .phone .doc { grid-template-columns: 34px minmax(0,1fr) auto; }
+  .phone .doc .acts { grid-column: 2 / -1; }
+  .phone .doc .acts button { flex: 1; padding: 9px 8px; min-height: 40px; }
+  .ft { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+  .pdf { background: #ffe9e4; color: #a3341c; } .docx { background: #e6efff; color: #2353b8; }
+
+  .empty { border: 1px solid var(--line); border-radius: 10px; padding: 26px 20px; text-align: center; }
+  .empty h3 { margin: 0 0 4px; font-size: 15px; } .empty p { margin: 0; color: var(--muted); }
+  .error { border: 1px solid #f3c3bd; background: #fff7f6; border-radius: 10px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .error p { margin: 0; }
+  .skel { border: 1px solid var(--line); border-radius: 10px; }
+  .skel div { display: grid; grid-template-columns: 34px 1fr 64px; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid #f1f1f3; }
+  .skel div:last-child { border-bottom: 0; }
+  .skel i { display: block; height: 10px; border-radius: 99px; background: #efeff2; } .skel i.t { height: 34px; border-radius: 8px; }
+  .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 24px 28px; }
+  .states h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  .scrim { position: absolute; inset: 0; background: rgba(17,17,17,.38); display: grid; place-items: center; padding: 16px; }
+  .dialog { background: #fff; border-radius: 14px; width: 100%; max-width: 460px; padding: 22px 24px; box-shadow: 0 18px 48px rgba(17,17,17,.22); }
+  .dialog h2 { margin: 0 0 12px; font-size: 18px; }
+  .dialog p { margin: 0; line-height: 1.5; }
+  .dialog .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .phone .scrim { place-items: end center; padding: 0; } .phone .dialog { border-radius: 16px 16px 0 0; max-width: none; } .phone .dialog .btns { flex-direction: column-reverse; } .phone .dialog .btns button { width: 100%; height: 42px; }
+
+  .toast { position: absolute; right: 20px; bottom: 20px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: flex; gap: 8px; align-items: center; box-shadow: 0 8px 24px rgba(17,17,17,.1); font-size: 13px; }
+  .toast i { width: 16px; height: 16px; border-radius: 50%; background: var(--mint); display: inline-block; }
+  .phone .toast { left: 16px; right: 16px; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="label"><b>1. Project page with documents</b> The section sits under Details, in the left column beside the members panel (F3). Every member sees the same zone and actions: the API lets owner and participant upload, replace and delete. The second row is being replaced.</div>
+<div class="frame">
+  <div class="app">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">Projects</a><a href="#">Profile</a><a href="#">Log out</a></nav></aside>
+    <main>
+      <div class="crumbs"><a href="#">Projects</a> / Website redesign</div>
+      <div class="banner"><div class="head"><div><span class="pill own" style="background:#fff">Owner</span><h1>Website redesign</h1><p>New home page, catalogue and order form for a coffee shop.</p></div>
+        <div class="actions"><button class="btn2">Edit</button><button class="btn2 danger">Delete project</button></div></div></div>
+      <div class="body">
+        <div>
+          <dl class="details"><div><dt>Owner</dt><dd>alex (you)</dd></div><div><dt>Created</dt><dd>Nov 3, 2026</dd></div><div><dt>Updated</dt><dd>2 minutes ago</dd></div></dl>
+          <section>
+            <h2 class="sec">Documents <span class="count">3</span></h2>
+            <div class="drop"><p>Drop PDF or DOCX files here or <button class="link">Choose files</button></p><small>Up to 10 MB each</small></div>
+            <ul class="docs">
+              <li class="doc"><span class="ft pdf">PDF</span><div><b>Client brief.pdf</b><small>Updated yesterday by alex</small></div><span class="size">2.4 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+              <li class="doc busy"><span class="ft docx">DOCX</span><div><b>Site map.docx</b><small>Added Nov 12 by sam</small></div><span class="size">820 KB</span><div class="acts"><span class="st" style="color:var(--muted);display:flex;gap:6px;align-items:center"><span class="spin"></span>Replacing…</span></div></li>
+              <li class="doc"><span class="ft pdf">PDF</span><div><b>Mockups v2 — final, with the order form and the new catalogue grid.pdf</b><small>Added Nov 10 by a deleted account</small></div><span class="size">9.8 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+            </ul>
+          </section>
+        </div>
+        <div class="side"><h2>Members</h2>Members panel from F3 (not part of this epic).</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>2. Phone, 375 px</b> Left: the list, with the actions under each name. Right: the toast after a replace.</div>
+<div class="pair">
+  <div class="phone">
+    <div class="topbar"><div class="logo" style="margin:0"><i></i>Project Hub</div><button class="btn2 sm">Menu</button></div>
+    <main>
+      <h2 class="sec">Documents <span class="count">2</span></h2>
+      <div class="drop"><p><button class="link">Choose PDF or DOCX files</button></p><small>Up to 10 MB each</small></div>
+      <ul class="docs">
+        <li class="doc"><span class="ft pdf">PDF</span><div><b>Client brief.pdf</b><small>Updated yesterday by alex</small></div><span class="size">2.4 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+        <li class="doc"><span class="ft docx">DOCX</span><div><b>Site map.docx</b><small>Added Nov 12 by sam</small></div><span class="size">820 KB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+      </ul>
+    </main>
+  </div>
+  <div class="phone" style="min-height:300px">
+    <main>
+      <h2 class="sec">Documents <span class="count">2</span></h2>
+      <ul class="docs">
+        <li class="doc"><span class="ft docx">DOCX</span><div><b>Client brief v2.docx</b><small>Updated just now by alex</small></div><span class="size">1.1 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+      </ul>
+    </main>
+    <div class="toast"><i></i>File replaced</div>
+  </div>
+</div>
+
+<div class="label"><b>3. Uploading several files</b> Three files were dropped. They go one after another. The .txt never left the browser; its message is the same one the API would give. A saved file leaves this list and appears in the documents list; one toast at the end says how many were saved.</div>
+<div class="frame">
+  <main style="max-width:720px">
+    <h2 class="sec">Documents <span class="count">3</span></h2>
+    <div class="drop"><p>Drop PDF or DOCX files here or <button class="link">Choose files</button></p><small>Up to 10 MB each</small></div>
+    <div class="ups" aria-label="Uploads">
+      <div class="up"><span class="ft pdf">PDF</span><div><b>Invoice March.pdf</b><small style="display:block;color:var(--muted);font-size:12px">1.2 MB</small></div><span class="st"><span class="spin"></span>Uploading…</span></div>
+      <div class="up"><span class="ft docx">DOCX</span><div><b>Contract.docx</b><small style="display:block;color:var(--muted);font-size:12px">64 KB</small></div><span class="st">Waiting</span></div>
+      <div class="up"><span class="ft" style="background:#f1f1f3;color:#555">TXT</span><div><b>notes.txt</b><div class="err">notes.txt: only pdf and docx documents are allowed</div></div><button class="btn2 sm">Dismiss</button></div>
+    </div>
+  </main>
+</div>
+
+<div class="label"><b>4. Files dragged over the zone</b> The zone turns solid violet while the files are over it. A drop anywhere else on the page does nothing.</div>
+<div class="frame"><main style="max-width:720px"><div class="drop over"><p>Drop to upload</p></div></main></div>
+
+<div class="label"><b>5. Loading, empty, error</b></div>
+<div class="frame">
+  <div class="states">
+    <div><h4>Loading</h4><div class="skel"><div><i class="t"></i><i style="width:70%"></i><i></i></div><div><i class="t"></i><i style="width:50%"></i><i></i></div><div><i class="t"></i><i style="width:62%"></i><i></i></div></div></div>
+    <div><h4>Empty</h4><div class="empty"><h3>No documents yet</h3><p>Upload the first one above.</p></div></div>
+    <div><h4>List failed</h4><div class="error"><p>Couldn't load the documents.</p><button class="btn2">Try again</button></div></div>
+  </div>
+</div>
+
+<div class="label"><b>6. Delete</b> A confirmation dialog, no typing: one file is a smaller loss than a project. On a phone it slides up from the bottom like the other dialogs.</div>
+<div class="pair">
+  <div class="frame" style="flex:1;min-width:560px;min-height:300px">
+    <div class="scrim"><div class="dialog" role="alertdialog"><h2>Delete this document?</h2><p>This deletes <strong>Client brief.pdf</strong> for everyone in the project. You can't undo this.</p>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn-danger">Delete document</button></div></div></div>
+  </div>
+  <div class="phone" style="min-height:300px">
+    <div class="scrim"><div class="dialog"><h2>Delete this document?</h2><p>This deletes <strong>Client brief.pdf</strong> for everyone in the project. You can't undo this.</p>
+      <div class="btns"><button class="btn2">Cancel</button><button class="btn-danger">Delete document</button></div></div></div>
+  </div>
+</div>
+
+<div class="label"><b>7. Projects list with a documents count</b> Optional addition: the number comes from <code>GET /projects</code>, which already returns each project's documents.</div>
+<div class="frame">
+  <main>
+    <div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <tr style="background:var(--soft);color:var(--muted)"><th style="text-align:left;font-weight:500;padding:10px 14px">Project</th><th style="text-align:left;font-weight:500;padding:10px 14px">Role</th><th style="text-align:left;font-weight:500;padding:10px 14px">Owner</th><th style="text-align:right;font-weight:500;padding:10px 14px">Documents</th><th style="text-align:left;font-weight:500;padding:10px 14px">Updated</th></tr>
+        <tr><td style="padding:12px 14px;font-weight:600">Website redesign</td><td style="padding:12px 14px"><span class="pill own">Owner</span></td><td style="padding:12px 14px;color:var(--muted)">alex (you)</td><td style="padding:12px 14px;text-align:right">3</td><td style="padding:12px 14px;color:var(--muted)">2 minutes ago</td></tr>
+        <tr><td style="padding:12px 14px;font-weight:600;border-top:1px solid #f1f1f3">Coffee menu</td><td style="padding:12px 14px;border-top:1px solid #f1f1f3"><span class="pill par">Participant</span></td><td style="padding:12px 14px;color:var(--muted);border-top:1px solid #f1f1f3">sam</td><td style="padding:12px 14px;text-align:right;border-top:1px solid #f1f1f3">0</td><td style="padding:12px 14px;color:var(--muted);border-top:1px solid #f1f1f3">Nov 12</td></tr>
+      </table>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
