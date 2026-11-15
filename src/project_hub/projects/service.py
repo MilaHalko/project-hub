@@ -87,3 +87,17 @@ async def invite(uow: UnitOfWork, user: User, project_id: UUID, login: str) -> P
     await uow.commit()
     _log_event("participant invited", user, project_id, member_id=invited.id)
     return ProjectMember(invited.id, invited.login, ProjectRole.PARTICIPANT, joined_at)
+
+
+async def remove_member(uow: UnitOfWork, user: User, project_id: UUID, member_id: UUID) -> None:
+    access = await get_project(uow, user, project_id)
+    is_self = member_id == user.id
+    if access.role is ProjectRole.PARTICIPANT and not is_self:
+        raise PermissionDeniedError("Only the project owner can remove participants")
+    if access.role is ProjectRole.OWNER and is_self:
+        raise ConflictError("The owner cannot leave the project")
+    if not await uow.projects.remove_member(project_id, member_id):
+        raise NotFoundError("Participant not found")
+    await uow.commit()
+    event = "participant left" if is_self else "participant removed"
+    _log_event(event, user, project_id, member_id=member_id)

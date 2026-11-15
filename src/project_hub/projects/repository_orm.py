@@ -143,6 +143,15 @@ class OrmProjectRepository:
             raise
         return model.created_at
 
+    async def remove_member(self, project_id: UUID, user_id: UUID) -> bool:
+        statement = (
+            delete(ProjectMemberModel)
+            .where(ProjectMemberModel.project_id == project_id)
+            .where(ProjectMemberModel.user_id == user_id)
+            .returning(ProjectMemberModel.user_id)
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none() is not None
+
     async def list_members(self, project_id: UUID) -> list[ProjectMember]:
         owner = (
             select(
