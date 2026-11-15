@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DbBackend = Literal["orm", "sql"]
@@ -19,10 +19,15 @@ class Settings(BaseSettings):
     db_backend: DbBackend = "orm"
     database_url: SecretStr | None = None
     jwt_secret: SecretStr | None = None
+    s3_bucket: str | None = None
+    s3_endpoint_url: str | None = None
+    s3_region: str = "eu-west-1"
+    document_max_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
+    document_max_files: int = Field(default=10, ge=1, le=100)
 
-    @field_validator("jwt_secret", mode="before")
+    @field_validator("jwt_secret", "s3_bucket", "s3_endpoint_url", mode="before")
     @classmethod
-    def _blank_secret_is_unset(cls, value: Any) -> Any:
+    def _blank_is_unset(cls, value: Any) -> Any:
         return None if isinstance(value, str) and value.strip() == "" else value
 
     @field_validator("jwt_secret")

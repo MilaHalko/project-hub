@@ -5,6 +5,8 @@ import psycopg
 from psycopg_pool import AsyncConnectionPool
 
 from project_hub.db.urls import psycopg_url
+from project_hub.documents.repository import DocumentRepository
+from project_hub.documents.repository_sql import SqlDocumentRepository
 from project_hub.projects.repository import ProjectRepository
 from project_hub.projects.repository_sql import SqlProjectRepository
 from project_hub.users.repository import UserRepository
@@ -18,6 +20,7 @@ class SqlUnitOfWork:
 
     users: UserRepository
     projects: ProjectRepository
+    documents: DocumentRepository
 
     def __init__(self, pool: AsyncConnectionPool[psycopg.AsyncConnection[Any]]) -> None:
         self._pool = pool
@@ -39,6 +42,7 @@ class SqlUnitOfWork:
         self._conn = await self._pool.getconn()
         self.users = SqlUserRepository(self._conn)
         self.projects = SqlProjectRepository(self._conn)
+        self.documents = SqlDocumentRepository(self._conn)
         return self
 
     async def __aexit__(

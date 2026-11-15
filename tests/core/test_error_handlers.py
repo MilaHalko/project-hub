@@ -15,6 +15,7 @@ from project_hub.core.exceptions import (
     ValidationFailedError,
 )
 from project_hub.main import create_app
+from project_hub.storage.files import StorageUnavailableError
 from tests.isolated_settings import IsolatedSettings
 
 
@@ -40,6 +41,7 @@ def error_client() -> TestClient:
             "subclass": ProjectNotFound("missing"),
             "validation": ValidationFailedError("nope"),
             "plain": DomainError("bad"),
+            "storage": StorageUnavailableError(),
             "unhandled": RuntimeError("secret-internal-detail"),
         }
         raise errors[kind]
@@ -92,6 +94,12 @@ def test_plain_domain_error_is_400(error_client: TestClient) -> None:
     r = error_client.get("/raise/plain")
     assert r.status_code == 400
     assert r.json() == {"detail": "bad"}
+
+
+def test_storage_unavailable_is_503(error_client: TestClient) -> None:
+    r = error_client.get("/raise/storage")
+    assert r.status_code == 503
+    assert r.json() == {"detail": "File storage is unavailable"}
 
 
 def test_authentication_error_sets_www_authenticate(error_client: TestClient) -> None:
