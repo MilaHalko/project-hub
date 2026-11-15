@@ -37,3 +37,13 @@ export type ProjectInput = { name: string; description: string };
 export function createProject(body: ProjectInput): Promise<Project> {
   return apiFetch<Project>("/projects", { method: "POST", body });
 }
+
+export function updateProject(
+  id: string,
+  body: ProjectInput,
+): Promise<Project> {
+  return apiFetch<Project>(`/project/${encodeURIComponent(id)}/info`, {
+    method: "PUT",
+    body,
+  });
+}

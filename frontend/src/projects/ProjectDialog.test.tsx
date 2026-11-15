@@ -500,3 +500,273 @@ test("clears a server field error once the field is edited", async () => {
 
   expect(screen.queryByText("Name is taken")).toBeNull();
 });
+
+const PROJECT_ID = "10000000-0000-4000-8000-000000000001";
+const INFO = `/api/project/${PROJECT_ID}/info`;
+
+const existing: Project = {
+  ...created,
+  id: PROJECT_ID,
+  name: "Website redesign",
+  description: "Line one",
+};
+
+function puts(
+  fetchMock: ReturnType<typeof mockApi>,
+): Parameters<typeof fetch>[] {
+  return fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
+}
+
+async function openEdit() {
+  const user = userEvent.setup();
+  renderApp(`/projects/${PROJECT_ID}`);
+  await screen.findByRole("heading", { level: 1, name: "Website redesign" });
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+  await screen.findByRole("dialog", { name: "Edit project" });
+  return { user };
+}
+
+function editRoutes(extra: Parameters<typeof mockApi>[0] = {}) {
+  return mockApi({
+    [`GET ${INFO}`]: { status: 200, body: existing },
+    ...extra,
+  });
+}
+
+test("edit opens filled with the counter at the description length", async () => {
+  editRoutes();
+  await openEdit();
+
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+    "Website redesign",
+  );
+  expect(
+    screen.getByRole("textbox", { name: "Description (optional)" }),
+  ).toHaveValue("Line one");
+  expect(screen.getByText("8 / 2000")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Save changes" }),
+  ).toBeInTheDocument();
+});
+
+test("saves the trimmed name and description and shows them on the page", async () => {
+  const updated = { ...existing, name: "Site v2", description: "New text" };
+  const fetchMock = editRoutes({
+    [`PUT ${INFO}`]: { status: 200, body: updated },
+  });
+  const { user } = await openEdit();
+  const name = screen.getByRole("textbox", { name: "Name" });
+  await user.clear(name);
+  await user.type(name, "  Site v2 ");
+  const description = screen.getByRole("textbox", {
+    name: "Description (optional)",
+  });
+  await user.clear(description);
+  await user.type(description, "New text");
+
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Site v2" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("New text")).toBeInTheDocument();
+  expect(screen.getByText("Changes saved")).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const [put] = puts(fetchMock);
+  expect(put?.[0]).toBe(INFO);
+  expect(JSON.parse(put?.[1]?.body as string)).toEqual({
+    name: "Site v2",
+    description: "New text",
+  });
+});
+
+test("a participant can edit too", async () => {
+  const updated = { ...existing, name: "Renamed", my_role: "participant" };
+  mockApi({
+    [`GET ${INFO}`]: {
+      status: 200,
+      body: { ...existing, my_role: "participant" },
+    },
+    [`PUT ${INFO}`]: { status: 200, body: updated },
+  });
+  const { user } = await openEdit();
+  const name = screen.getByRole("textbox", { name: "Name" });
+  await user.clear(name);
+  await user.type(name, "Renamed");
+
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Renamed" }),
+  ).toBeInTheDocument();
+});
+
+test("keeps the values and says so when saving fails", async () => {
+  editRoutes({
+    [`PUT ${INFO}`]: () => {
+      throw new Error("offline");
+    },
+  });
+  const { user } = await openEdit();
+  await user.type(screen.getByRole("textbox", { name: "Name" }), "!");
+
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(
+    await within(screen.getByRole("dialog")).findByRole("alert"),
+  ).toHaveTextContent("Couldn't save the changes. Try again.");
+  expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue(
+    "Website redesign!",
+  );
+});
+
+test("uses the save text for a 422 that names no known field", async () => {
+  editRoutes({
+    [`PUT ${INFO}`]: {
+      status: 422,
+      body: {
+        detail: [{ loc: ["body", "owner"], msg: "Nope", type: "value_error" }],
+      },
+    },
+  });
+  const { user } = await openEdit();
+
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(
+    await within(screen.getByRole("dialog")).findByRole("alert"),
+  ).toHaveTextContent("Couldn't save the changes. Try again.");
+});
+
+test("goes to the list with a toast when the project no longer exists", async () => {
+  const fetchMock = editRoutes({ [`PUT ${INFO}`]: { status: 404 } });
+  const { user } = await openEdit();
+
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Your projects" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText("This project no longer exists."),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(
+    fetchMock.mock.calls.filter(
+      ([url, init]) => url === INFO && (init?.method ?? "GET") === "GET",
+    ),
+  ).toHaveLength(1);
+});
+
+test("shows the new name in the list before the list reloads", async () => {
+  const user = userEvent.setup();
+  const updated = { ...existing, name: "Site v2" };
+  let listed = 0;
+  const waiting: (() => void)[] = [];
+  editRoutes({
+    "GET /api/projects?limit=21&offset=0": () => {
+      listed += 1;
+      if (listed === 1) return { status: 200, body: [existing] };
+      return new Promise((resolve) => {
+        waiting.push(() => {
+          resolve({ status: 200, body: [updated] });
+        });
+      });
+    },
+    [`PUT ${INFO}`]: { status: 200, body: updated },
+  });
+  renderApp("/projects");
+  await user.click(
+    await screen.findByRole("link", { name: "Website redesign" }),
+  );
+  await screen.findByRole("heading", { level: 1, name: "Website redesign" });
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+  const name = await screen.findByRole("textbox", { name: "Name" });
+  await user.clear(name);
+  await user.type(name, "Site v2");
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  await screen.findByRole("heading", { level: 1, name: "Site v2" });
+
+  await user.click(
+    within(screen.getByRole("navigation", { name: "Breadcrumb" })).getByRole(
+      "link",
+      { name: "Projects" },
+    ),
+  );
+
+  expect(
+    await screen.findByRole("link", { name: "Site v2" }),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Website redesign" })).toBeNull();
+  await waitFor(() => {
+    expect(waiting.length).toBeGreaterThan(0);
+  });
+  for (const release of waiting) release();
+  await waitFor(() => {
+    expect(
+      screen.getByRole("region", { name: "Projects" }),
+    ).not.toHaveAttribute("aria-busy");
+  });
+});
+
+test("sends one request for a double click on Save changes", async () => {
+  let release: () => void = () => undefined;
+  const fetchMock = editRoutes({
+    [`PUT ${INFO}`]: () =>
+      new Promise((resolve) => {
+        release = () => {
+          resolve({ status: 200, body: existing });
+        };
+      }),
+  });
+  const { user } = await openEdit();
+
+  await user.dblClick(screen.getByRole("button", { name: "Save changes" }));
+
+  expect(puts(fetchMock)).toHaveLength(1);
+  release();
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  expect(puts(fetchMock)).toHaveLength(1);
+});
+
+test("keeps the edit dialog open on Cancel during the request", async () => {
+  let release: () => void = () => undefined;
+  editRoutes({
+    [`PUT ${INFO}`]: () =>
+      new Promise((resolve) => {
+        release = () => {
+          resolve({ status: 200, body: existing });
+        };
+      }),
+  });
+  const { user } = await openEdit();
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  await waitFor(() => {
+    expect(
+      screen.getByRole("button", { name: "Save changes" }),
+    ).toHaveAttribute("aria-busy", "true");
+  });
+
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  release();
+  await waitFor(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+test("reopening after Cancel shows the saved values", async () => {
+  editRoutes();
+  const { user } = await openEdit();
+  await user.type(screen.getByRole("textbox", { name: "Name" }), " abandoned");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+
+  expect(await screen.findByRole("textbox", { name: "Name" })).toHaveValue(
+    "Website redesign",
+  );
+});

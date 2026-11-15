@@ -1,8 +1,17 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import { useNavigate } from "react-router";
 import { ApiError, fieldErrors } from "../api/errors";
-import { createProject } from "../api/projects";
+import {
+  createProject,
+  updateProject,
+  type Project,
+  type ProjectInput,
+} from "../api/projects";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Field } from "../ui/Field";
@@ -15,9 +24,13 @@ import {
   type ProjectErrors,
 } from "./projectRules";
 
-const FAILED = "Couldn't create the project. Try again.";
+const CREATE_FAILED = "Couldn't create the project. Try again.";
+const EDIT_FAILED = "Couldn't save the changes. Try again.";
 
-function serverErrors(error: Error | null): {
+function serverErrors(
+  error: Error | null,
+  failed: string,
+): {
   fields: ProjectErrors;
   form: string | null;
 } {
@@ -27,33 +40,69 @@ function serverErrors(error: Error | null): {
     const known = fields.name !== undefined || fields.description !== undefined;
     return {
       fields: { name: fields.name, description: fields.description },
-      form: known ? form : (form ?? FAILED),
+      form: known ? form : (form ?? failed),
     };
   }
-  return { fields: {}, form: FAILED };
+  return { fields: {}, form: failed };
 }
 
 const CREATE_KEY = ["createProject"];
 
-function ProjectForm({ onClose }: { onClose: () => void }) {
+function mutationKey(project?: Project) {
+  return project ? ["updateProject", project.id] : CREATE_KEY;
+}
+
+function ProjectForm({
+  project,
+  onClose,
+}: {
+  project?: Project;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(project?.name ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
   const [submitted, setSubmitted] = useState(false);
   const [edited, setEdited] = useState({ name: false, description: false });
   const nameInput = useRef<HTMLInputElement>(null);
   const descriptionInput = useRef<HTMLTextAreaElement>(null);
   const mutation = useMutation({
-    mutationKey: CREATE_KEY,
-    mutationFn: createProject,
+    mutationKey: mutationKey(project),
+    mutationFn: (body: ProjectInput) =>
+      project ? updateProject(project.id, body) : createProject(body),
     onSuccess: async (created) => {
+      if (project) {
+        queryClient.setQueryData(["project", project.id], created);
+        queryClient.setQueriesData<InfiniteData<Project[]>>(
+          { queryKey: ["projects"] },
+          (data) =>
+            data && {
+              ...data,
+              pages: data.pages.map((page) =>
+                page.map((item) => (item.id === created.id ? created : item)),
+              ),
+            },
+        );
+        void queryClient.invalidateQueries({ queryKey: ["projects"] });
+        toast.success("Changes saved");
+        onClose();
+        return;
+      }
       queryClient.setQueryData(["project", created.id], created);
       toast.success("Project created");
       onClose();
       await navigate(`/projects/${encodeURIComponent(created.id)}`);
       void queryClient.resetQueries({ queryKey: ["projects"] });
+    },
+    onError: async (error) => {
+      if (project && error instanceof ApiError && error.status === 404) {
+        await navigate("/projects");
+        queryClient.removeQueries({ queryKey: ["project", project.id] });
+        void queryClient.invalidateQueries({ queryKey: ["projects"] });
+        toast.error("This project no longer exists.");
+      }
     },
   });
 
@@ -62,7 +111,8 @@ function ProjectForm({ onClose }: { onClose: () => void }) {
   }, []);
 
   const client = submitted ? checkProject({ name, description }) : {};
-  const server = serverErrors(mutation.error);
+  const failed = project ? EDIT_FAILED : CREATE_FAILED;
+  const server = serverErrors(mutation.error, failed);
   const errors: ProjectErrors = {
     name: client.name ?? (edited.name ? undefined : server.fields.name),
     description:
@@ -91,7 +141,7 @@ function ProjectForm({ onClose }: { onClose: () => void }) {
       {
         onError: (error) => {
           setEdited({ name: false, description: false });
-          focusFirstInvalid(serverErrors(error).fields);
+          focusFirstInvalid(serverErrors(error, failed).fields);
         },
       },
     );
@@ -137,7 +187,7 @@ function ProjectForm({ onClose }: { onClose: () => void }) {
           Cancel
         </Button>
         <Button type="submit" busy={mutation.isPending}>
-          Create project
+          {project ? "Save changes" : "Create project"}
         </Button>
       </div>
     </form>
@@ -146,23 +196,27 @@ function ProjectForm({ onClose }: { onClose: () => void }) {
 
 export function ProjectDialog({
   open,
+  project,
   onClose,
 }: {
   open: boolean;
+  project?: Project;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
   return (
     <Dialog
       open={open}
-      title="New project"
+      title={project ? "Edit project" : "New project"}
       onClose={() => {
-        if (queryClient.isMutating({ mutationKey: CREATE_KEY }) === 0) {
+        if (
+          queryClient.isMutating({ mutationKey: mutationKey(project) }) === 0
+        ) {
           onClose();
         }
       }}
     >
-      {open && <ProjectForm onClose={onClose} />}
+      {open && <ProjectForm project={project} onClose={onClose} />}
     </Dialog>
   );
 }
