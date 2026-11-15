@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -5,6 +7,7 @@ from pydantic import SecretStr
 from project_hub.core.config import Settings
 from project_hub.db.uow import UnitOfWork
 from project_hub.main import create_app
+from project_hub.storage.s3 import S3FileStorage
 from tests.isolated_settings import IsolatedSettings
 
 
@@ -64,3 +67,20 @@ def test_lifespan_opens_and_closes_database(monkeypatch: pytest.MonkeyPatch) -> 
         assert app.state.database is fake
 
     assert fake.closed
+
+
+def test_storage_is_none_without_bucket(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING, logger="project_hub.storage.s3"):
+        app = create_app(IsolatedSettings())
+
+    assert app.state.storage is None
+    messages = [r.getMessage() for r in caplog.records if r.name == "project_hub.storage.s3"]
+    assert "APP_S3_BUCKET is not set; documents are disabled" in messages
+
+
+def test_storage_is_built_with_bucket() -> None:
+    settings = IsolatedSettings(s3_bucket="project-hub-documents")
+    app = create_app(settings)
+
+    assert isinstance(app.state.storage, S3FileStorage)
+    assert app.state.settings is settings

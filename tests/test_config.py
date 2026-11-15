@@ -104,3 +104,64 @@ def test_short_jwt_secret_error_does_not_print_the_secret(
     with pytest.raises(ValidationError) as exc_info:
         IsolatedSettings()
     assert secret not in str(exc_info.value)
+
+
+def test_blank_s3_settings_are_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_S3_BUCKET", "  ")
+    monkeypatch.setenv("APP_S3_ENDPOINT_URL", "")
+    s = IsolatedSettings()
+    assert s.s3_bucket is None
+    assert s.s3_endpoint_url is None
+
+
+def test_s3_settings_are_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_S3_BUCKET", "project-hub-documents")
+    monkeypatch.setenv("APP_S3_ENDPOINT_URL", "http://s3:5000")
+    monkeypatch.setenv("APP_S3_REGION", "eu-central-1")
+    s = IsolatedSettings()
+    assert s.s3_bucket == "project-hub-documents"
+    assert s.s3_endpoint_url == "http://s3:5000"
+    assert s.s3_region == "eu-central-1"
+
+
+def test_s3_region_defaults_to_eu_west_1() -> None:
+    assert IsolatedSettings().s3_region == "eu-west-1"
+
+
+def test_document_limits_default() -> None:
+    s = IsolatedSettings()
+    assert s.document_max_bytes == 10_485_760
+    assert s.document_max_files == 10
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("APP_DOCUMENT_MAX_BYTES", "0"),
+        ("APP_DOCUMENT_MAX_BYTES", "104857601"),
+        ("APP_DOCUMENT_MAX_FILES", "0"),
+        ("APP_DOCUMENT_MAX_FILES", "101"),
+    ],
+)
+def test_document_limits_reject_out_of_range(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "field"),
+    [
+        ("APP_DOCUMENT_MAX_BYTES", "1", "document_max_bytes"),
+        ("APP_DOCUMENT_MAX_BYTES", "104857600", "document_max_bytes"),
+        ("APP_DOCUMENT_MAX_FILES", "1", "document_max_files"),
+        ("APP_DOCUMENT_MAX_FILES", "100", "document_max_files"),
+    ],
+)
+def test_document_limits_accept_range_ends(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str, field: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    assert getattr(IsolatedSettings(), field) == int(value)

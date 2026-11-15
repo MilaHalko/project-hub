@@ -1,10 +1,13 @@
 import unicodedata
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Self
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, StringConstraints
 
+from project_hub.documents.entities import Document
+from project_hub.documents.schemas import DocumentResponse
 from project_hub.projects.entities import ProjectAccess, ProjectMember, ProjectRole
 
 
@@ -71,7 +74,21 @@ class ProjectResponse(BaseModel):
 
 
 class ProjectListItem(ProjectResponse):
-    documents: list[dict[str, Any]] = []
+    documents: list[DocumentResponse] = []
+
+    @classmethod
+    def from_access(cls, access: ProjectAccess, documents: Sequence[Document] = ()) -> Self:
+        project = access.project
+        return cls(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            owner=OwnerResponse(id=project.owner_id, login=access.owner_login),
+            my_role=access.role,
+            created_at=project.created_at,
+            updated_at=project.updated_at,
+            documents=[DocumentResponse.from_document(document) for document in documents],
+        )
 
 
 class MemberResponse(BaseModel):
