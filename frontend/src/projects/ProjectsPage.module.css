@@ -95,3 +95,20 @@
     min-height: 40px;
   }
 }
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.more .error {
+  flex: 1;
+}
+
+@media (max-width: 767.98px) {
+  .showMore {
+    width: 100%;
+    min-height: 40px;
+  }
+}
