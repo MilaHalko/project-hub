@@ -17,3 +17,21 @@ export async function createProjectViaApi(
   const { id, name } = (await response.json()) as { id: string; name: string };
   return { id, name };
 }
+
+export async function inviteViaApi(
+  request: APIRequestContext,
+  owner: TestUser,
+  projectId: string,
+  login: string,
+): Promise<void> {
+  const token = await apiToken(request, owner);
+  const response = await request.post(
+    `/api/project/${projectId}/invite?${new URLSearchParams({ user: login }).toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (response.status() !== 201) {
+    throw new Error(
+      `POST /api/project/${projectId}/invite answered ${String(response.status())}`,
+    );
+  }
+}
