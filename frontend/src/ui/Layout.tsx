@@ -1,10 +1,12 @@
 import { LayoutGrid, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { useMe } from "../auth/useMe";
 import styles from "./Layout.module.css";
 import { LoaderBar } from "./LoaderBar";
 
 export function Layout() {
+  useMe();
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
   const [menuPath, setMenuPath] = useState(pathname);

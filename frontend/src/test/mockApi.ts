@@ -3,7 +3,21 @@ import { onTestFinished, vi, type Mock } from "vitest";
 type Answer = { status: number; body?: unknown };
 type Route = Answer | (() => Answer | Promise<Answer>);
 
-export function mockApi(routes: Record<string, Route>): Mock<typeof fetch> {
+const defaultRoutes: Record<string, Route> = {
+  "GET /api/users/me": {
+    status: 200,
+    body: {
+      id: "00000000-0000-4000-8000-000000000001",
+      login: "mila",
+      created_at: "2026-11-14T12:00:00Z",
+    },
+  },
+};
+
+export function mockApi(
+  givenRoutes: Record<string, Route>,
+): Mock<typeof fetch> {
+  const routes = { ...defaultRoutes, ...givenRoutes };
   const unknown: string[] = [];
   onTestFinished(() => {
     if (unknown.length > 0) {

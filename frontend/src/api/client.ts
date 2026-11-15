@@ -1,4 +1,4 @@
-import { getToken } from "../auth/tokenStore";
+import { clearToken, getToken } from "../auth/tokenStore";
 import { ApiError, type FieldError } from "./errors";
 
 function parse(text: string): unknown {
@@ -41,6 +41,9 @@ export async function apiFetch<T>(
     text = await response.text();
   } catch {
     throw new ApiError(0, null);
+  }
+  if (status === 401 && token !== null && getToken() === token) {
+    clearToken("expired");
   }
   const body = parse(text);
   if (status < 200 || status >= 300) throw new ApiError(status, detailOf(body));
