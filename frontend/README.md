@@ -72,11 +72,15 @@ ports, for example
 from the repository root, then `E2E_BASE_URL=http://127.0.0.1:8091 npm run e2e`.
 
 For the next epics: `signIn` seeds the token only once per tab and leaves the marker key
-`project-hub.e2e-seeded` in `sessionStorage`. In unit tests `mockApi` answers `GET /api/users/me`
-by default, so a test only lists the routes it cares about. `apiFetch` has the option
+`project-hub.e2e-seeded` in `sessionStorage`; `createProjectViaApi(request, user, body)` in
+`e2e/projects.ts` creates a project for that user through `POST /api/projects`. In unit tests
+`mockApi` answers `GET /api/users/me` and the first projects page
+(`GET /api/projects?limit=21&offset=0`, an empty list) by default, so a test only lists the routes
+it cares about. `apiFetch` has the option
 `endsSessionOn401`: a 401 clears the token and sends the user to log in, and only the logout call
 turns it off. Page headings come from `Banner`, or from any plain `h1`; after navigation
-`useFocusHeadingOnNavigate` gives that `h1` `tabindex="-1"` and focuses it.
+`useFocusHeadingOnNavigate` gives that `h1` `tabindex="-1"` and focuses it, except after a redirect
+on page load (such as `/` → `/projects`), where the focus stays where the browser put it.
 
 ## CI
 

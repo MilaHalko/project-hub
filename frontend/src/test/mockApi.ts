@@ -12,6 +12,7 @@ const defaultRoutes: Record<string, Route> = {
       created_at: "2026-11-14T12:00:00Z",
     },
   },
+  "GET /api/projects?limit=21&offset=0": { status: 200, body: [] },
 };
 
 export function mockApi(

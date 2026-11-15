@@ -1,0 +1,221 @@
+.frame {
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--text-table);
+}
+
+.head th {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-soft);
+  color: var(--color-muted);
+  font-weight: 500;
+  text-align: left;
+}
+
+.roleColumn {
+  width: 120px;
+}
+
+.ownerColumn {
+  width: 22%;
+}
+
+.updatedColumn {
+  width: 140px;
+}
+
+.row td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: top;
+}
+
+.row:last-child td {
+  border-bottom: 0;
+}
+
+.project {
+  min-width: 0;
+}
+
+.name {
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.name:hover {
+  color: var(--color-violet);
+  text-decoration: underline;
+}
+
+.description {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--color-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.none {
+  font-style: italic;
+}
+
+.ownerBadge,
+.participantBadge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-badge);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ownerBadge {
+  background: var(--color-violet-bg);
+  color: var(--color-violet-ink);
+}
+
+.participantBadge {
+  background: var(--color-mint-bg);
+  color: var(--color-mint-ink);
+}
+
+.owner,
+.updated {
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.cardOnly {
+  display: none;
+}
+
+.skeletonHead {
+  height: 40px;
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-soft);
+}
+
+.skeletonRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 22% 140px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.skeletonRow:last-child {
+  border-bottom: 0;
+}
+
+.skeletonRow > span {
+  margin: 0 14px;
+}
+
+.skeletonText {
+  display: grid;
+  gap: 8px;
+}
+
+.skeletonText span,
+.skeletonBadge,
+.skeletonMeta {
+  display: block;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--color-line);
+}
+
+.skeletonText span:last-child {
+  width: 70%;
+}
+
+.skeletonBadge {
+  width: 60px;
+}
+
+.skeletonMeta {
+  width: 70px;
+}
+
+@media (max-width: 767.98px) {
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "project project role"
+      "owner updated updated";
+    row-gap: 4px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .row:last-child {
+    border-bottom: 0;
+  }
+
+  .row td {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .project {
+    grid-area: project;
+    padding-right: 8px;
+  }
+
+  .role {
+    grid-area: role;
+  }
+
+  .owner {
+    grid-area: owner;
+  }
+
+  .updated {
+    grid-area: updated;
+  }
+
+  .owner,
+  .updated {
+    font-size: var(--text-small);
+  }
+
+  .cardOnly {
+    display: inline;
+  }
+
+  .skeletonRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 14px 0;
+  }
+
+  .skeletonMeta {
+    display: none;
+  }
+}
