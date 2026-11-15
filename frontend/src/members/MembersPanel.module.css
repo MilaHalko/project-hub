@@ -91,3 +91,17 @@
   border-radius: 99px;
   background: var(--color-line);
 }
+
+.hint {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: var(--text-table);
+}
+
+.invite {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-line);
+}

@@ -6,6 +6,7 @@ import type { Project } from "../api/projects";
 import { useMe } from "../auth/useMe";
 import { Avatar } from "../ui/avatar/Avatar";
 import { Button } from "../ui/Button";
+import { InviteForm } from "./InviteForm";
 import styles from "./MembersPanel.module.css";
 
 function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
@@ -85,6 +86,16 @@ export function MembersPanel({ project }: { project: Project }) {
             />
           ))}
         </ul>
+      )}
+      {project.my_role === "owner" && (
+        <>
+          {members.data?.every(({ role }) => role === "owner") && (
+            <p className={styles.hint}>
+              Only you so far. Invite people by their login.
+            </p>
+          )}
+          <InviteForm project={project} />
+        </>
       )}
     </section>
   );
