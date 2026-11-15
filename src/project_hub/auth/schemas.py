@@ -10,6 +10,8 @@ from pydantic import (
     model_validator,
 )
 
+from project_hub.core.text import reject_nul
+
 _PRINTABLE_ASCII = re.compile(r"[\x20-\x7E]*")
 
 
@@ -18,12 +20,6 @@ def _check_printable_ascii(value: SecretStr) -> SecretStr:
         raise ValueError(
             "Password may contain only English letters, digits, keyboard symbols and spaces"
         )
-    return value
-
-
-def _reject_nul(value: str) -> str:
-    if "\x00" in value:
-        raise ValueError("Login must not contain NUL characters")
     return value
 
 
@@ -52,7 +48,7 @@ class LoginRequest(BaseModel):
     # 401; only an empty or oversized value (login over 32, password over 128) or a NUL in the login
     # (Postgres text cannot store it) is a 422.
     login: Annotated[
-        str, StringConstraints(min_length=1, max_length=32), AfterValidator(_reject_nul)
+        str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul("Login"))
     ]
     password: Annotated[SecretStr, Field(min_length=1, max_length=128)]
 
