@@ -2,7 +2,7 @@ import { LoaderCircle } from "lucide-react";
 import type { ButtonHTMLAttributes, Ref } from "react";
 import styles from "./Button.module.css";
 
-type Variant = "primary" | "secondary" | "danger";
+type Variant = "primary" | "secondary" | "danger" | "dangerSolid";
 
 export function buttonClassName({
   variant = "primary",

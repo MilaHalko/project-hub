@@ -6,12 +6,14 @@ export function Dialog({
   title,
   onClose,
   role = "dialog",
+  describedBy,
   children,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   role?: "dialog" | "alertdialog";
+  describedBy?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -38,6 +40,7 @@ export function Dialog({
       ref={ref}
       role={role}
       aria-labelledby={titleId}
+      aria-describedby={describedBy}
       className={styles.dialog}
       onClose={() => {
         onClose();

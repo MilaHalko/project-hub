@@ -47,3 +47,9 @@ export function updateProject(
     body,
   });
 }
+
+export function deleteProject(id: string): Promise<void> {
+  return apiFetch<undefined>(`/project/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
