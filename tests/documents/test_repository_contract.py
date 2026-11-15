@@ -146,6 +146,30 @@ async def test_list_for_project_orders_newest_first_and_filters_project(
         assert await uow.documents.list_for_project(uuid4()) == []
 
 
+async def test_list_for_projects_has_entry_for_every_id(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        one = await uow.projects.add(NewProject(mila.id, "One", ""))
+        two = await uow.projects.add(NewProject(mila.id, "Two", ""))
+        empty = await uow.projects.add(NewProject(mila.id, "Empty", ""))
+        a = await uow.documents.add(_new(one.id, mila.id, "projects/a/documents/1"))
+        b = await uow.documents.add(_new(one.id, mila.id, "projects/a/documents/2"))
+        c = await uow.documents.add(_new(two.id, mila.id, "projects/b/documents/3"))
+        await uow.commit()
+
+    unknown = uuid4()
+    async with database.unit_of_work() as uow:
+        grouped = await uow.documents.list_for_projects([one.id, two.id, empty.id, unknown])
+        assert await uow.documents.list_for_projects([]) == {}
+
+    assert grouped == {
+        one.id: sorted([a, b], key=lambda d: (d.created_at, d.id), reverse=True),
+        two.id: [c],
+        empty.id: [],
+        unknown: [],
+    }
+
+
 async def test_replace_file_changes_fields_keeps_created_at(database: Database) -> None:
     async with database.unit_of_work() as uow:
         mila = await uow.users.add(NewUser("mila", "hash"))

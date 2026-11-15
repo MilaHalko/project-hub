@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from project_hub.auth.dependencies import CurrentUser
 from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
+from project_hub.documents.service import documents_by_project
 from project_hub.projects import service
 from project_hub.projects.entities import ProjectRole
 from project_hub.projects.schemas import MemberResponse, ProjectIn, ProjectListItem, ProjectResponse
@@ -29,7 +30,10 @@ async def list_projects(
     offset: Annotated[int, Query(ge=0, le=100_000)] = 0,
 ) -> list[ProjectListItem]:
     accesses = await service.list_projects(uow, user, role=role, limit=limit, offset=offset)
-    return [ProjectListItem.from_access(access) for access in accesses]
+    documents = await documents_by_project(uow, [access.project.id for access in accesses])
+    return [
+        ProjectListItem.from_access(access, documents[access.project.id]) for access in accesses
+    ]
 
 
 @router.get("/project/{project_id}/info")

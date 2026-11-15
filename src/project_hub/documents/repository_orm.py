@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
@@ -86,6 +87,20 @@ class OrmDocumentRepository:
         )
         rows = (await self._session.execute(statement)).all()
         return [_to_entity(model, login) for model, login in rows]
+
+    async def list_for_projects(self, project_ids: Sequence[UUID]) -> dict[UUID, list[Document]]:
+        grouped: dict[UUID, list[Document]] = {project_id: [] for project_id in project_ids}
+        if not grouped:
+            return grouped
+        statement = (
+            select(DocumentModel, UserModel.login)
+            .outerjoin(UserModel, UserModel.id == DocumentModel.uploaded_by)
+            .where(DocumentModel.project_id.in_(list(grouped)))
+            .order_by(DocumentModel.created_at.desc(), DocumentModel.id.desc())
+        )
+        for model, login in (await self._session.execute(statement)).all():
+            grouped[model.project_id].append(_to_entity(model, login))
+        return grouped
 
     async def delete(self, document_id: UUID) -> Document | None:
         statement = (

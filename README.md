@@ -236,7 +236,9 @@ Outsiders and unknown ids get the same `404` as for reading; a bad body gives `4
 nothing.
 
 `GET /projects` lists every project the caller owns or participates in, each in the same shape
-plus `"documents": []` (documents are filled in epic 6). The list is ordered by `updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
+plus `"documents"`: that project's documents (same shape as `GET /project/{id}/documents`, newest
+first, `[]` when it has none), read for the whole page in one query. The list is ordered by
+`updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
 Query parameters:
 
 - `limit`: 1-100, default 50; `offset`: 0-100000, default 0.
