@@ -18,3 +18,11 @@ export function postLogin(body: {
 export function getMe(): Promise<User> {
   return apiFetch<User>("/users/me");
 }
+
+export function postRegister(body: {
+  login: string;
+  password: string;
+  repeat_password: string;
+}): Promise<User> {
+  return apiFetch<User>("/auth", { method: "POST", body });
+}

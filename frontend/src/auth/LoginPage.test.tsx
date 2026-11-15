@@ -160,3 +160,13 @@ test("goes to the projects page when already logged in", async () => {
     await screen.findByRole("heading", { level: 1, name: "Your projects" }),
   ).toBeInTheDocument();
 });
+
+test("fills in the login of a freshly created account", async () => {
+  renderApp("/login", {
+    token: null,
+    state: { reason: "created", login: "mila" },
+  });
+
+  expect(await screen.findByLabelText("Login")).toHaveValue("mila");
+  expect(screen.getByText("Account created. Log in.")).toBeInTheDocument();
+});

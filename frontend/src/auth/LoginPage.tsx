@@ -5,7 +5,7 @@ import { ApiError, fieldErrors, messageFor } from "../api/errors";
 import { Button } from "../ui/Button";
 import { Field } from "../ui/Field";
 import { PasswordField } from "../ui/PasswordField";
-import styles from "./LoginPage.module.css";
+import styles from "./AuthForm.module.css";
 import { safeNext } from "./safeNext";
 import { logIn } from "./session";
 import { useToken } from "./tokenStore";
@@ -15,6 +15,15 @@ const reasonTexts = new Map([
   ["logout", "You are logged out."],
   ["created", "Account created. Log in."],
 ]);
+
+function createdLogin(state: unknown): string {
+  return typeof state === "object" &&
+    state !== null &&
+    "login" in state &&
+    typeof state.login === "string"
+    ? state.login
+    : "";
+}
 
 function reasonText(state: unknown): string | null {
   if (typeof state !== "object" || state === null || !("reason" in state)) {
@@ -47,7 +56,7 @@ export function LoginPage() {
   const location = useLocation();
   const [params] = useSearchParams();
   const next = params.get("next");
-  const [login, setLogin] = useState("");
+  const [login, setLogin] = useState(() => createdLogin(location.state));
   const [password, setPassword] = useState("");
   const [clientErrors, setClientErrors] = useState<Errors>({});
   const loginInput = useRef<HTMLInputElement>(null);
