@@ -190,7 +190,7 @@ export function ProjectPage() {
       <div className={styles.body}>
         <div>
           <Details project={data} />
-          <DocumentsSection projectId={data.id} />
+          <DocumentsSection key={data.id} projectId={data.id} />
         </div>
         <MembersPanel project={data} />
       </div>

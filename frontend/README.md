@@ -38,7 +38,9 @@ nginx proxies `/api/…` to the API with the prefix stripped, so the browser tal
 and the API needs no CORS. Files under `/assets/` are cached for a year, everything else
 (`index.html`, the favicon, deep links) is `no-cache`; a missing file is 404, any other path
 gets `index.html`. Every response carries the CSP, `Referrer-Policy: no-referrer` and
-`X-Content-Type-Options: nosniff` (`nginx/security-headers.conf`).
+`X-Content-Type-Options: nosniff` (`nginx/security-headers.conf`). nginx accepts request bodies up to 11 MB
+under `/api/`: one document may be 10 MB and the form around it needs room; with nginx's default of
+1 MB a larger upload would stop at the proxy.
 
 `compose.yml` adds a `web` service to the root `docker-compose.yml`, which stays as it is.
 Run both from the repository root (paths in `compose.yml` are relative to the root):
