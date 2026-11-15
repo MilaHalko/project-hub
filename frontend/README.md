@@ -82,6 +82,13 @@ turns it off. Page headings come from `Banner`, or from any plain `h1`; after na
 `useFocusHeadingOnNavigate` gives that `h1` `tabindex="-1"` and focuses it, except after a redirect
 on page load (such as `/` → `/projects`), where the focus stays where the browser put it.
 
+Dialogs use `ui/Dialog`, a native `<dialog>` opened with `showModal()`: the browser traps the
+focus, closes it on Esc and returns the focus to the opener, so the end-to-end tests prove those.
+jsdom has no `showModal`, so `src/test/setup.ts` stubs it (it sets `open`; `close()` removes it and
+fires `close`), and component tests cover opening, closing and submitting. The projects list and
+the project page keep their data for 30 seconds (`staleTime`); a change made in the app updates
+`["project", id]` and refreshes every `["projects", …]` list itself.
+
 ## CI
 
 `.github/workflows/frontend.yml` runs on pull requests and pushes to `main` that touch
