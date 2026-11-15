@@ -23,7 +23,7 @@ function detailOf(body: unknown): string | FieldError[] | null {
 
 export async function apiFetch<T>(
   path: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; endsSessionOn401?: boolean } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
   const token = getToken();
@@ -42,7 +42,12 @@ export async function apiFetch<T>(
   } catch {
     throw new ApiError(0, null);
   }
-  if (status === 401 && token !== null && getToken() === token) {
+  if (
+    status === 401 &&
+    init.endsSessionOn401 !== false &&
+    token !== null &&
+    getToken() === token
+  ) {
     clearToken("expired");
   }
   const body = parse(text);

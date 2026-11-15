@@ -1,6 +1,7 @@
-import { LayoutGrid, Menu, X } from "lucide-react";
+import { LayoutGrid, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { logOut } from "../auth/session";
 import { useMe } from "../auth/useMe";
 import styles from "./Layout.module.css";
 import { LoaderBar } from "./LoaderBar";
@@ -10,6 +11,7 @@ export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { pathname } = useLocation();
   const [menuPath, setMenuPath] = useState(pathname);
+  const [loggingOut, setLoggingOut] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
 
   if (pathname !== menuPath) {
@@ -75,6 +77,19 @@ export function Layout() {
             <LayoutGrid size={16} aria-hidden="true" />
             Projects
           </NavLink>
+          <button
+            type="button"
+            className={styles.link}
+            aria-busy={loggingOut || undefined}
+            onClick={() => {
+              if (loggingOut) return;
+              setLoggingOut(true);
+              void logOut();
+            }}
+          >
+            <LogOut size={16} aria-hidden="true" />
+            Log out
+          </button>
         </nav>
       </header>
       <main id="main" tabIndex={-1} className={styles.main}>

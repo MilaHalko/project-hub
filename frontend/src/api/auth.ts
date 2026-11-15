@@ -26,3 +26,10 @@ export function postRegister(body: {
 }): Promise<User> {
   return apiFetch<User>("/auth", { method: "POST", body });
 }
+
+export function postLogout(): Promise<void> {
+  return apiFetch<undefined>("/logout", {
+    method: "POST",
+    endsSessionOn401: false,
+  });
+}
