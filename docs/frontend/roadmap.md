@@ -38,7 +38,7 @@ an addition beyond the spec; the backend plan lives in
 | F1 | ✅ Sign in and profile (PR #19) | Register, log in, log out, session expired on 401, token in `sessionStorage`, guarded routes; profile page with password change. Default avatars derived from the user id (frontend only) | F0, 3 ✅ |
 | F1b | Avatar picker | Frontend only: picker on the profile page that saves through `PATCH /users/me`; avatars (and the display name, if accepted) shown wherever a user appears | F1; the backend task "users: avatar and display name" merged (it needs 4 for the migration order and the `owner` object) |
 | F2 | ✅ Projects (PR #20) | Projects list with tabs All / Owned / Shared with me, "Show more" paging, empty state; create and edit project; project page with the holographic header; delete for the owner only, with confirmation | 4 |
-| F3 | Members and invites | Invite by login (owner only); members panel with avatars and roles | 5 (members list comes with 4) |
+| F3 | ✅ Members and invites (PR #27) | Invite by login (owner only); members panel with avatars and roles | 5 (members list comes with 4) |
 | F4 | Documents | Upload (drag and drop or picker, pdf/docx), list with sizes, download, replace, delete with confirmation; the used-space bar appears by itself when 7a adds the fields | 6 (space bar: 7a) |
 | F5 | Share and join | "Send a link by email" form (owner); join landing page `/join` on the web app; the `GET /join` browser redirect only if epic 10 chooses it | 10 |
 | F6 | Ready for the defense | One end-to-end test for the whole demo scenario (two users, eight steps); phone-width pass on every screen; `design:accessibility-review`; README section "How to demo" (UI part and Swagger part) | F1–F5; before checkpoint 4 (final demo) |
