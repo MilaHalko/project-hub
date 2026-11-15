@@ -28,14 +28,22 @@ export async function apiFetch<T>(
   const headers: Record<string, string> = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (init.body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = init.body instanceof FormData;
+  if (init.body !== undefined && !isForm) {
+    headers["Content-Type"] = "application/json";
+  }
   let status: number;
   let text: string;
   try {
     const response = await fetch(`/api${path}`, {
       method: init.method ?? "GET",
       headers,
-      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      body:
+        init.body === undefined
+          ? undefined
+          : isForm
+            ? (init.body as FormData)
+            : JSON.stringify(init.body),
     });
     status = response.status;
     text = await response.text();

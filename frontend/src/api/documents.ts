@@ -16,3 +16,16 @@ export function listDocuments(projectId: string): Promise<Document[]> {
     `/project/${encodeURIComponent(projectId)}/documents`,
   );
 }
+
+export async function uploadDocument(
+  projectId: string,
+  file: File,
+): Promise<Document> {
+  const form = new FormData();
+  form.append("files", file);
+  const [document] = await apiFetch<[Document]>(
+    `/project/${encodeURIComponent(projectId)}/documents`,
+    { method: "POST", body: form },
+  );
+  return document;
+}

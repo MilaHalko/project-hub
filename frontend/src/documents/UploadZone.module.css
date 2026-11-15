@@ -1,0 +1,145 @@
+.zone {
+  position: relative;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1.5px dashed #c9c3ff;
+  border-radius: var(--radius-panel);
+  background: #f8f7ff;
+  color: var(--color-violet-ink);
+  font-size: var(--text-table);
+  text-align: center;
+}
+
+.zone p {
+  margin: 0;
+}
+
+.over {
+  border-style: solid;
+  border-color: var(--color-violet);
+  background: var(--color-violet-bg);
+}
+
+.drop {
+  padding: 10px 0;
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.choose {
+  color: var(--color-violet-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.input:focus-visible ~ div .choose {
+  border-radius: 4px;
+  outline: 2px solid var(--color-violet);
+  outline-offset: 2px;
+}
+
+.items {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-line);
+  font-size: var(--text-table);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.itemName {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fileName {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.spinner {
+  color: var(--color-violet);
+  animation: spin 0.8s linear infinite;
+}
+
+.dismiss {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: var(--text-small);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (hover: none) {
+  .dragText {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}

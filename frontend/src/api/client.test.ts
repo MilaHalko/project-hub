@@ -131,3 +131,17 @@ test("a 401 without a token only rejects", async () => {
   expect(getToken()).toBeNull();
   expect(getEndReason()).toBe("logout");
 });
+
+test("sends a form as it is, without a JSON content type", async () => {
+  setToken("t-1");
+  const fetchMock = mockApi({ "POST /api/upload": { status: 201, body: {} } });
+  const form = new FormData();
+  form.append("files", new File(["%PDF-"], "a.pdf"));
+
+  await apiFetch("/upload", { method: "POST", body: form });
+
+  expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(form);
+  const headers = headersOf(fetchMock);
+  expect(headers.has("Content-Type")).toBe(false);
+  expect(headers.get("Authorization")).toBe("Bearer t-1");
+});

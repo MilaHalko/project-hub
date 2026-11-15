@@ -4,7 +4,9 @@ import { listDocuments, type Document } from "../api/documents";
 import type { ApiError } from "../api/errors";
 import { Button } from "../ui/Button";
 import { DocumentRow } from "./DocumentRow";
+import { documentsQueryKey } from "./documentsCache";
 import styles from "./DocumentsSection.module.css";
+import { UploadZone } from "./UploadZone";
 
 function DocumentsSkeleton() {
   return (
@@ -23,10 +25,6 @@ function DocumentsSkeleton() {
       ))}
     </div>
   );
-}
-
-export function documentsQueryKey(projectId: string) {
-  return ["documents", projectId];
 }
 
 export function DocumentsSection({ projectId }: { projectId: string }) {
@@ -80,6 +78,7 @@ export function DocumentsSection({ projectId }: { projectId: string }) {
           <span className={styles.count}>{documents.data.length}</span>
         )}
       </h2>
+      <UploadZone projectId={projectId} />
       {body}
     </section>
   );
