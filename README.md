@@ -233,9 +233,26 @@ for reading the project: the owner and participants get `200`, an outsider or an
 the `404` above. There is no paging, because a project has a handful of members. `avatar` comes
 with the frontend epic F1.
 
-Creating and deleting a project are logged at INFO by `project_hub.projects.service` as
-`project created` and `project deleted` with the login, user id and project id; the project name
-is not logged. Refused deletes (`403`, `404`) are not logged.
+`POST /project/{project_id}/invite?user=<login>` makes the user with that exact login (no case
+folding, no trimming) a participant at once, with no acceptance step. Only the owner may do it. The
+checks run in this order:
+
+- `422` `{"detail": [...]}` if `user` is missing, empty, longer than 32 characters or contains
+  NUL, or if `project_id` is not a UUID; the project and the invited login are not looked up;
+- `404` `{"detail": "Project not found"}` for an outsider or an unknown id;
+- `403` `{"detail": "Only the project owner can invite users"}` for a participant;
+- `404` `{"detail": "User not found"}` if no user has that login;
+- `409` `{"detail": "You already own this project"}` if the login is the owner's;
+- `409` `{"detail": "User is already a participant of this project"}` if the user is already in.
+
+On success it answers `201` with the new member, `{"id", "login", "role": "participant",
+"joined_at"}`, the same item that `GET /project/{project_id}/members` then shows. The project's
+`updated_at` does not change.
+
+Creating and deleting a project and inviting a participant are logged at INFO by
+`project_hub.projects.service` as `project created`, `project deleted` and `participant invited`
+with the login, user id and project id (and `member_id`, the invited user, for an invite); the
+project name is not logged. Refused deletes and invites (`403`, `404`, `409`) are not logged.
 
 ## Checks
 

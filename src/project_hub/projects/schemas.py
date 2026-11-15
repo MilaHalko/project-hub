@@ -20,12 +20,21 @@ def _reject_nul(value: str) -> str:
     return value
 
 
+def _reject_nul_in_login(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("Login must not contain NUL characters")
+    return value
+
+
 ProjectName = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
     AfterValidator(_reject_control_characters),
 ]
 ProjectDescription = Annotated[str, StringConstraints(max_length=2000), AfterValidator(_reject_nul)]
+InviteLogin = Annotated[
+    str, StringConstraints(min_length=1, max_length=32), AfterValidator(_reject_nul_in_login)
+]
 
 
 class ProjectIn(BaseModel):

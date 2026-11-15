@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
@@ -14,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from project_hub.core.exceptions import ConflictError
+from project_hub.core.exceptions import ConflictError, NotFoundError
 from project_hub.projects.entities import (
     NewProject,
     Project,
@@ -27,11 +28,13 @@ from project_hub.projects.models import ProjectMemberModel, ProjectModel
 from project_hub.users.models import UserModel
 
 _MEMBER_CONSTRAINT = "pk_project_members"
+_MEMBER_PROJECT_FK = "fk_project_members_project_id_projects"
 
 
-def _is_member_conflict(error: IntegrityError) -> bool:
+def _violated_constraint(error: IntegrityError) -> str | None:
     diag = getattr(error.orig, "diag", None)
-    return getattr(diag, "constraint_name", None) == _MEMBER_CONSTRAINT
+    name: str | None = getattr(diag, "constraint_name", None)
+    return name
 
 
 def _to_entity(model: ProjectModel) -> Project:
@@ -125,15 +128,20 @@ class OrmProjectRepository:
         )
         return (await self._session.execute(statement)).scalar_one_or_none() is not None
 
-    async def add_member(self, project_id: UUID, user_id: UUID) -> None:
+    async def add_member(self, project_id: UUID, user_id: UUID) -> datetime:
+        model = ProjectMemberModel(project_id=project_id, user_id=user_id)
         try:
             async with self._session.begin_nested():
-                self._session.add(ProjectMemberModel(project_id=project_id, user_id=user_id))
+                self._session.add(model)
                 await self._session.flush()
         except IntegrityError as err:
-            if _is_member_conflict(err):
+            constraint = _violated_constraint(err)
+            if constraint == _MEMBER_CONSTRAINT:
                 raise ConflictError("User is already a participant of this project") from err
+            if constraint == _MEMBER_PROJECT_FK:
+                raise NotFoundError("Project not found") from err
             raise
+        return model.created_at
 
     async def list_members(self, project_id: UUID) -> list[ProjectMember]:
         owner = (

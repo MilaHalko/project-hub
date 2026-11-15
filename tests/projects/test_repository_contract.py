@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from project_hub.core.exceptions import ConflictError
+from project_hub.core.exceptions import ConflictError, NotFoundError
 from project_hub.db.database import Database
 from project_hub.projects.entities import (
     NewProject,
@@ -117,6 +117,37 @@ async def test_add_member_unknown_ids_raise_and_uow_stays_usable(database: Datab
 
     assert not isinstance(unknown_project.value, ConflictError)
     assert not isinstance(unknown_user.value, ConflictError)
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.get_for_user(second.id, owner.id) is not None
+
+
+async def test_add_member_returns_joined_at_shown_in_members(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        joined = await uow.projects.add_member(project.id, anna.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        members = await uow.projects.list_members(project.id)
+
+    assert members[1] == ProjectMember(anna.id, "anna", ProjectRole.PARTICIPANT, joined)
+
+
+async def test_add_member_unknown_project_is_not_found_and_uow_stays_usable(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+
+        with pytest.raises(NotFoundError, match="Project not found"):
+            await uow.projects.add_member(uuid4(), anna.id)
+
+        second = await uow.projects.add(NewProject(owner.id, "Second", ""))
+        await uow.commit()
+
     async with database.unit_of_work() as uow:
         assert await uow.projects.get_for_user(second.id, owner.id) is not None
 
