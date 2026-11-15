@@ -345,6 +345,18 @@ file deleted; an invalid file, an unavailable storage (`503`) or a database fail
 document and its old file as they were. The project's `updated_at` is set. The access rules
 are those of the download (`404 Document not found` for an outsider or an unknown id).
 
+Before anything else (even before the token check), `POST /project/{id}/documents` and
+`PUT /document/{id}` pass a size guard that never reads the body: no `Content-Length` header →
+`411 {"detail": "Content-Length is required"}`; a non-integer or negative one → `400 Invalid
+Content-Length`; more than `APP_DOCUMENT_MAX_FILES × APP_DOCUMENT_MAX_BYTES + 1 MiB` for `POST`
+(`APP_DOCUMENT_MAX_BYTES + 1 MiB` for `PUT`) → `413 {"detail": "Request is too large"}`. The
+per-file `413` above stays and gives the precise message. Demo note: when the server answers the
+early `413` while a browser is still sending a big body, the browser may show a connection reset
+instead of the answer; demo the per-file `413` (a file just above the per-file limit) instead.
+
+All files of one request are held in memory, so the maximum settings (100 files × 100 MiB) need
+that much memory per request; the defaults (10 × 10 MB) are fine.
+
 `DELETE /document/{document_id}` deletes the row, sets the project's `updated_at` and answers
 `204` with no body; the access rules are those of the download. The file is removed from storage
 after the commit; if that fails the answer is still `204` and a WARNING `document files left in
