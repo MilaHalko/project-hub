@@ -1,5 +1,5 @@
 import { LoaderCircle } from "lucide-react";
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 import styles from "./Button.module.css";
 
 type Variant = "primary" | "secondary" | "danger";
@@ -26,6 +26,7 @@ export function Button({
   variant?: Variant;
   busy?: boolean;
   wide?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 }) {
   return (
     <button

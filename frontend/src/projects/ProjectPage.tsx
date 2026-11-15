@@ -80,6 +80,7 @@ export function ProjectPage() {
   const project = useQuery<Project, ApiError>({
     queryKey: ["project", projectId],
     queryFn: () => getProject(projectId),
+    staleTime: 30_000,
   });
   const name = project.data?.name;
 

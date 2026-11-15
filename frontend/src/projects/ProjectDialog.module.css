@@ -1,0 +1,24 @@
+.alert {
+  margin: 0 0 14px;
+  color: var(--color-danger);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+@media (max-width: 767.98px) {
+  .buttons {
+    flex-direction: column-reverse;
+  }
+
+  .buttons button {
+    width: 100%;
+    min-height: 42px;
+  }
+}
