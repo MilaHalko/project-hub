@@ -341,8 +341,13 @@ file deleted; an invalid file, an unavailable storage (`503`) or a database fail
 document and its old file as they were. The project's `updated_at` is set. The access rules
 are those of the download (`404 Document not found` for an outsider or an unknown id).
 
-Every uploaded or replaced document is logged at INFO by `project_hub.documents.service` as
-`document uploaded` or `document replaced` with the login, user id, project id and document id;
+`DELETE /document/{document_id}` deletes the row, sets the project's `updated_at` and answers
+`204` with no body; the access rules are those of the download. The file is removed from storage
+after the commit; if that fails the answer is still `204` and a WARNING `document files left in
+storage` with the key is logged by `project_hub.storage.files`.
+
+Every uploaded, replaced or deleted document is logged at INFO by `project_hub.documents.service`
+as `document uploaded`, `document replaced` or `document deleted` with the login, user id, project id and document id;
 the file name is not logged.
 
 ## Checks

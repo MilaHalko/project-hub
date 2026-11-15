@@ -117,3 +117,15 @@ async def replace_document(
     _log_event("document replaced", user, document.project_id, document.id)
     await discard_quietly(storage, [document.storage_key], project_id=document.project_id)
     return replaced
+
+
+async def delete_document(
+    uow: UnitOfWork, storage: FileStorage, user: User, document: Document
+) -> None:
+    deleted = await uow.documents.delete(document.id)
+    if deleted is None:
+        raise NotFoundError("Document not found")
+    await uow.projects.touch(document.project_id)
+    await uow.commit()
+    _log_event("document deleted", user, document.project_id, document.id)
+    await discard_quietly(storage, [deleted.storage_key], project_id=document.project_id)

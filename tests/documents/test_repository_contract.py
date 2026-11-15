@@ -207,3 +207,22 @@ async def test_replace_file_with_unknown_uploader_raises_and_uow_stays_usable(
     assert replaced is not None and replaced.name == "ok.pdf"
     async with database.unit_of_work() as uow:
         assert await uow.documents.get(added.id) == replaced
+
+
+async def test_delete_returns_row_then_get_is_none(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        added = await uow.documents.add(_new(project.id, mila.id))
+        other = await uow.documents.add(_new(project.id, mila.id, "projects/p/documents/o"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        deleted = await uow.documents.delete(added.id)
+        assert await uow.documents.delete(uuid4()) is None
+        await uow.commit()
+
+    assert deleted == added
+    async with database.unit_of_work() as uow:
+        assert await uow.documents.get(added.id) is None
+        assert await uow.documents.get(other.id) == other
