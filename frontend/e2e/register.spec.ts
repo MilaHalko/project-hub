@@ -41,6 +41,7 @@ test("shows a mismatch, then creates the account and lands on the projects page"
   await expect(
     page.getByRole("heading", { level: 1, name: "Your projects" }),
   ).toBeVisible();
+  await expect(page.getByText(`HI, ${login.toUpperCase()}`)).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Account created");
 });
 

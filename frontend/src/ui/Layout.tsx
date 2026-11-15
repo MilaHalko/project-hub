@@ -1,4 +1,4 @@
-import { LayoutGrid, LogOut, Menu, X } from "lucide-react";
+import { LayoutGrid, LogOut, Menu, UserRound, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import { logOut } from "../auth/session";
@@ -76,6 +76,16 @@ export function Layout() {
           >
             <LayoutGrid size={16} aria-hidden="true" />
             Projects
+          </NavLink>
+          <NavLink
+            to="/profile"
+            className={styles.link}
+            onClick={() => {
+              setMenuOpen(false);
+            }}
+          >
+            <UserRound size={16} aria-hidden="true" />
+            Profile
           </NavLink>
           <button
             type="button"
