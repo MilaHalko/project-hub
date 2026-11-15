@@ -9,3 +9,10 @@ dist/
 .claude/worktrees/
 .superpowers/
 .playwright-mcp/
+
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+*.tfvars
+!*.tfvars.example
