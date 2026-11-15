@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../api/errors";
 import { getProject, type Project } from "../api/projects";
 import { Banner } from "../ui/Banner";
 import { Button, buttonClassName } from "../ui/Button";
+import { ProjectDialog } from "./ProjectDialog";
 import styles from "./ProjectPage.module.css";
 import { ownerLabel } from "./ownerLabel";
 import { formatDate, formatDateTime, formatUpdated } from "./time";
@@ -82,6 +83,7 @@ export function ProjectPage() {
     queryFn: () => getProject(projectId),
     staleTime: 30_000,
   });
+  const [editing, setEditing] = useState(false);
   const name = project.data?.name;
 
   useEffect(() => {
@@ -144,7 +146,14 @@ export function ProjectPage() {
         title={data.name}
         actions={
           <>
-            <Button variant="secondary">Edit</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setEditing(true);
+              }}
+            >
+              Edit
+            </Button>
             {data.my_role === "owner" && (
               <Button variant="danger">Delete project</Button>
             )}
@@ -156,6 +165,13 @@ export function ProjectPage() {
         )}
       </Banner>
       <Details project={data} />
+      <ProjectDialog
+        open={editing}
+        project={data}
+        onClose={() => {
+          setEditing(false);
+        }}
+      />
     </>
   );
 }
