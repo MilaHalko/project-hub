@@ -1,5 +1,9 @@
 mock_provider "aws" {}
 
+variables {
+  alert_email = "alerts@example.com"
+}
+
 run "database_accepts_only_the_app" {
   command = apply
   assert {
