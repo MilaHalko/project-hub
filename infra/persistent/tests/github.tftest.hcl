@@ -1,5 +1,9 @@
 mock_provider "aws" {}
 
+variables {
+  alert_email = "alerts@example.com"
+}
+
 run "deploy_role_trusts_only_main" {
   command = apply
   assert {
