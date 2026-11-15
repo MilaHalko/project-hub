@@ -3,6 +3,7 @@ import { messageFor } from "../api/errors";
 import { Avatar } from "../ui/avatar/Avatar";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 import styles from "./ProfilePage.module.css";
 
 const memberSince = new Intl.DateTimeFormat("en-GB", {
@@ -16,13 +17,16 @@ export function ProfilePage() {
 
   if (user) {
     return (
-      <Banner
-        tag="PROFILE"
-        title={user.login}
-        aside={<Avatar userId={user.id} size={56} />}
-      >
-        <p>Member since {memberSince.format(new Date(user.created_at))}</p>
-      </Banner>
+      <>
+        <Banner
+          tag="PROFILE"
+          title={user.login}
+          aside={<Avatar userId={user.id} size={56} />}
+        >
+          <p>Member since {memberSince.format(new Date(user.created_at))}</p>
+        </Banner>
+        <ChangePasswordForm login={user.login} />
+      </>
     );
   }
 

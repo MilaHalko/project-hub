@@ -33,3 +33,14 @@ export function postLogout(): Promise<void> {
     endsSessionOn401: false,
   });
 }
+
+export function putPassword(body: {
+  current_password: string;
+  new_password: string;
+  repeat_new_password: string;
+}): Promise<TokenResponse> {
+  return apiFetch<TokenResponse>("/users/me/password", {
+    method: "PUT",
+    body,
+  });
+}
