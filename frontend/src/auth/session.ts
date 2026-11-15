@@ -1,4 +1,4 @@
-import { postLogin, postLogout, postRegister } from "../api/auth";
+import { postLogin, postLogout, postRegister, putPassword } from "../api/auth";
 import { clearToken, setToken } from "./tokenStore";
 
 export class LoginAfterRegisterError extends Error {
@@ -38,4 +38,17 @@ export async function logOut(): Promise<void> {
   } finally {
     clearToken("logout");
   }
+}
+
+export async function changePassword(
+  current: string,
+  next: string,
+  repeat: string,
+): Promise<void> {
+  const { access_token } = await putPassword({
+    current_password: current,
+    new_password: next,
+    repeat_new_password: repeat,
+  });
+  setToken(access_token);
 }
