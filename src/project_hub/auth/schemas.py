@@ -48,7 +48,7 @@ class LoginRequest(BaseModel):
     # 401; only an empty or oversized value (login over 32, password over 128) or a NUL in the login
     # (Postgres text cannot store it) is a 422.
     login: Annotated[
-        str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul)
+        str, StringConstraints(min_length=1, max_length=32), AfterValidator(reject_nul("Login"))
     ]
     password: Annotated[SecretStr, Field(min_length=1, max_length=128)]
 

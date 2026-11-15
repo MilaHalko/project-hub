@@ -48,7 +48,9 @@ def test_login_with_nul_is_422_not_500(api_client: TestClient, login: str) -> No
     register(api_client)
     r = api_client.post("/login", json={"login": login, "password": "correct-horse-1"})
     assert r.status_code == 422
-    assert [e["loc"] for e in r.json()["detail"]] == [["body", "login"]]
+    assert [(e["loc"], e["msg"]) for e in r.json()["detail"]] == [
+        (["body", "login"], "Value error, Login must not contain NUL characters")
+    ]
 
 
 def test_password_is_checked_exactly_as_typed(api_client: TestClient) -> None:
