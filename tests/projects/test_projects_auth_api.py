@@ -15,6 +15,7 @@ from tests.support.auth import bearer
         pytest.param("PUT", f"/project/{uuid4()}/info", id="update"),
         pytest.param("DELETE", f"/project/{uuid4()}", id="delete"),
         pytest.param("GET", f"/project/{uuid4()}/members", id="members"),
+        pytest.param("POST", f"/project/{uuid4()}/invite?user=anna", id="invite"),
     ],
 )
 @pytest.mark.parametrize(

@@ -8,7 +8,13 @@ from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
 from project_hub.projects import service
 from project_hub.projects.entities import ProjectRole
-from project_hub.projects.schemas import MemberResponse, ProjectIn, ProjectListItem, ProjectResponse
+from project_hub.projects.schemas import (
+    InviteLogin,
+    MemberResponse,
+    ProjectIn,
+    ProjectListItem,
+    ProjectResponse,
+)
 
 router = APIRouter(tags=["projects"])
 
@@ -64,3 +70,14 @@ async def list_members(
 ) -> list[MemberResponse]:
     members = await service.list_members(uow, user, project_id)
     return [MemberResponse.from_member(member) for member in members]
+
+
+@router.post("/project/{project_id}/invite", status_code=status.HTTP_201_CREATED)
+async def invite_member(
+    project_id: UUID,
+    caller: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    login: Annotated[InviteLogin, Query(alias="user")],
+) -> MemberResponse:
+    member = await service.invite(uow, caller, project_id, login)
+    return MemberResponse.from_member(member)
