@@ -252,7 +252,9 @@ The response is a plain list with no total count: to know whether there is a nex
 `DELETE /project/{project_id}` deletes the project and answers `204` with no body. Only the owner
 may do it: a participant gets `403` `{"detail": "Only the project owner can delete the project"}`;
 an outsider or an unknown id gets the same `404` as for reading. The participants' access goes
-with the project (their `project_members` rows are removed).
+with the project (their `project_members` rows are removed). The project's documents are
+deleted with it, and so are their files in S3; if S3 is unavailable the answer is still `204` and a
+WARNING `document files left in storage` lists the keys to remove by hand.
 
 `GET /project/{project_id}/members` lists who has access: the owner first (`"role": "owner"`,
 `joined_at` equal to the project's `created_at`), then the participants in the order they joined

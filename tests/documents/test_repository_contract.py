@@ -250,3 +250,20 @@ async def test_delete_returns_row_then_get_is_none(database: Database) -> None:
     async with database.unit_of_work() as uow:
         assert await uow.documents.get(added.id) is None
         assert await uow.documents.get(other.id) == other
+
+
+async def test_storage_keys_for_project_only_that_project(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        other = await uow.projects.add(NewProject(mila.id, "Other", ""))
+        await uow.documents.add(_new(project.id, mila.id, "projects/a/documents/1"))
+        await uow.documents.add(_new(project.id, mila.id, "projects/a/documents/2"))
+        await uow.documents.add(_new(other.id, mila.id, "projects/b/documents/3"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        keys = await uow.documents.storage_keys_for_project(project.id)
+        assert sorted(keys) == ["projects/a/documents/1", "projects/a/documents/2"]
+        assert await uow.documents.storage_keys_for_project(other.id) == ["projects/b/documents/3"]
+        assert await uow.documents.storage_keys_for_project(uuid4()) == []

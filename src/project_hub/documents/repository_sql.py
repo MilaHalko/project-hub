@@ -114,3 +114,10 @@ class SqlDocumentRepository:
                 (document_id,),
             )
             return await cur.fetchone()
+
+    async def storage_keys_for_project(self, project_id: UUID) -> list[str]:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "SELECT storage_key FROM documents WHERE project_id = %s", (project_id,)
+            )
+            return [row[0] for row in await cur.fetchall()]

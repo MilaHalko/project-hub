@@ -116,3 +116,7 @@ class OrmDocumentRepository:
             select(UserModel.login).where(UserModel.id == model.uploaded_by)
         )
         return _to_entity(model, login)
+
+    async def storage_keys_for_project(self, project_id: UUID) -> list[str]:
+        statement = select(DocumentModel.storage_key).where(DocumentModel.project_id == project_id)
+        return list((await self._session.scalars(statement)).all())

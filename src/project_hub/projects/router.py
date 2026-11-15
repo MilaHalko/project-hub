@@ -10,6 +10,7 @@ from project_hub.documents.service import documents_by_project
 from project_hub.projects import service
 from project_hub.projects.entities import ProjectRole
 from project_hub.projects.schemas import MemberResponse, ProjectIn, ProjectListItem, ProjectResponse
+from project_hub.storage.dependencies import Storage
 
 router = APIRouter(tags=["projects"])
 
@@ -57,9 +58,12 @@ async def update_project(
     "/project/{project_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response
 )
 async def delete_project(
-    project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
+    project_id: UUID,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Storage,
 ) -> None:
-    await service.delete_project(uow, user, project_id)
+    await service.delete_project(uow, storage, user, project_id)
 
 
 @router.get("/project/{project_id}/members")

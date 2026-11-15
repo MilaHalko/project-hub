@@ -5,6 +5,7 @@ from project_hub.core.exceptions import NotFoundError, PermissionDeniedError
 from project_hub.db.uow import UnitOfWork
 from project_hub.projects.entities import NewProject, ProjectAccess, ProjectMember, ProjectRole
 from project_hub.projects.schemas import ProjectIn
+from project_hub.storage.files import FileStorage, discard_quietly
 from project_hub.users.entities import User
 
 logger = logging.getLogger(__name__)
@@ -54,14 +55,18 @@ async def update_project(
     return ProjectAccess(project=updated, owner_login=access.owner_login, role=access.role)
 
 
-async def delete_project(uow: UnitOfWork, user: User, project_id: UUID) -> None:
+async def delete_project(
+    uow: UnitOfWork, storage: FileStorage, user: User, project_id: UUID
+) -> None:
     access = await get_project(uow, user, project_id)
     if access.role is ProjectRole.PARTICIPANT:
         raise PermissionDeniedError("Only the project owner can delete the project")
+    keys = await uow.documents.storage_keys_for_project(project_id)
     if not await uow.projects.delete(project_id):
         raise NotFoundError("Project not found")
     await uow.commit()
     _log_event("project deleted", user, project_id)
+    await discard_quietly(storage, keys, project_id=project_id)
 
 
 async def list_members(uow: UnitOfWork, user: User, project_id: UUID) -> list[ProjectMember]:
