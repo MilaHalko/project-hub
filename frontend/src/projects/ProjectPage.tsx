@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "../api/errors";
 import { getProject, type Project } from "../api/projects";
+import { DocumentsSection } from "../documents/DocumentsSection";
 import { LeaveProjectDialog } from "../members/LeaveProjectDialog";
 import { MembersPanel } from "../members/MembersPanel";
 import { Banner } from "../ui/Banner";
@@ -187,7 +188,10 @@ export function ProjectPage() {
         )}
       </Banner>
       <div className={styles.body}>
-        <Details project={data} />
+        <div>
+          <Details project={data} />
+          <DocumentsSection projectId={data.id} />
+        </div>
         <MembersPanel project={data} />
       </div>
       <ProjectDialog
