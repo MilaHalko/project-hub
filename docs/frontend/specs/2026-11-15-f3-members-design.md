@@ -115,12 +115,16 @@ Proposed on 2026-11-15; the user's decisions:
 - A bordered panel with the heading "Members" (`h2`) and the count next to it
   in muted text ("Members 3"); the count is the length of the list.
 - One row per member in API order: avatar (28 px, F1's default from the user
-  id), login, " (you)" after the signed-in user's own login, role badge on the
-  right (Owner violet, Participant mint, as in the list).
+  id), login, " (you)" after the signed-in user's own login, and the role badge
+  under the login (Owner violet, Participant mint, as in the list).
 - For the owner, each participant row has a small secondary "Remove" button
   with the accessible name "Remove <login>". The owner's own row has none.
-- Rows are aligned in columns, so the badges line up whether or not a row has
-  "Remove". Long logins wrap and never push the badge out of the panel.
+- Badges sit under the login, so they line up whether or not a row has
+  "Remove", and the login gets the whole width between the avatar and
+  "Remove": a short login stays on one line, a 32-character one takes at most
+  two. (Changed while building, 2026-11-15: with the badge beside the login, as
+  in the mockup, real logins such as `sam5343` broke into two lines and a
+  32-character one into five in the 280 px panel.)
 - On a phone "Remove" is at least 32 px tall.
 - States:
   - loading: three skeleton rows, `aria-busy`;

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ApiError } from "../api/errors";
 import { listMembers, membersKey, type Member } from "../api/members";
 import type { Project } from "../api/projects";
@@ -8,22 +8,45 @@ import { Avatar } from "../ui/avatar/Avatar";
 import { Button } from "../ui/Button";
 import { InviteForm } from "./InviteForm";
 import styles from "./MembersPanel.module.css";
+import { RemoveMemberDialog } from "./RemoveMemberDialog";
 
-function MemberRow({ member, isMe }: { member: Member; isMe: boolean }) {
+function MemberRow({
+  member,
+  isMe,
+  onRemove,
+}: {
+  member: Member;
+  isMe: boolean;
+  onRemove?: () => void;
+}) {
   return (
-    <li className={styles.row}>
+    <li className={onRemove ? styles.removableRow : styles.row}>
       <Avatar userId={member.id} size={28} />
-      <span className={styles.login}>
-        {member.login}
-        {isMe && <span className={styles.you}> (you)</span>}
+      <span className={styles.who}>
+        <span className={styles.name}>
+          <span>{member.login}</span>
+          {isMe && <span className={styles.you}> (you)</span>}
+        </span>
+        <span
+          className={
+            member.role === "owner"
+              ? styles.ownerBadge
+              : styles.participantBadge
+          }
+        >
+          {member.role === "owner" ? "Owner" : "Participant"}
+        </span>
       </span>
-      <span
-        className={
-          member.role === "owner" ? styles.ownerBadge : styles.participantBadge
-        }
-      >
-        {member.role === "owner" ? "Owner" : "Participant"}
-      </span>
+      {onRemove && (
+        <Button
+          variant="secondary"
+          className={styles.remove}
+          aria-label={`Remove ${member.login}`}
+          onClick={onRemove}
+        >
+          Remove
+        </Button>
+      )}
     </li>
   );
 }
@@ -43,6 +66,14 @@ function MembersSkeleton() {
 
 export function MembersPanel({ project }: { project: Project }) {
   const headingId = useId();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [removing, setRemoving] = useState<Member | null>(null);
+  const [removals, setRemovals] = useState(0);
+  const isOwner = project.my_role === "owner";
+
+  useEffect(() => {
+    if (removals > 0) heading.current?.focus();
+  }, [removals]);
   const { data: me } = useMe();
   const members = useQuery<Member[], ApiError>({
     queryKey: membersKey(project.id),
@@ -52,7 +83,7 @@ export function MembersPanel({ project }: { project: Project }) {
 
   return (
     <section className={styles.panel} aria-labelledby={headingId}>
-      <h2 id={headingId} className={styles.heading} tabIndex={-1}>
+      <h2 ref={heading} id={headingId} className={styles.heading} tabIndex={-1}>
         Members
         {members.data && (
           <>
@@ -83,11 +114,18 @@ export function MembersPanel({ project }: { project: Project }) {
               key={member.id}
               member={member}
               isMe={member.id === me?.id}
+              onRemove={
+                isOwner && member.role === "participant"
+                  ? () => {
+                      setRemoving(member);
+                    }
+                  : undefined
+              }
             />
           ))}
         </ul>
       )}
-      {project.my_role === "owner" && (
+      {isOwner && (
         <>
           {members.data?.every(({ role }) => role === "owner") && (
             <p className={styles.hint}>
@@ -95,6 +133,17 @@ export function MembersPanel({ project }: { project: Project }) {
             </p>
           )}
           <InviteForm project={project} />
+          <RemoveMemberDialog
+            project={project}
+            member={removing}
+            onClose={() => {
+              setRemoving(null);
+            }}
+            onRemoved={() => {
+              setRemoving(null);
+              setRemovals((count) => count + 1);
+            }}
+          />
         </>
       )}
     </section>

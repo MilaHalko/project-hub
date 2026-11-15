@@ -48,6 +48,17 @@ test("fits a 32-character login without scrolling sideways", async ({
     "document.documentElement.scrollWidth <= window.innerWidth",
   );
   expect(fits).toBe(true);
+  const ownerLogin = await panel
+    .getByText(owner.login, { exact: true })
+    .boundingBox();
+  const longLogin = await panel
+    .getByText(participant.login, { exact: true })
+    .boundingBox();
+  expect(ownerLogin).not.toBeNull();
+  expect(longLogin).not.toBeNull();
+  if (ownerLogin && longLogin) {
+    expect(longLogin.height).toBeLessThan(ownerLogin.height * 2.5);
+  }
   const panelBox = await panel.boundingBox();
   const badgeBox = await panel
     .getByRole("listitem")
