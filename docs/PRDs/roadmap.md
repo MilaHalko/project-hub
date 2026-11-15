@@ -72,7 +72,7 @@ The ORM and non-ORM implementations must be interchangeable:
 | 3 | ✅ Users and auth (PR #8) | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency; extras: `POST /logout`, `GET /users/me`, `PUT /users/me/password`, security events log | 1b |
 | 4 | ✅ Projects and access (PR #13) | Project CRUD, owner/participant roles, access checks on every request, owner-only delete; extras: `GET /projects` sorted by last update with `limit`/`offset` and `role` filter, `GET /project/<id>/members`, project created/deleted in the security events log | 3 |
 | 5 | Invites | `POST /project/<id>/invite?user=<login>`, owner only | 4 |
-| 6 | Documents and S3 | Upload, download, update and delete documents; delete files with the project | 4 |
+| 6 | ✅ Documents and S3 (PR #21) | Upload, download, update and delete documents; delete files with the project; extras: `GET /project/<id>/documents`, documents in `GET /projects` items, pdf/docx checked by content, size and count limits as settings, document changes in the security events log, S3 on moto locally and in CI | 4 |
 | 7a | Lambda: size and quota | S3 event → Lambda sums the project's file sizes into a denormalized total → per-project limit | 6 |
 | 7b | Lambda: image resize | S3 event → Lambda resizes images | 6 |
 | 9 | Package | Build the package with Poetry in CI | 2 |
@@ -129,8 +129,9 @@ Checkpoints (`terraform apply` → deploy → verify → `terraform destroy`):
 
 Notes:
 
-- Daily development is local: Postgres in `docker-compose`, S3 and Lambda
-  emulated with LocalStack.
+- Daily development is local: Postgres in `docker-compose`, S3 emulated with
+  moto server locally and in CI (LocalStack needs an auth token since 2026.03,
+  and agents never handle keys). Epics 7a/7b re-check Lambda emulation.
 - CI always pushes the image to ECR (persistent layer). The ECS deploy step runs
   only when the ephemeral layer is up, controlled by a repository variable, so
   merges do not fail while it is destroyed.
@@ -204,9 +205,9 @@ build it), **done** (merged), **later** (postponed).
 | `GET /project/<id>/members` → `[{id, login, role, joined_at}]`, owner first, then participants in join order; no paging; same access rule as `GET /project/<id>/info` (404 without access, 401 without a token) | The project page shows a members panel; the info response has only `owner` and `my_role` | 4 (addition #9 of its design) | F3 | done |
 | `users.avatar` (name of a preset icon, nullable) and `PATCH /users/me` accepting only known names; also in member and owner objects | Users pick a preset avatar that others see | a backend task with `add-feature`, before F1b (after 4: migration order) | F1b | accepted |
 | `users.display_name`: optional, nullable, up to 50 characters, no control characters, not unique; an optional field at `POST /auth` (the spec's `login`/`password`/`repeat_password` unchanged) and changeable through the same `PATCH /users/me` as the avatar; also in the `owner` object and `GET /project/<id>/members` | `login` is the unique handle for sign-in and invites (`POST /project/<id>/invite?user=<login>`), not a person's name; the UI shows "Anna Petrenko (@anna)" | a backend task with `add-feature`, before F1b (together with `users.avatar`, one `users` migration; final decision in that task) | F1b | proposed |
-| Document metadata includes size, content type and upload date | The documents list shows them | 6 | F4 | proposed |
-| Decide how `GET /document/<id>` downloads: file through the API or a presigned S3 URL | A clicked link cannot carry the `Authorization` header; the frontend adapts to either | 6 | F4 | proposed |
-| If uploads go straight to S3 with presigned URLs: a bucket CORS rule for the app's origin, and the bucket origin in the app's CSP `connect-src` | The browser calls S3 directly | 6, 8a | F4 | proposed |
+| Document metadata includes size, content type and upload date | The documents list shows them | 6 | F4 | done |
+| Decide how `GET /document/<id>` downloads: file through the API or a presigned S3 URL | A clicked link cannot carry the `Authorization` header; the frontend adapts to either | 6 | F4 | done: through the API |
+| If uploads go straight to S3 with presigned URLs: a bucket CORS rule for the app's origin, and the bucket origin in the app's CSP `connect-src` | The browser calls S3 directly | 6, 8a | F4 | not needed |
 | Used space and limit per project in project responses | The used-space bar; hidden until these fields exist, no stub | 7a | F4 | proposed |
 | The email links to the web app's `/join?token=…` page, which calls `GET /join` with the Bearer header; alternative: `GET /join` without an `Authorization` header from a browser answers `303` to that page (see the deferred question below) | A clicked email link carries no JWT | 10 | F5 | proposed |
 | HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo only | Passwords and tokens in plain text otherwise (Swagger too) | 8a | — | proposed |
@@ -218,7 +219,7 @@ build it), **done** (merged), **later** (postponed).
 
 | Question | Decided in |
 |---|---|
-| Upload path: through the API or presigned S3 URL | 6 |
+| Upload path: through the API or presigned S3 URL | decided in 6: through the API |
 | Which images exist for the resize Lambda (documents are only pdf and docx) | 7b |
 | Email share details | 10 |
 | How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry). Proposed by the [frontend plan](../frontend/2026-11-14-frontend-design.md#get-join-in-a-browser-proposal-for-epic-10): the email links to the web app's page `/join?token=…`, which signs the user in and then calls `GET /join` with the header; the alternative keeps the spec link in the email and answers a browser request without a JWT with `303` to that page | 10 |

@@ -98,7 +98,7 @@ def test_image_serves_health_as_non_root() -> None:
 def test_compose_stack_serves_health() -> None:
     docker = _docker()
     project = f"project-hub-smoke-{uuid.uuid4().hex}"
-    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0", "APP_S3_PORT": "0"}
     with tempfile.TemporaryDirectory() as tmp:
         empty_env_file = Path(tmp) / "empty.env"
         empty_env_file.write_text("", encoding="utf-8")
@@ -115,7 +115,7 @@ def test_compose_stack_serves_health() -> None:
             assert status == 200, f"{body}\n{compose_logs()}"
             ps = _run(*compose, "ps", "--format", "json", env=env).stdout
             running = {row["Service"]: row["State"] for row in parse_compose_ps(ps)}
-            assert running == {"db": "running", "api": "running"}, compose_logs()
+            assert running == {"db": "running", "s3": "running", "api": "running"}, compose_logs()
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
 
@@ -123,7 +123,7 @@ def test_compose_stack_serves_health() -> None:
 def test_compose_stack_migrates_database() -> None:
     docker = _docker()
     project = f"project-hub-smoke-{uuid.uuid4().hex}"
-    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0"}
+    env = {**os.environ, "APP_PORT": "0", "APP_DB_PORT": "0", "APP_S3_PORT": "0"}
     with tempfile.TemporaryDirectory() as tmp:
         empty_env_file = Path(tmp) / "empty.env"
         empty_env_file.write_text("", encoding="utf-8")
@@ -157,5 +157,101 @@ def test_compose_stack_migrates_database() -> None:
                 env=env,
             ).stdout.strip()
             assert table == "users", compose_logs()
+        finally:
+            cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
+
+
+def _call(
+    method: str,
+    url: str,
+    *,
+    token: str | None = None,
+    json_body: dict[str, str] | None = None,
+    data: bytes | None = None,
+    content_type: str | None = None,
+) -> tuple[int, bytes]:
+    headers: dict[str, str] = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if json_body is not None:
+        data = json.dumps(json_body).encode()
+        content_type = "application/json"
+    if content_type:
+        headers["Content-Type"] = content_type
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read()
+
+
+def test_compose_stack_round_trips_a_document() -> None:
+    docker = _docker()
+    project = f"project-hub-smoke-{uuid.uuid4().hex}"
+    env = {
+        **os.environ,
+        "APP_PORT": "0",
+        "APP_DB_PORT": "0",
+        "APP_S3_PORT": "0",
+        "APP_JWT_SECRET": uuid.uuid4().hex + uuid.uuid4().hex,
+    }
+    pdf = b"%PDF-1.4\n% smoke\n%%EOF\n"
+    boundary = "smoke-boundary"
+    body = (
+        (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="files"; filename="smoke.pdf"\r\n'
+            "Content-Type: application/pdf\r\n\r\n"
+        ).encode()
+        + pdf
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_env_file = Path(tmp) / "empty.env"
+        empty_env_file.write_text("", encoding="utf-8")
+        compose = [docker, "compose", "--env-file", str(empty_env_file), "-p", project]
+        try:
+            _run(*compose, "up", "-d", "--build", "--wait", env=env)
+            app_port = published_port(_run(*compose, "port", "api", "8000", env=env).stdout)
+            base = f"http://127.0.0.1:{app_port}"
+            status, health = _wait_for_health(f"{base}/health")
+
+            def compose_logs() -> str:
+                return _logs(*compose, "logs", "--no-color", env=env)
+
+            assert status == 200, f"{health}\n{compose_logs()}"
+            credentials = {"login": "smoke", "password": "correct-horse-1"}
+            status, text = _call(
+                "POST",
+                f"{base}/auth",
+                json_body={**credentials, "repeat_password": "correct-horse-1"},
+            )
+            assert status == 201, f"{text!r}\n{compose_logs()}"
+            status, text = _call("POST", f"{base}/login", json_body=credentials)
+            assert status == 200, f"{text!r}\n{compose_logs()}"
+            token = json.loads(text)["access_token"]
+            status, text = _call(
+                "POST",
+                f"{base}/projects",
+                token=token,
+                json_body={"name": "Smoke", "description": ""},
+            )
+            assert status == 201, f"{text!r}\n{compose_logs()}"
+            project_id = json.loads(text)["id"]
+            status, text = _call(
+                "POST",
+                f"{base}/project/{project_id}/documents",
+                token=token,
+                data=body,
+                content_type=f"multipart/form-data; boundary={boundary}",
+            )
+            assert status == 201, f"{text!r}\n{compose_logs()}"
+            document_id = json.loads(text)[0]["id"]
+
+            status, downloaded = _call("GET", f"{base}/document/{document_id}", token=token)
+
+            assert status == 200, f"{downloaded!r}\n{compose_logs()}"
+            assert downloaded == pdf
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)

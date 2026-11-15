@@ -1,6 +1,7 @@
 from types import TracebackType
 from typing import Protocol, Self
 
+from project_hub.documents.repository import DocumentRepository
 from project_hub.projects.repository import ProjectRepository
 from project_hub.users.repository import UserRepository
 
@@ -15,6 +16,7 @@ class UnitOfWork(Protocol):
 
     users: UserRepository
     projects: ProjectRepository
+    documents: DocumentRepository
 
     async def commit(self) -> None: ...
 

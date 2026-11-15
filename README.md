@@ -33,25 +33,30 @@ Interactive API docs are served at <http://localhost:8000/docs>.
 docker compose up --build
 ```
 
-This starts PostgreSQL 18 (`db`), a one-shot `migrate` service and the API (`api`).
+This starts PostgreSQL 18 (`db`), the moto S3 emulator (`s3`), two one-shot services
+(`migrate`, `storage-init`) and the API (`api`).
 `migrate` waits for the database to be healthy, runs `python -m project_hub.db.migrate`
-(`alembic upgrade head`) and exits; the API starts only after `migrate` completed
-successfully and is served at <http://localhost:8000>.
+(`alembic upgrade head`) and exits; `storage-init` waits for `s3`, runs
+`python -m project_hub.storage.create_bucket` (creates `APP_S3_BUCKET` if it is missing) and
+exits. The API starts only after both completed successfully and is served at
+<http://localhost:8000>.
 
 | Service | Host port | Override with |
 |---|---|---|
 | `api` | 8000 | `APP_PORT` |
 | `db` | 55433 | `APP_DB_PORT` |
+| `s3` | 55435 | `APP_S3_PORT` |
+| `storage-init` | — | one-shot, exits 0 |
 
 The database uses 55433 so it does not clash with local Postgres servers on 5432 or 5433. Set the variables
 in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docker compose up`.
 The `POSTGRES_*` values are local development credentials only; they take effect only when
 the database volume is first created (run `docker compose down -v` to reset it).
 
-Tests that need a database expect the `db` service to be running:
+The tests expect the `db` and `s3` services to be running:
 
 ```bash
-docker compose up -d --wait db
+docker compose up -d --wait db s3
 ```
 
 Stop everything with `docker compose down` (add `-v` to delete the database volume).
@@ -91,6 +96,27 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 | `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
 | `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
+| `0004` | creates `documents` (`project_id` → `projects`, `CASCADE`; `uploaded_by` → `users`, `SET NULL`; unique `storage_key`; checks on name length, content type and size), index on `project_id` |
+
+## File storage
+
+Files are stored in S3 through the small `FileStorage` interface (`storage/files.py`:
+`put`, `get`, `delete`), implemented with boto3 in `storage/s3.py`. Locally and in CI the
+S3 API is served by [moto](https://github.com/getmoto/moto) (`motoserver/moto`), so no AWS
+account is needed. moto keeps files in memory: they are lost when the `s3` container stops,
+while the database rows stay (run `docker compose down -v` to reset both).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_S3_BUCKET` | unset | Bucket for files; when unset the app starts without file storage and logs a warning |
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto (compose uses `http://s3:5000`), unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
+Blank values count as unset. AWS credentials are not app settings: boto3 reads its standard
+chain (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` locally, the task role in AWS). Compose,
+CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put real AWS
+keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
+missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
 
 ## Auth
 
@@ -211,7 +237,9 @@ Outsiders and unknown ids get the same `404` as for reading; a bad body gives `4
 nothing.
 
 `GET /projects` lists every project the caller owns or participates in, each in the same shape
-plus `"documents": []` (documents are filled in epic 6). The list is ordered by `updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
+plus `"documents"`: that project's documents (same shape as `GET /project/{id}/documents`, newest
+first, `[]` when it has none), read for the whole page in one query. The list is ordered by
+`updated_at` newest first, ties broken by `id`, so pages never overlap or skip.
 Query parameters:
 
 - `limit`: 1-100, default 50; `offset`: 0-100000, default 0.
@@ -225,7 +253,9 @@ The response is a plain list with no total count: to know whether there is a nex
 `DELETE /project/{project_id}` deletes the project and answers `204` with no body. Only the owner
 may do it: a participant gets `403` `{"detail": "Only the project owner can delete the project"}`;
 an outsider or an unknown id gets the same `404` as for reading. The participants' access goes
-with the project (their `project_members` rows are removed).
+with the project (their `project_members` rows are removed). The project's documents are
+deleted with it, and so are their files in S3; if S3 is unavailable the answer is still `204` and a
+WARNING `document files left in storage` lists the keys to remove by hand.
 
 `GET /project/{project_id}/members` lists who has access: the owner first (`"role": "owner"`,
 `joined_at` equal to the project's `created_at`), then the participants in the order they joined
@@ -272,13 +302,112 @@ themself), with the login, user id and project id (and `member_id`, the invited,
 user, for the participant events); the project name is not logged. Refused requests (`403`, `404`,
 `409` and `422`) are not logged.
 
+## Documents
+
+A project keeps its documents (pdf and docx). The files live in S3 (see `## File storage`);
+Postgres keeps what is known about them. Every document route needs
+`Authorization: Bearer <access_token>` (`401` with `WWW-Authenticate: Bearer` otherwise). The
+owner and the participants of the project have the same rights; anybody else gets
+`404 {"detail": "Project not found"}`, exactly as for a project id that does not exist.
+
+`POST /project/{project_id}/documents` uploads one or several files as `multipart/form-data`
+in the field `files` (Swagger shows a file picker) and answers `201` with the new documents in
+the order sent:
+
+```json
+[
+  {
+    "id": "…",
+    "project_id": "…",
+    "name": "thesis.docx",
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "size": 482113,
+    "uploaded_by": {"id": "…", "login": "anna"},
+    "created_at": "2026-11-15T10:00:00Z",
+    "updated_at": "2026-11-15T10:00:00Z"
+  }
+]
+```
+
+The token and the access to the project are checked before the request body is read, so a
+caller without access never makes the server parse the files. Then the files are checked, all
+of them before anything is stored:
+
+- Count: no `files` part → `422 No files were sent`; more than `APP_DOCUMENT_MAX_FILES`
+  (default 10, 1-100) → `422 Too many files: at most 10 per request`. A body that is not valid
+  multipart → `422 Invalid multipart form: …`.
+- Name: only the part after the last `/` or `\` is kept, then surrounding whitespace is
+  stripped (`../../etc/x.pdf` becomes `x.pdf`). Missing → `422 File name is missing`; longer
+  than 255 characters or with a control character → `422`. The name is stored as cleaned (path
+  part dropped, whitespace stripped) and never decides where the file goes in S3.
+- Extension: `.pdf` or `.docx`, in any case → else `422 <name>: only pdf and docx documents are
+  allowed`.
+- Size: at most `APP_DOCUMENT_MAX_BYTES` (default 10485760 = 10 MB, 1-104857600) → else
+  `413 <name>: file is larger than 10 MB`; an empty file → `422 <name>: file is empty`.
+- Content: a pdf starts with `%PDF-`; a docx is a zip that lists `[Content_Types].xml` and
+  `word/document.xml` (only the list of members is read, nothing is unpacked). It must match the
+  extension → else `422 <name>: content is not a valid pdf` (or `docx`). The stored
+  `content_type` is `application/pdf` or
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, whatever the
+  client sent.
+
+A request is all or nothing: one bad file and none of its files is stored. Each file goes to
+S3 under a new key `projects/<project_id>/documents/<random>`, then the rows are written and
+the project's `updated_at` is set, which moves it to the top of `GET /projects`. When the
+storage cannot be reached the answer is `503 {"detail": "File storage is unavailable"}` and no
+row is written; when writing the rows fails, the files already stored are deleted again. Two
+documents with the same name in a project are allowed.
+
+`GET /project/{project_id}/documents` answers `200` with the project's documents, newest first
+(`created_at`, ties broken by `id`), in the same shape as above; a project without documents
+gives `[]`.
+
+`GET /document/{document_id}` answers `200` with the file bytes and the stored `Content-Type`.
+The headers are `Content-Disposition: attachment; filename="<ascii name>"; filename*=UTF-8''<percent-encoded name>`
+(quotes, backslashes, semicolons, control and non-ASCII characters become `_` in the plain
+`filename`, the exact name is in `filename*`), `X-Content-Type-Options: nosniff` and
+`Cache-Control: private, no-store`. A document of a project the user cannot see and an unknown id
+both give `404 {"detail": "Document not found"}`; a file missing from storage gives `503`.
+The route needs the Bearer header, so the frontend downloads with `fetch` and the Bearer header
+and saves the response as a blob, not with a plain link.
+
+`PUT /document/{document_id}` replaces the file of one document with exactly one new file in
+the multipart field `file` (zero or several files → `422 Exactly one file is required`). The
+id and `created_at` stay; `name`, `size`, `content_type`, `uploaded_by` (the caller) and
+`updated_at` change, and a pdf may become a docx and the other way round. The new file is
+checked like an upload, stored under a new key, and only then is the row switched and the old
+file deleted; an invalid file, an unavailable storage (`503`) or a database failure leaves the
+document and its old file as they were. The project's `updated_at` is set. The access rules
+are those of the download (`404 Document not found` for an outsider or an unknown id).
+
+Before anything else (even before the token check), `POST /project/{id}/documents` and
+`PUT /document/{id}` pass a size guard that never reads the body: no `Content-Length` header →
+`411 {"detail": "Content-Length is required"}`; a non-integer or negative one → `400 Invalid
+Content-Length`; more than `APP_DOCUMENT_MAX_FILES × APP_DOCUMENT_MAX_BYTES + 1 MiB` for `POST`
+(`APP_DOCUMENT_MAX_BYTES + 1 MiB` for `PUT`) → `413 {"detail": "Request is too large"}`. The
+per-file `413` above stays and gives the precise message. Demo note: when the server answers the
+early `413` while a browser is still sending a big body, the browser may show a connection reset
+instead of the answer; demo the per-file `413` (a file just above the per-file limit) instead.
+
+All files of one request are held in memory, so the maximum settings (100 files × 100 MiB) need
+that much memory per request; the defaults (10 × 10 MB) are fine.
+
+`DELETE /document/{document_id}` deletes the row, sets the project's `updated_at` and answers
+`204` with no body; the access rules are those of the download. The file is removed from storage
+after the commit; if that fails the answer is still `204` and a WARNING `document files left in
+storage` with the key is logged by `project_hub.storage.files`.
+
+Every uploaded, replaced or deleted document is logged at INFO by `project_hub.documents.service`
+as `document uploaded`, `document replaced` or `document deleted` with the login, user id, project id and document id;
+the file name is not logged.
+
 ## Checks
 
 ```bash
 poetry run ruff check
 poetry run ruff format --check
 poetry run pyright
-docker compose up -d --wait db   # tests need Postgres
+docker compose up -d --wait db s3   # tests need Postgres and the S3 emulator
 poetry run pytest
 ```
 
@@ -289,11 +418,18 @@ pytest reads it only from the shell environment, not from `.env`, so use
 `export TEST_DATABASE_URL=...`, and keep its port and credentials in step with `APP_DB_PORT`
 and `POSTGRES_*` if you change them.
 
+Storage tests and API tests use a throwaway bucket (`project-hub-test-<random>`) on the
+compose `s3` service, emptied after each test and deleted when the session ends. Set
+`TEST_S3_ENDPOINT_URL` (default `http://localhost:55435`, in step with `APP_S3_PORT`) to use a
+different emulator; like `TEST_DATABASE_URL` it is read only from the shell. When the emulator
+does not answer, the run fails with a hint instead of skipping. The tests replace any AWS
+credentials in the environment with the dummy `test`/`test` keys.
+
 ## CI
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every push to `main`.
 
-- Job `checks`: the commands from `## Checks` on Python 3.13 with a Postgres service, then a
+- Job `checks`: the commands from `## Checks` on Python 3.13 with Postgres and moto services, then a
   step that fails unless the contract tests passed with both database backends (`orm` and `sql`).
 - Job `docker`: `poetry run pytest -m docker`, the image and compose smoke tests, in parallel.
 
@@ -313,6 +449,11 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   `urls.py` (converts the plain Postgres URL for SQLAlchemy),
   `dependencies.py` (`get_uow`), `migrate.py` (runs `upgrade head`) and `migrations/`.
   It lives outside `core/` because the Unit of Work imports feature repositories.
+- `documents/` follows the feature layout and adds `validation.py` (file name, size and content
+  checks) and `forms.py` (reads the multipart form after the access check).
+- `storage/` holds file storage: `files.py` (`FileStorage` protocol, `StorageUnavailableError`),
+  `s3.py` (boto3 implementation), `create_bucket.py` (creates the bucket for compose) and
+  `dependencies.py` (`Storage`).
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
 - `auth/` holds registration, login and tokens: `passwords.py` (Argon2 hashing), `tokens.py`

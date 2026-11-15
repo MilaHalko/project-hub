@@ -36,12 +36,13 @@ End-to-end workflow for a frontend feature. It is `add-feature` with the fronten
 - Tasks are vertical slices: one screen or one user flow each, with its component tests, its end-to-end test and the config it needs. Never by layer ("components", "styles", "tests").
 - Each task names files, the first failing test and the criteria it covers. Show the plan to the user.
 
-## Phase 5 — Implement: `superpowers:subagent-driven-development`
-- One fresh subagent per task, each following `superpowers:test-driven-development`: failing test first, see it fail for the right reason, minimal code, green, refactor.
+## Phase 5 — Implement: `superpowers:executing-plans`
+- The session implements the tasks itself, one after another, with no reviewer between tasks: the user chose a single whole-branch review in Phase 7 over a review per task, to save time and tokens. When `writing-plans` asks for an execution method, it is Native.
+- Every task follows `superpowers:test-driven-development`: failing test first, see it fail for the right reason, minimal code, green, refactor.
 - Test what the user sees and does (labels, roles, text, clicks), not component internals or markup snapshots.
 - Every user flow gets an **end-to-end test with the Playwright test runner**, committed to the repo, run against the real API and Postgres from `docker compose`, not against mocks. Each test creates the data it needs through the API (for example its own user with a unique login via `POST /auth`), so tests do not depend on each other or on seed data.
 - Every page visited by an end-to-end test gets an **automated accessibility check with axe-core** (`@axe-core/playwright` or the stack's equivalent): the test fails on any WCAG 2.1 AA violation. This needs no account and runs in CI.
-- Rules for every subagent: never weaken or delete existing tests without asking; on an unexpected failure use `superpowers:systematic-debugging`; commit per micro-feature ("Commits" in `CLAUDE.md`), for example "Log in from the login page and land on the projects list".
+- Rules for every task: never weaken or delete existing tests without asking; on an unexpected failure use `superpowers:systematic-debugging`; commit per micro-feature ("Commits" in `CLAUDE.md`), for example "Log in from the login page and land on the projects list".
 
 ## Phase 6 — Verify: `superpowers:verification-before-completion`
 Run fresh and quote each command with its real result:
@@ -67,8 +68,9 @@ Build the table: acceptance criterion → test or command → status. Any criter
 ## Phase 7 — Final Quality Assurance: Code Review
 Mandatory, even for small changes.
 1. Open PR: `/code-review`. No PR: `superpowers:requesting-code-review` on the diff from the base branch. Give the reviewer the screenshots too.
-2. Handle findings with `superpowers:receiving-code-review`; fix all Critical and Important ones, re-run Phase 6, get the changes reviewed again.
-3. Done only when the review has no open Critical/Important findings and Phase 6 is green.
+2. Handle findings with `superpowers:receiving-code-review`; fix all Critical and Important ones, then re-run Phase 6.
+3. One review round. A second review happens only if a finding was Critical, and it looks only at that fix. Important and Minor fixes are proven by Phase 6, not by another review.
+4. Done when every Critical and Important finding is fixed and Phase 6 is green.
 
 ## Finish: `superpowers:finishing-a-development-branch`
 Present the options and a short report: criteria → tests table, verification commands and results, screenshots, security checklist, review findings (fixed, rejected with reason, deferred).
@@ -87,4 +89,4 @@ Present the options and a short report: criteria → tests table, verification c
 | "One commit for the page, one for tests" | One commit is one slice: the screen, its tests and its config together. |
 
 ## Small changes
-For a trivial change (text, colour, spacing on one screen) Phases 2 and 4 may be a sentence each and Phase 5 may run without subagents. The browser check with screenshots, the axe-core check on the touched page, Phase 6 and Phase 7 still apply.
+For a trivial change (text, colour, spacing on one screen) Phases 2 and 4 may be a sentence each. The browser check with screenshots, the axe-core check on the touched page, Phase 6 and Phase 7 still apply.
