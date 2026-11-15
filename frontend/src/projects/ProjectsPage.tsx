@@ -7,10 +7,9 @@ import { useMe } from "../auth/useMe";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { ProjectDialog } from "./ProjectDialog";
+import { PAGE_SIZE, visibleRows } from "./projectPages";
 import styles from "./ProjectsPage.module.css";
 import { ProjectsSkeleton, ProjectsTable } from "./ProjectsTable";
-
-const PAGE_SIZE = 20;
 
 const TABS: { label: string; role?: ProjectRole }[] = [
   { label: "All" },
@@ -57,8 +56,7 @@ export function ProjectsPage() {
   const sectionRef = useRef<HTMLElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const loadedBefore = useRef<{ tab: string; rows: number } | null>(null);
-  const rows =
-    projects.data?.pages.flatMap((page) => page.slice(0, PAGE_SIZE)) ?? [];
+  const rows = visibleRows(projects.data?.pages ?? []);
   const nextPageFailed = projects.isFetchNextPageError;
 
   useEffect(() => {

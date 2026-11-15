@@ -5,6 +5,7 @@ import { ApiError } from "../api/errors";
 import { getProject, type Project } from "../api/projects";
 import { Banner } from "../ui/Banner";
 import { Button, buttonClassName } from "../ui/Button";
+import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { ProjectDialog } from "./ProjectDialog";
 import styles from "./ProjectPage.module.css";
 import { ownerLabel } from "./ownerLabel";
@@ -84,6 +85,7 @@ export function ProjectPage() {
     staleTime: 30_000,
   });
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const name = project.data?.name;
 
   useEffect(() => {
@@ -155,7 +157,14 @@ export function ProjectPage() {
               Edit
             </Button>
             {data.my_role === "owner" && (
-              <Button variant="danger">Delete project</Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setDeleting(true);
+                }}
+              >
+                Delete project
+              </Button>
             )}
           </>
         }
@@ -170,6 +179,13 @@ export function ProjectPage() {
         project={data}
         onClose={() => {
           setEditing(false);
+        }}
+      />
+      <DeleteProjectDialog
+        open={deleting}
+        project={data}
+        onClose={() => {
+          setDeleting(false);
         }}
       />
     </>
