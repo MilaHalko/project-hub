@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 import { mockApi } from "../test/mockApi";
@@ -40,8 +40,10 @@ test("an expired session leads to the login page and back again", async () => {
   expect(
     await screen.findByRole("heading", { level: 1, name: "Page not found" }),
   ).toBeInTheDocument();
-  const meRequests = fetchMock.mock.calls.filter(
-    ([url]) => url === "/api/users/me",
-  );
-  expect(meRequests).toHaveLength(2);
+  await waitFor(() => {
+    const meRequests = fetchMock.mock.calls.filter(
+      ([url]) => url === "/api/users/me",
+    );
+    expect(meRequests).toHaveLength(2);
+  });
 });
