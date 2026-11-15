@@ -65,3 +65,7 @@ async def upload_documents(
     for document in documents:
         _log_event("document uploaded", user, project_id, document.id)
     return documents
+
+
+async def list_documents(uow: UnitOfWork, project_id: UUID) -> list[Document]:
+    return await uow.documents.list_for_project(project_id)

@@ -319,6 +319,10 @@ storage cannot be reached the answer is `503 {"detail": "File storage is unavail
 row is written; when writing the rows fails, the files already stored are deleted again. Two
 documents with the same name in a project are allowed.
 
+`GET /project/{project_id}/documents` answers `200` with the project's documents, newest first
+(`created_at`, ties broken by `id`), in the same shape as above; a project without documents
+gives `[]`.
+
 Every uploaded document is logged at INFO by `project_hub.documents.service` as
 `document uploaded` with the login, user id, project id and document id; the file name is not
 logged.
