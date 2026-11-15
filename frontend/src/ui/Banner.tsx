@@ -17,7 +17,9 @@ export function Banner({
       {aside}
       <div className={styles.text}>
         <p className={styles.tag}>{tag}</p>
-        <h1 className={styles.title}>{title}</h1>
+        <h1 tabIndex={-1} className={styles.title}>
+          {title}
+        </h1>
         <div className={styles.body}>{children}</div>
       </div>
     </div>

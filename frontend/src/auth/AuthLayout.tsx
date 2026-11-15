@@ -19,7 +19,7 @@ export function AuthLayout() {
           </p>
         </div>
       </header>
-      <main id="main" className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         <div className={styles.content}>
           <Outlet />
         </div>

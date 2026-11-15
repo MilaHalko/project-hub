@@ -32,7 +32,7 @@ test("shows not found for an unknown path", async ({ page, request }) => {
   await expect(page).toHaveURL("/");
   await expect(
     page.getByRole("heading", { name: "Your projects" }),
-  ).toBeVisible();
+  ).toBeFocused();
 });
 
 test("skip link moves focus to the content", async ({ page, request }) => {

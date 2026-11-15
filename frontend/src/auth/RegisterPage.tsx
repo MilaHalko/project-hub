@@ -112,7 +112,9 @@ export function RegisterPage() {
 
   return (
     <>
-      <h1 className={styles.title}>Create account</h1>
+      <h1 tabIndex={-1} className={styles.title}>
+        Create account
+      </h1>
       <p className={styles.sub}>
         Have an account? <Link to={`/login${loginQuery}`}>Log in</Link>
       </p>
