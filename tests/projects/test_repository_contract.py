@@ -432,3 +432,36 @@ async def test_list_members_owner_listed_once_even_if_member(database: Database)
         members = await uow.projects.list_members(project.id)
 
     assert [(m.user_id, m.role) for m in members] == [(owner.id, ProjectRole.OWNER)]
+
+
+async def test_touch_changes_updated_at(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", "Old"))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.touch(project.id)
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+    assert access is not None
+    assert access.project.updated_at > project.updated_at
+    assert access.project.created_at == project.created_at
+    assert (access.project.name, access.project.description) == ("Diploma", "Old")
+
+
+async def test_touch_needs_commit(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.touch(project.id)
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+    assert access is not None
+    assert access.project == project

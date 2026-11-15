@@ -96,6 +96,11 @@ class SqlProjectRepository:
             )
             return await cur.fetchone()
 
+    async def touch(self, project_id: UUID) -> None:
+        await self._conn.execute(
+            "UPDATE projects SET updated_at = now() WHERE id = %s", (project_id,)
+        )
+
     async def delete(self, project_id: UUID) -> bool:
         async with self._conn.cursor() as cur:
             await cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))

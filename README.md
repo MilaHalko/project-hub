@@ -96,6 +96,7 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 | `0001` | creates `users` (`id`, `login` unique, `password_hash`, `created_at`) |
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
 | `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
+| `0004` | creates `documents` (`project_id` → `projects`, `CASCADE`; `uploaded_by` → `users`, `SET NULL`; unique `storage_key`; checks on name length, content type and size), index on `project_id` |
 
 ## File storage
 
@@ -262,6 +263,66 @@ Creating and deleting a project are logged at INFO by `project_hub.projects.serv
 `project created` and `project deleted` with the login, user id and project id; the project name
 is not logged. Refused deletes (`403`, `404`) are not logged.
 
+## Documents
+
+A project keeps its documents (pdf and docx). The files live in S3 (see `## File storage`);
+Postgres keeps what is known about them. Every document route needs
+`Authorization: Bearer <access_token>` (`401` with `WWW-Authenticate: Bearer` otherwise). The
+owner and the participants of the project have the same rights; anybody else gets
+`404 {"detail": "Project not found"}`, exactly as for a project id that does not exist.
+
+`POST /project/{project_id}/documents` uploads one or several files as `multipart/form-data`
+in the field `files` (Swagger shows a file picker) and answers `201` with the new documents in
+the order sent:
+
+```json
+[
+  {
+    "id": "…",
+    "project_id": "…",
+    "name": "thesis.docx",
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "size": 482113,
+    "uploaded_by": {"id": "…", "login": "anna"},
+    "created_at": "2026-11-15T10:00:00Z",
+    "updated_at": "2026-11-15T10:00:00Z"
+  }
+]
+```
+
+The token and the access to the project are checked before the request body is read, so a
+caller without access never makes the server parse the files. Then the files are checked, all
+of them before anything is stored:
+
+- Count: no `files` part → `422 No files were sent`; more than `APP_DOCUMENT_MAX_FILES`
+  (default 10, 1-100) → `422 Too many files: at most 10 per request`. A body that is not valid
+  multipart → `422 Invalid multipart form: …`.
+- Name: only the part after the last `/` or `\` is kept, then surrounding whitespace is
+  stripped (`../../etc/x.pdf` becomes `x.pdf`). Missing → `422 File name is missing`; longer
+  than 255 characters or with a control character → `422`. The name is stored as cleaned (path
+  part dropped, whitespace stripped) and never decides where the file goes in S3.
+- Extension: `.pdf` or `.docx`, in any case → else `422 <name>: only pdf and docx documents are
+  allowed`.
+- Size: at most `APP_DOCUMENT_MAX_BYTES` (default 10485760 = 10 MB, 1-104857600) → else
+  `413 <name>: file is larger than 10 MB`; an empty file → `422 <name>: file is empty`.
+- Content: a pdf starts with `%PDF-`; a docx is a zip that lists `[Content_Types].xml` and
+  `word/document.xml` (only the list of members is read, nothing is unpacked). It must match the
+  extension → else `422 <name>: content is not a valid pdf` (or `docx`). The stored
+  `content_type` is `application/pdf` or
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, whatever the
+  client sent.
+
+A request is all or nothing: one bad file and none of its files is stored. Each file goes to
+S3 under a new key `projects/<project_id>/documents/<random>`, then the rows are written and
+the project's `updated_at` is set, which moves it to the top of `GET /projects`. When the
+storage cannot be reached the answer is `503 {"detail": "File storage is unavailable"}` and no
+row is written; when writing the rows fails, the files already stored are deleted again. Two
+documents with the same name in a project are allowed.
+
+Every uploaded document is logged at INFO by `project_hub.documents.service` as
+`document uploaded` with the login, user id, project id and document id; the file name is not
+logged.
+
 ## Checks
 
 ```bash
@@ -310,6 +371,8 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
   `urls.py` (converts the plain Postgres URL for SQLAlchemy),
   `dependencies.py` (`get_uow`), `migrate.py` (runs `upgrade head`) and `migrations/`.
   It lives outside `core/` because the Unit of Work imports feature repositories.
+- `documents/` follows the feature layout and adds `validation.py` (file name, size and content
+  checks) and `forms.py` (reads the multipart form after the access check).
 - `storage/` holds file storage: `files.py` (`FileStorage` protocol, `StorageUnavailableError`),
   `s3.py` (boto3 implementation), `create_bucket.py` (creates the bucket for compose) and
   `dependencies.py` (`Storage`).

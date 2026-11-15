@@ -27,3 +27,6 @@ class ValidationFailedError(DomainError):
 
 
 class ServiceUnavailableError(DomainError): ...
+
+
+class PayloadTooLargeError(DomainError): ...
