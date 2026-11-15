@@ -78,3 +78,14 @@
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
 }
+
+.textarea {
+  min-height: 110px;
+  padding: 9px 8px 9px 0;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.counter {
+  text-align: right;
+}

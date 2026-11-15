@@ -5,11 +5,13 @@ export function Banner({
   tag,
   title,
   aside,
+  actions,
   children,
 }: {
-  tag: string;
+  tag: ReactNode;
   title: string;
   aside?: ReactNode;
+  actions?: ReactNode;
   children?: ReactNode;
 }) {
   return (
@@ -22,6 +24,7 @@ export function Banner({
         </h1>
         <div className={styles.body}>{children}</div>
       </div>
+      {actions && <div className={styles.actions}>{actions}</div>}
     </div>
   );
 }

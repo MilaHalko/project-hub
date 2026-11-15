@@ -11,7 +11,7 @@ export function NotFoundPage() {
           projects.
         </p>
       </Banner>
-      <Link to="/" className={buttonClassName()}>
+      <Link to="/projects" className={buttonClassName()}>
         Go to projects
       </Link>
     </>
