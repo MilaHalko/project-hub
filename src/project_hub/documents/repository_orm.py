@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from project_hub.documents.entities import Document, NewDocument
+from project_hub.documents.entities import Document, NewDocument, ReplacedFile
 from project_hub.documents.models import DocumentModel
 from project_hub.users.models import UserModel
 
@@ -52,6 +52,30 @@ class OrmDocumentRepository:
         )
         row = (await self._session.execute(statement)).one_or_none()
         return None if row is None else _to_entity(row[0], row[1])
+
+    async def replace_file(self, document_id: UUID, file: ReplacedFile) -> Document | None:
+        statement = (
+            update(DocumentModel)
+            .where(DocumentModel.id == document_id)
+            .values(
+                name=file.name,
+                content_type=file.content_type,
+                size=file.size,
+                storage_key=file.storage_key,
+                uploaded_by=file.uploaded_by,
+                updated_at=func.now(),
+            )
+            .returning(DocumentModel)
+            .execution_options(populate_existing=True)
+        )
+        async with self._session.begin_nested():
+            model = (await self._session.execute(statement)).scalar_one_or_none()
+        if model is None:
+            return None
+        login = await self._session.scalar(
+            select(UserModel.login).where(UserModel.id == file.uploaded_by)
+        )
+        return _to_entity(model, login)
 
     async def list_for_project(self, project_id: UUID) -> list[Document]:
         statement = (

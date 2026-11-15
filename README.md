@@ -332,9 +332,18 @@ both give `404 {"detail": "Document not found"}`; a file missing from storage gi
 The route needs the Bearer header, so the frontend downloads with `fetch` and the Bearer header
 and saves the response as a blob, not with a plain link.
 
-Every uploaded document is logged at INFO by `project_hub.documents.service` as
-`document uploaded` with the login, user id, project id and document id; the file name is not
-logged.
+`PUT /document/{document_id}` replaces the file of one document with exactly one new file in
+the multipart field `file` (zero or several files → `422 Exactly one file is required`). The
+id and `created_at` stay; `name`, `size`, `content_type`, `uploaded_by` (the caller) and
+`updated_at` change, and a pdf may become a docx and the other way round. The new file is
+checked like an upload, stored under a new key, and only then is the row switched and the old
+file deleted; an invalid file, an unavailable storage (`503`) or a database failure leaves the
+document and its old file as they were. The project's `updated_at` is set. The access rules
+are those of the download (`404 Document not found` for an outsider or an unknown id).
+
+Every uploaded or replaced document is logged at INFO by `project_hub.documents.service` as
+`document uploaded` or `document replaced` with the login, user id, project id and document id;
+the file name is not logged.
 
 ## Checks
 

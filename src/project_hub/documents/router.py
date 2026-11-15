@@ -25,6 +25,21 @@ def content_disposition(name: str) -> str:
 
 router = APIRouter(tags=["documents"])
 
+_FILE_BODY: dict[str, Any] = {
+    "requestBody": {
+        "required": True,
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "required": ["file"],
+                    "properties": {"file": {"type": "string", "format": "binary"}},
+                }
+            }
+        },
+    }
+}
+
 _FILES_BODY: dict[str, Any] = {
     "requestBody": {
         "required": True,
@@ -88,3 +103,18 @@ async def download_document(document: AccessibleDocument, storage: Storage) -> R
             "Cache-Control": "private, no-store",
         },
     )
+
+
+@router.put("/document/{document_id}", openapi_extra=_FILE_BODY)
+async def replace_document(
+    document_id: UUID,
+    request: Request,
+    document: AccessibleDocument,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Storage,
+) -> DocumentResponse:
+    settings: Settings = request.app.state.settings
+    (file,) = await read_uploads(request, settings, "file", exactly_one=True)
+    replaced = await service.replace_document(uow, storage, user, document, file)
+    return DocumentResponse.from_document(replaced)

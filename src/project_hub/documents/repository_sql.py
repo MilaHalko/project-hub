@@ -4,7 +4,7 @@ from uuid import UUID
 import psycopg
 from psycopg.rows import class_row
 
-from project_hub.documents.entities import Document, NewDocument
+from project_hub.documents.entities import Document, NewDocument, ReplacedFile
 
 _COLUMNS: Final = (
     "d.id, d.project_id, d.name, d.content_type, d.size, d.storage_key, d.uploaded_by, "
@@ -52,6 +52,33 @@ class SqlDocumentRepository:
                 (document_id,),
             )
             return await cur.fetchone()
+
+    async def replace_file(self, document_id: UUID, file: ReplacedFile) -> Document | None:
+        await self._conn.execute("SAVEPOINT replace_document_file")
+        try:
+            async with self._conn.cursor(row_factory=class_row(Document)) as cur:
+                await cur.execute(
+                    "WITH d AS ("
+                    "UPDATE documents SET name = %s, content_type = %s, size = %s, "
+                    "storage_key = %s, uploaded_by = %s, updated_at = now() "
+                    "WHERE id = %s RETURNING *"
+                    ") SELECT " + _COLUMNS + "FROM d LEFT JOIN users u ON u.id = d.uploaded_by",
+                    (
+                        file.name,
+                        file.content_type,
+                        file.size,
+                        file.storage_key,
+                        file.uploaded_by,
+                        document_id,
+                    ),
+                )
+                row = await cur.fetchone()
+        except psycopg.Error:
+            await self._conn.execute("ROLLBACK TO SAVEPOINT replace_document_file")
+            await self._conn.execute("RELEASE SAVEPOINT replace_document_file")
+            raise
+        await self._conn.execute("RELEASE SAVEPOINT replace_document_file")
+        return row
 
     async def list_for_project(self, project_id: UUID) -> list[Document]:
         async with self._conn.cursor(row_factory=class_row(Document)) as cur:

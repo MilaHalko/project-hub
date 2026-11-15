@@ -32,6 +32,15 @@ class NewDocument:
 
 
 @dataclass(frozen=True, slots=True)
+class ReplacedFile:
+    name: str
+    content_type: str
+    size: int
+    storage_key: str
+    uploaded_by: UUID
+
+
+@dataclass(frozen=True, slots=True)
 class Document:
     id: UUID
     project_id: UUID
