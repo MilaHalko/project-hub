@@ -49,7 +49,9 @@ def test_register_password_mismatch_is_422_and_creates_nothing(
     assert row[0] == 0
 
 
-@pytest.mark.parametrize("login", ["ab", "a" * 33, "mi la", "mila ", "mila\n", "мила", "mila!"])
+@pytest.mark.parametrize(
+    "login", ["ab", "a" * 33, "mi la", "mila ", "mila\n", "mi\x00la", "мила", "mila!"]
+)
 def test_register_rejects_bad_login(api_client: TestClient, login: str) -> None:
     assert register(api_client, login=login).status_code == 422
 
