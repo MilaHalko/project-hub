@@ -189,9 +189,10 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
   delete their projects and their S3 files. Until then `projects.owner_id` is `RESTRICT`, so a
   user who owns projects cannot be deleted. The planned endpoint answers a clear `409` such as
   `{"detail": "Delete your projects first"}`, never a bare `500`, and the frontend explains why
-  and links to "My projects" (`GET /projects?role=owner`).
-- Projects: an owner cannot remove a participant and a participant cannot leave (needs invites,
-  epic 5); no search by name (`GET /projects?q=`); no total count for paging (ask for `limit + 1`
+  and links to "My projects" (`GET /projects?role=owner`). When it lands, a user deleted in the middle
+  of an invite must answer `404` `User not found` (today the `fk_project_members_user_id_users`
+  violation would be a `500`; unreachable now because users cannot be deleted).
+- Projects: no search by name (`GET /projects?q=`); no total count for paging (ask for `limit + 1`
   items); no index on `updated_at`; no transfer of ownership.
 - The security log has no client IP address yet; it comes with epic 8 (behind the load balancer
   it is read from `X-Forwarded-For`).
@@ -263,9 +264,43 @@ for reading the project: the owner and participants get `200`, an outsider or an
 the `404` above. There is no paging, because a project has a handful of members. `avatar` comes
 with the frontend epic F1.
 
-Creating and deleting a project are logged at INFO by `project_hub.projects.service` as
-`project created` and `project deleted` with the login, user id and project id; the project name
-is not logged. Refused deletes (`403`, `404`) are not logged.
+`POST /project/{project_id}/invite?user=<login>` makes the user with that exact login (no case
+folding, no trimming) a participant at once, with no acceptance step. Only the owner may do it. The
+checks run in this order:
+
+- `422` `{"detail": [...]}` if `user` is missing, empty, longer than 32 characters or contains
+  NUL, or if `project_id` is not a UUID; the project and the invited login are not looked up;
+- `404` `{"detail": "Project not found"}` for an outsider or an unknown id;
+- `403` `{"detail": "Only the project owner can invite users"}` for a participant;
+- `404` `{"detail": "User not found"}` if no user has that login;
+- `409` `{"detail": "You already own this project"}` if the login is the owner's;
+- `409` `{"detail": "User is already a participant of this project"}` if the user is already in.
+
+On success it answers `201` with the new member, `{"id", "login", "role": "participant",
+"joined_at"}`, the same item that `GET /project/{project_id}/members` then shows. The project's
+`updated_at` does not change.
+
+`DELETE /project/{project_id}/members/{user_id}` removes a participant and answers `204` with no
+body. The owner removes any participant; a participant may remove only themself, which is how they
+leave. The checks run in this order:
+
+- `422` `{"detail": [...]}` if `project_id` or `user_id` is not a UUID;
+- `404` `{"detail": "Project not found"}` for an outsider or an unknown id;
+- `403` `{"detail": "Only the project owner can remove participants"}` for a participant who names
+  someone else;
+- `409` `{"detail": "The owner cannot leave the project"}` if the owner names themself;
+- `404` `{"detail": "Participant not found"}` if `user_id` is not a participant of the project.
+
+Whoever was removed or left gets the normal `404` for the project afterwards, and it disappears from
+their `GET /projects`. They can be invited again and get a new `joined_at`. The project's
+`updated_at` does not change.
+
+Creating and deleting a project, inviting a participant and removing one are logged at INFO by
+`project_hub.projects.service` as `project created`, `project deleted`, `participant invited`,
+`participant removed` (the owner removes someone) and `participant left` (a participant removes
+themself), with the login, user id and project id (and `member_id`, the invited, removed or leaving
+user, for the participant events); the project name is not logged. Refused requests (`403`, `404`,
+`409` and `422`) are not logged.
 
 ## Documents
 
