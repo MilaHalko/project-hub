@@ -118,3 +118,23 @@ test("wraps a long name without scrolling sideways", async ({
   expect(fits).toBe(true);
   await expectAccessible(page);
 });
+
+test("loads the 21st project with Show more", async ({ page, request }) => {
+  const user = await signIn(page, request);
+  for (let number = 1; number <= 21; number += 1) {
+    await createProjectViaApi(request, user, {
+      name: `Project ${String(number)}`,
+    });
+  }
+
+  await page.goto("/projects");
+
+  await expect(projectLinks(page)).toHaveCount(20);
+  await expectAccessible(page);
+
+  await page.getByRole("button", { name: "Show more" }).click();
+
+  await expect(projectLinks(page)).toHaveCount(21);
+  await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
+  await expectAccessible(page);
+});

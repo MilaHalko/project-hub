@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import { listProjects, type ProjectRole } from "../api/projects";
 import { useMe } from "../auth/useMe";
@@ -33,23 +34,53 @@ export function ProjectsPage() {
   const { data: user } = useMe();
   const [searchParams] = useSearchParams();
   const role = roleFrom(searchParams.get("role"));
+  const tab = role ?? "all";
   const projects = useInfiniteQuery({
-    queryKey: ["projects", role ?? "all"],
+    queryKey: ["projects", tab],
     queryFn: ({ pageParam }) =>
       listProjects({ role, limit: PAGE_SIZE + 1, offset: pageParam }),
     initialPageParam: 0,
+    staleTime: 30_000,
     getNextPageParam: (lastPage, _pages, lastOffset) =>
       lastPage.length > PAGE_SIZE ? lastOffset + PAGE_SIZE : undefined,
   });
+  const sectionRef = useRef<HTMLElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const loadedBefore = useRef<{ tab: string; rows: number } | null>(null);
   const rows =
     projects.data?.pages.flatMap((page) => page.slice(0, PAGE_SIZE)) ?? [];
+  const nextPageFailed = projects.isFetchNextPageError;
+
+  useEffect(() => {
+    const before = loadedBefore.current;
+    if (before === null) return;
+    if (before.tab !== tab) {
+      loadedBefore.current = null;
+      return;
+    }
+    if (projects.isFetchingNextPage) return;
+    loadedBefore.current = null;
+    if (nextPageFailed || projects.hasNextPage) {
+      moreRef.current?.querySelector("button")?.focus();
+    } else {
+      const links =
+        sectionRef.current?.querySelectorAll<HTMLAnchorElement>("tbody a");
+      links?.[before.rows]?.focus();
+    }
+  }, [tab, projects.isFetchingNextPage, projects.hasNextPage, nextPageFailed]);
+
+  function loadNextPage() {
+    loadedBefore.current = { tab, rows: rows.length };
+    void projects.fetchNextPage();
+  }
+
   const empty = projects.isSuccess && rows.length === 0;
   const invitesToCreate = empty && role !== "participant";
 
   let content;
   if (projects.isPending) {
     content = <ProjectsSkeleton />;
-  } else if (projects.isError) {
+  } else if (projects.isError && !projects.data) {
     content = (
       <div className={styles.error} role="alert">
         <p>Couldn&apos;t load your projects.</p>
@@ -83,7 +114,38 @@ export function ProjectsPage() {
       </div>
     );
   } else {
-    content = <ProjectsTable projects={rows} />;
+    content = (
+      <>
+        <ProjectsTable projects={rows} />
+        {nextPageFailed ? (
+          <div className={styles.more} ref={moreRef}>
+            <div className={styles.error} role="alert">
+              <p>Couldn&apos;t load your projects.</p>
+              <Button
+                variant="secondary"
+                busy={projects.isFetchingNextPage}
+                onClick={loadNextPage}
+              >
+                Try again
+              </Button>
+            </div>
+          </div>
+        ) : (
+          projects.hasNextPage && (
+            <div className={styles.more} ref={moreRef}>
+              <Button
+                variant="secondary"
+                className={styles.showMore}
+                busy={projects.isFetchingNextPage}
+                onClick={loadNextPage}
+              >
+                Show more
+              </Button>
+            </div>
+          )
+        )}
+      </>
+    );
   }
 
   return (
@@ -110,6 +172,7 @@ export function ProjectsPage() {
         {!invitesToCreate && <NewProjectButton />}
       </div>
       <section
+        ref={sectionRef}
         aria-label="Projects"
         aria-busy={projects.isPending || undefined}
       >

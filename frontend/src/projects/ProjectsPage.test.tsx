@@ -290,3 +290,293 @@ test("offers to try again when the list fails to load", async () => {
     "true",
   );
 });
+
+function makeProjects(count: number, from = 0): Project[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...owned,
+    id: `20000000-0000-4000-8000-${String(from + index).padStart(12, "0")}`,
+    name: `Project ${String(from + index + 1)}`,
+  }));
+}
+
+const PAGE_2 = "GET /api/projects?limit=21&offset=20";
+
+function projectRows() {
+  return screen.getAllByRole("row").slice(1);
+}
+
+test("shows 20 rows and Show more when there is a next page, then loads it", async () => {
+  const user = userEvent.setup();
+  const fetchMock = mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: { status: 200, body: makeProjects(5, 20) },
+  });
+  renderApp("/projects");
+
+  await screen.findByRole("link", { name: "Project 1" });
+  expect(projectRows()).toHaveLength(20);
+  expect(screen.queryByRole("link", { name: "Project 21" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Show more" }));
+
+  expect(
+    await screen.findByRole("link", { name: "Project 25" }),
+  ).toBeInTheDocument();
+  expect(projectRows()).toHaveLength(25);
+  expect(requested(fetchMock, "/api/projects?limit=21&offset=20")).toBe(1);
+  expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+});
+
+test("hides Show more when the first page is exactly 20 projects", async () => {
+  mockApi({ [ALL]: { status: 200, body: makeProjects(20) } });
+  renderApp("/projects");
+
+  await screen.findByRole("link", { name: "Project 20" });
+  expect(projectRows()).toHaveLength(20);
+  expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+});
+
+test("keeps Show more busy and sends one request on a second click", async () => {
+  const user = userEvent.setup();
+  let release: () => void = () => undefined;
+  const fetchMock = mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      new Promise((resolve) => {
+        release = () => {
+          resolve({ status: 200, body: makeProjects(5, 20) });
+        };
+      }),
+  });
+  renderApp("/projects");
+
+  const button = await screen.findByRole("button", { name: "Show more" });
+  await user.click(button);
+  await waitFor(() => {
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
+  await user.click(button);
+
+  expect(requested(fetchMock, "/api/projects?limit=21&offset=20")).toBe(1);
+
+  release();
+  expect(
+    await screen.findByRole("link", { name: "Project 25" }),
+  ).toBeInTheDocument();
+});
+
+test("keeps the loaded rows and offers to try again when the next page fails", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  let failing = true;
+  const fetchMock = mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      failing ? { status: 500 } : { status: 200, body: makeProjects(5, 20) },
+  });
+  renderApp("/projects");
+
+  await vi.advanceTimersByTimeAsync(0);
+  await user.click(await screen.findByRole("button", { name: "Show more" }));
+  await vi.advanceTimersByTimeAsync(2000);
+
+  expect(screen.getByText("Couldn't load your projects.")).toBeInTheDocument();
+  expect(projectRows()).toHaveLength(20);
+  expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+  const before = requested(fetchMock, "/api/projects?limit=21&offset=20");
+
+  failing = false;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+
+  expect(
+    await screen.findByRole("link", { name: "Project 25" }),
+  ).toBeInTheDocument();
+  expect(requested(fetchMock, "/api/projects?limit=21&offset=20")).toBe(
+    before + 1,
+  );
+  expect(projectRows()).toHaveLength(25);
+  expect(screen.queryByText("Couldn't load your projects.")).toBeNull();
+});
+
+test("starts another tab on its first page and keeps loaded pages when you come back", async () => {
+  const user = userEvent.setup();
+  const fetchMock = mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: { status: 200, body: makeProjects(20, 20) },
+    [OWNED]: { status: 200, body: [owned] },
+  });
+  renderApp("/projects");
+
+  await user.click(await screen.findByRole("button", { name: "Show more" }));
+  await screen.findByRole("link", { name: "Project 40" });
+  expect(projectRows()).toHaveLength(40);
+
+  await user.click(tabs().getByRole("link", { name: "Owned" }));
+
+  await screen.findByRole("link", { name: "Website redesign" });
+  expect(projectRows()).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Show more" })).toBeNull();
+  expect(
+    requested(fetchMock, "/api/projects?role=owner&limit=21&offset=0"),
+  ).toBe(1);
+
+  await user.click(tabs().getByRole("link", { name: "All" }));
+
+  expect(await screen.findByRole("link", { name: "Project 40" })).toBeVisible();
+  expect(projectRows()).toHaveLength(40);
+  expect(requested(fetchMock, "/api/projects?limit=21&offset=0")).toBe(1);
+  expect(requested(fetchMock, "/api/projects?limit=21&offset=20")).toBe(1);
+});
+
+test("keeps the rows and shows no next-page error when a background refresh fails", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  let failing = false;
+  mockApi({
+    [ALL]: () =>
+      failing ? { status: 500 } : { status: 200, body: makeProjects(21) },
+    [OWNED]: { status: 200, body: [owned] },
+  });
+  renderApp("/projects");
+  await screen.findByRole("button", { name: "Show more" });
+  await user.click(tabs().getByRole("link", { name: "Owned" }));
+  await screen.findByRole("link", { name: "Website redesign" });
+
+  failing = true;
+  await vi.advanceTimersByTimeAsync(31_000);
+  await user.click(tabs().getByRole("link", { name: "All" }));
+  await vi.advanceTimersByTimeAsync(3000);
+
+  expect(projectRows()).toHaveLength(20);
+  expect(screen.queryByText("Couldn't load your projects.")).toBeNull();
+  expect(screen.getByRole("button", { name: "Show more" })).toBeVisible();
+});
+
+test("moves focus to the first new project when the last page loads", async () => {
+  const user = userEvent.setup();
+  let release: () => void = () => undefined;
+  mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      new Promise((resolve) => {
+        release = () => {
+          resolve({ status: 200, body: makeProjects(5, 20) });
+        };
+      }),
+  });
+  renderApp("/projects");
+
+  const button = await screen.findByRole("button", { name: "Show more" });
+  await user.click(button);
+  await waitFor(() => {
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
+  expect(document.activeElement).toBe(button);
+
+  release();
+  const first = await screen.findByRole("link", { name: "Project 21" });
+  await waitFor(() => {
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+test("keeps focus on Show more when more pages remain", async () => {
+  const user = userEvent.setup();
+  mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: { status: 200, body: makeProjects(21, 20) },
+  });
+  renderApp("/projects");
+
+  await user.click(await screen.findByRole("button", { name: "Show more" }));
+
+  await screen.findByRole("link", { name: "Project 40" });
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Show more" }),
+  );
+});
+
+test("keeps focus on the tab when switching to a cached tab while Show more loads", async () => {
+  const user = userEvent.setup();
+  let release: () => void = () => undefined;
+  mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      new Promise((resolve) => {
+        release = () => {
+          resolve({ status: 200, body: makeProjects(5, 20) });
+        };
+      }),
+    [OWNED]: { status: 200, body: makeProjects(21, 100) },
+  });
+  renderApp("/projects?role=owner");
+  await screen.findByRole("link", { name: "Project 101" });
+  await user.click(tabs().getByRole("link", { name: "All" }));
+  const button = await screen.findByRole("button", { name: "Show more" });
+  await screen.findByRole("link", { name: "Project 1" });
+  await user.click(button);
+  await waitFor(() => {
+    expect(button).toHaveAttribute("aria-busy", "true");
+  });
+
+  const ownedTab = tabs().getByRole("link", { name: "Owned" });
+  await user.click(ownedTab);
+  await screen.findByRole("link", { name: "Project 101" });
+
+  expect(document.activeElement).toBe(ownedTab);
+  release();
+  const allTab = tabs().getByRole("link", { name: "All" });
+  await user.click(allTab);
+  await screen.findByRole("link", { name: "Project 21" });
+
+  expect(document.activeElement).toBe(allTab);
+});
+
+test("moves focus to Try again when the next page fails, then to the new project", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  let failing = true;
+  mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      failing ? { status: 500 } : { status: 200, body: makeProjects(5, 20) },
+  });
+  renderApp("/projects");
+
+  await user.click(await screen.findByRole("button", { name: "Show more" }));
+  await vi.advanceTimersByTimeAsync(2000);
+  const retry = screen.getByRole("button", { name: "Try again" });
+  expect(document.activeElement).toBe(retry);
+
+  failing = false;
+  await user.click(retry);
+
+  const first = await screen.findByRole("link", { name: "Project 21" });
+  await waitFor(() => {
+    expect(document.activeElement).toBe(first);
+  });
+});
+
+test("moves focus back to Show more when a retry succeeds and more pages remain", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  let failing = true;
+  mockApi({
+    [ALL]: { status: 200, body: makeProjects(21) },
+    [PAGE_2]: () =>
+      failing ? { status: 500 } : { status: 200, body: makeProjects(21, 20) },
+  });
+  renderApp("/projects");
+
+  await user.click(await screen.findByRole("button", { name: "Show more" }));
+  await vi.advanceTimersByTimeAsync(2000);
+  failing = false;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+
+  await screen.findByRole("link", { name: "Project 40" });
+  await waitFor(() => {
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Show more" }),
+    );
+  });
+});
