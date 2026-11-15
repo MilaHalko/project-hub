@@ -1,11 +1,12 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useSearchParams } from "react-router";
 import { listProjects, type ProjectRole } from "../api/projects";
 import { useMe } from "../auth/useMe";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
+import { ProjectDialog } from "./ProjectDialog";
 import styles from "./ProjectsPage.module.css";
 import { ProjectsSkeleton, ProjectsTable } from "./ProjectsTable";
 
@@ -21,9 +22,15 @@ function roleFrom(value: string | null): ProjectRole | undefined {
   return value === "owner" || value === "participant" ? value : undefined;
 }
 
-function NewProjectButton() {
+function NewProjectButton({
+  onClick,
+  buttonRef,
+}: {
+  onClick: () => void;
+  buttonRef: RefObject<HTMLButtonElement | null>;
+}) {
   return (
-    <Button className={styles.newProject}>
+    <Button ref={buttonRef} className={styles.newProject} onClick={onClick}>
       <Plus size={16} aria-hidden="true" />
       New project
     </Button>
@@ -44,6 +51,9 @@ export function ProjectsPage() {
     getNextPageParam: (lastPage, _pages, lastOffset) =>
       lastPage.length > PAGE_SIZE ? lastOffset + PAGE_SIZE : undefined,
   });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const newProjectRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
   const sectionRef = useRef<HTMLElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const loadedBefore = useRef<{ tab: string; rows: number } | null>(null);
@@ -72,6 +82,18 @@ export function ProjectsPage() {
   function loadNextPage() {
     loadedBefore.current = { tab, rows: rows.length };
     void projects.fetchNextPage();
+  }
+
+  useEffect(() => {
+    const justClosed = wasOpen.current && !dialogOpen;
+    wasOpen.current = dialogOpen;
+    if (!justClosed) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) newProjectRef.current?.focus();
+  }, [dialogOpen]);
+
+  function openDialog() {
+    setDialogOpen(true);
   }
 
   const empty = projects.isSuccess && rows.length === 0;
@@ -103,7 +125,7 @@ export function ProjectsPage() {
           A project keeps your documents and the people you work with in one
           place.
         </p>
-        <NewProjectButton />
+        <NewProjectButton onClick={openDialog} buttonRef={newProjectRef} />
       </div>
     );
   } else if (empty) {
@@ -169,7 +191,9 @@ export function ProjectsPage() {
             </Link>
           ))}
         </nav>
-        {!invitesToCreate && <NewProjectButton />}
+        {!invitesToCreate && (
+          <NewProjectButton onClick={openDialog} buttonRef={newProjectRef} />
+        )}
       </div>
       <section
         ref={sectionRef}
@@ -178,6 +202,12 @@ export function ProjectsPage() {
       >
         {content}
       </section>
+      <ProjectDialog
+        open={dialogOpen}
+        onClose={() => {
+          setDialogOpen(false);
+        }}
+      />
     </>
   );
 }

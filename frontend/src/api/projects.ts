@@ -31,3 +31,9 @@ export function listProjects({
 export function getProject(id: string): Promise<Project> {
   return apiFetch<Project>(`/project/${encodeURIComponent(id)}/info`);
 }
+
+export type ProjectInput = { name: string; description: string };
+
+export function createProject(body: ProjectInput): Promise<Project> {
+  return apiFetch<Project>("/projects", { method: "POST", body });
+}

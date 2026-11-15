@@ -580,3 +580,56 @@ test("moves focus back to Show more when a retry succeeds and more pages remain"
     );
   });
 });
+
+test("opens the dialog from the empty-state New project button", async () => {
+  mockApi({});
+  const user = userEvent.setup();
+  renderApp("/projects");
+
+  await screen.findByRole("heading", { name: "Create your first project" });
+  await user.click(screen.getByRole("button", { name: "New project" }));
+
+  expect(
+    await screen.findByRole("dialog", { name: "New project" }),
+  ).toBeInTheDocument();
+});
+
+test("opens the dialog from the toolbar New project button", async () => {
+  mockApi({ [ALL]: { status: 200, body: [owned] } });
+  const user = userEvent.setup();
+  renderApp("/projects");
+  await screen.findByRole("link", { name: "Website redesign" });
+
+  await user.click(screen.getByRole("button", { name: "New project" }));
+
+  expect(
+    await screen.findByRole("dialog", { name: "New project" }),
+  ).toBeInTheDocument();
+});
+
+test("moves focus to the New project button on the page when the opener was replaced", async () => {
+  let listLoaded: (answer: {
+    status: number;
+    body: Project[];
+  }) => void = () => {
+    return;
+  };
+  mockApi({
+    [ALL]: () =>
+      new Promise((resolve) => {
+        listLoaded = resolve;
+      }),
+  });
+  const user = userEvent.setup();
+  renderApp("/projects");
+  await user.click(await screen.findByRole("button", { name: "New project" }));
+  await screen.findByRole("dialog", { name: "New project" });
+  listLoaded({ status: 200, body: [] });
+  await screen.findByRole("heading", { name: "Create your first project" });
+
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "New project" })).toHaveFocus();
+  });
+});
