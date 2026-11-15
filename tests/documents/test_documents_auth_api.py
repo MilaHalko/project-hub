@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -72,5 +74,24 @@ def test_list_with_non_uuid_project_id_is_422(api_client: TestClient) -> None:
     _, token = signed_in(api_client)
 
     r = api_client.get("/project/not-a-uuid/documents", headers=bearer(token))
+
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [pytest.param({}, id="no-header"), pytest.param(bearer("garbage"), id="garbage-token")],
+)
+def test_download_requires_token(api_client: TestClient, headers: dict[str, str]) -> None:
+    r = api_client.get(f"/document/{uuid4()}", headers=headers)
+
+    assert r.status_code == 401
+    assert r.headers["www-authenticate"] == "Bearer"
+
+
+def test_download_with_non_uuid_id_is_422(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+
+    r = api_client.get("/document/not-a-uuid", headers=bearer(token))
 
     assert r.status_code == 422

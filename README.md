@@ -323,6 +323,15 @@ documents with the same name in a project are allowed.
 (`created_at`, ties broken by `id`), in the same shape as above; a project without documents
 gives `[]`.
 
+`GET /document/{document_id}` answers `200` with the file bytes and the stored `Content-Type`.
+The headers are `Content-Disposition: attachment; filename="<ascii name>"; filename*=UTF-8''<percent-encoded name>`
+(quotes, backslashes, semicolons, control and non-ASCII characters become `_` in the plain
+`filename`, the exact name is in `filename*`), `X-Content-Type-Options: nosniff` and
+`Cache-Control: private, no-store`. A document of a project the user cannot see and an unknown id
+both give `404 {"detail": "Document not found"}`; a file missing from storage gives `503`.
+The route needs the Bearer header, so the frontend downloads with `fetch` and the Bearer header
+and saves the response as a blob, not with a plain link.
+
 Every uploaded document is logged at INFO by `project_hub.documents.service` as
 `document uploaded` with the login, user id, project id and document id; the file name is not
 logged.

@@ -2,6 +2,7 @@ import logging
 from collections.abc import Sequence
 from uuid import UUID
 
+from project_hub.core.exceptions import NotFoundError
 from project_hub.db.uow import UnitOfWork
 from project_hub.documents.entities import Document, NewDocument, new_storage_key
 from project_hub.documents.validation import ValidFile
@@ -69,3 +70,18 @@ async def upload_documents(
 
 async def list_documents(uow: UnitOfWork, project_id: UUID) -> list[Document]:
     return await uow.documents.list_for_project(project_id)
+
+
+async def get_document(uow: UnitOfWork, user: User, document_id: UUID) -> Document:
+    document = await uow.documents.get(document_id)
+    if document is None:
+        raise NotFoundError("Document not found")
+    try:
+        await get_project(uow, user, document.project_id)
+    except NotFoundError as err:
+        raise NotFoundError("Document not found") from err
+    return document
+
+
+async def download_document(storage: FileStorage, document: Document) -> bytes:
+    return await storage.get(document.storage_key)
