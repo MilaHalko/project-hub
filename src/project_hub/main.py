@@ -12,6 +12,7 @@ from project_hub.core.error_handlers import register_error_handlers
 from project_hub.core.logging import configure_logging
 from project_hub.db.database import create_database
 from project_hub.documents.router import router as documents_router
+from project_hub.documents.upload_limit import UploadLimitMiddleware
 from project_hub.health.router import router as health_router
 from project_hub.projects.router import router as projects_router
 from project_hub.storage.s3 import create_s3_storage
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         TokenService(settings.jwt_secret.get_secret_value()) if settings.jwt_secret else None
     )
     register_error_handlers(app)
+    app.add_middleware(UploadLimitMiddleware)
     app.include_router(auth_router)
     app.include_router(health_router)
     app.include_router(users_router)
