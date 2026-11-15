@@ -11,6 +11,7 @@ from project_hub.core.exceptions import (
     ConflictError,
     DomainError,
     NotFoundError,
+    PayloadTooLargeError,
     PermissionDeniedError,
     ServiceUnavailableError,
     ValidationFailedError,
@@ -25,6 +26,7 @@ _STATUS_BY_ERROR: dict[type[DomainError], HTTPStatus] = {
     ConflictError: HTTPStatus.CONFLICT,
     AuthenticationError: HTTPStatus.UNAUTHORIZED,
     ValidationFailedError: HTTPStatus.UNPROCESSABLE_ENTITY,
+    PayloadTooLargeError: HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
     ServiceUnavailableError: HTTPStatus.SERVICE_UNAVAILABLE,
 }
 

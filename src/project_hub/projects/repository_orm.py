@@ -119,6 +119,16 @@ class OrmProjectRepository:
         model = (await self._session.execute(statement)).scalar_one_or_none()
         return None if model is None else _to_entity(model)
 
+    async def touch(self, project_id: UUID) -> None:
+        statement = (
+            update(ProjectModel)
+            .where(ProjectModel.id == project_id)
+            .values(updated_at=func.now())
+            .returning(ProjectModel)
+            .execution_options(populate_existing=True)
+        )
+        await self._session.execute(statement)
+
     async def delete(self, project_id: UUID) -> bool:
         statement = (
             delete(ProjectModel).where(ProjectModel.id == project_id).returning(ProjectModel.id)
