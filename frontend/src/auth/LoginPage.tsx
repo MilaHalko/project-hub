@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useRef, useState, type SubmitEvent } from "react";
+import { useId, useRef, useState, type SubmitEvent } from "react";
 import { Link, Navigate, useLocation, useSearchParams } from "react-router";
 import { ApiError, fieldErrors, messageFor } from "../api/errors";
 import { Button } from "../ui/Button";
@@ -53,6 +53,7 @@ function serverErrors(error: Error | null): {
 
 export function LoginPage() {
   const token = useToken();
+  const noticeId = useId();
   const location = useLocation();
   const [params] = useSearchParams();
   const next = params.get("next");
@@ -101,7 +102,14 @@ export function LoginPage() {
 
   return (
     <>
-      <h1 className={styles.title}>Log in</h1>
+      <h1
+        className={styles.title}
+        aria-describedby={
+          server.form !== null || status !== null ? noticeId : undefined
+        }
+      >
+        Log in
+      </h1>
       <p className={styles.sub}>
         No account?{" "}
         <Link
@@ -115,12 +123,12 @@ export function LoginPage() {
         </Link>
       </p>
       {server.form !== null ? (
-        <p role="alert" className={styles.notice}>
+        <p id={noticeId} role="alert" className={styles.notice}>
           {server.form}
         </p>
       ) : (
         status !== null && (
-          <p role="status" className={styles.notice}>
+          <p id={noticeId} role="status" className={styles.notice}>
             {status}
           </p>
         )

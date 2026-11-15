@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { setToken } from "../auth/tokenStore";
+import {
+  clearToken,
+  getEndReason,
+  getToken,
+  setToken,
+} from "../auth/tokenStore";
 import { mockApi } from "../test/mockApi";
 import { apiFetch } from "./client";
 import { ApiError } from "./errors";
@@ -86,4 +91,43 @@ test("rejects a network failure with status 0", async () => {
 
   expect(error).toBeInstanceOf(ApiError);
   expect(error).toMatchObject({ status: 0 });
+});
+
+test("a 401 for the current token ends the session as expired", async () => {
+  setToken("t-1");
+  mockApi({ "GET /api/users/me": { status: 401 } });
+
+  await apiFetch("/users/me").catch(() => undefined);
+
+  expect(getToken()).toBeNull();
+  expect(getEndReason()).toBe("expired");
+});
+
+test("a 401 for an old token leaves the newer token alone", async () => {
+  setToken("old");
+  mockApi({
+    "GET /api/users/me": () => {
+      setToken("new");
+      return { status: 401 };
+    },
+  });
+
+  const error = await apiFetch("/users/me").catch((caught: unknown) => caught);
+
+  expect(error).toMatchObject({ status: 401 });
+  expect(getToken()).toBe("new");
+  expect(getEndReason()).toBeNull();
+});
+
+test("a 401 without a token only rejects", async () => {
+  clearToken("logout");
+  mockApi({ "POST /api/login": { status: 401 } });
+
+  const error = await apiFetch("/login", { method: "POST", body: {} }).catch(
+    (caught: unknown) => caught,
+  );
+
+  expect(error).toMatchObject({ status: 401 });
+  expect(getToken()).toBeNull();
+  expect(getEndReason()).toBe("logout");
 });
