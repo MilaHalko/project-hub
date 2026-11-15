@@ -1,4 +1,5 @@
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
@@ -40,6 +41,14 @@ def test_wrong_password_and_unknown_login_look_the_same(api_client: TestClient) 
 
 def test_login_missing_field_is_422(api_client: TestClient) -> None:
     assert api_client.post("/login", json={"login": "mila"}).status_code == 422
+
+
+@pytest.mark.parametrize("login", ["\x00mila", "mi\x00la", "mila\x00", "\x00"])
+def test_login_with_nul_is_422_not_500(api_client: TestClient, login: str) -> None:
+    register(api_client)
+    r = api_client.post("/login", json={"login": login, "password": "correct-horse-1"})
+    assert r.status_code == 422
+    assert [e["loc"] for e in r.json()["detail"]] == [["body", "login"]]
 
 
 def test_password_is_checked_exactly_as_typed(api_client: TestClient) -> None:

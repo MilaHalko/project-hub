@@ -21,6 +21,12 @@ def _check_printable_ascii(value: SecretStr) -> SecretStr:
     return value
 
 
+def _reject_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("Login must not contain NUL characters")
+    return value
+
+
 Login = Annotated[str, StringConstraints(min_length=3, max_length=32, pattern=r"^[A-Za-z0-9_.-]+$")]
 Password = Annotated[
     SecretStr, Field(min_length=8, max_length=128), AfterValidator(_check_printable_ascii)
@@ -43,8 +49,11 @@ class RegisterRequest(BaseModel):
 
 class LoginRequest(BaseModel):
     # No login pattern or password minimum here, so a wrong but well-sized login or password is a
-    # 401; only an empty or oversized value (login over 32, password over 128) is a 422.
-    login: Annotated[str, StringConstraints(min_length=1, max_length=32)]
+    # 401; only an empty or oversized value (login over 32, password over 128) or a NUL in the login
+    # (Postgres text cannot store it) is a 422.
+    login: Annotated[
+        str, StringConstraints(min_length=1, max_length=32), AfterValidator(_reject_nul)
+    ]
     password: Annotated[SecretStr, Field(min_length=1, max_length=128)]
 
 
