@@ -53,3 +53,14 @@ async def upload_documents(
     files = await read_uploads(request, settings, "files", exactly_one=False)
     documents = await service.upload_documents(uow, storage, user, project.project.id, files)
     return [DocumentResponse.from_document(document) for document in documents]
+
+
+@router.get("/project/{project_id}/documents")
+async def list_documents(
+    project_id: UUID,
+    project: AccessibleProject,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+) -> list[DocumentResponse]:
+    documents = await service.list_documents(uow, project.project.id)
+    return [DocumentResponse.from_document(document) for document in documents]

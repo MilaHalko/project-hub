@@ -52,3 +52,13 @@ class SqlDocumentRepository:
                 (document_id,),
             )
             return await cur.fetchone()
+
+    async def list_for_project(self, project_id: UUID) -> list[Document]:
+        async with self._conn.cursor(row_factory=class_row(Document)) as cur:
+            await cur.execute(
+                "SELECT " + _COLUMNS + "FROM documents d "
+                "LEFT JOIN users u ON u.id = d.uploaded_by WHERE d.project_id = %s "
+                "ORDER BY d.created_at DESC, d.id DESC",
+                (project_id,),
+            )
+            return await cur.fetchall()

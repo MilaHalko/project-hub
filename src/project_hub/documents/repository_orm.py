@@ -52,3 +52,13 @@ class OrmDocumentRepository:
         )
         row = (await self._session.execute(statement)).one_or_none()
         return None if row is None else _to_entity(row[0], row[1])
+
+    async def list_for_project(self, project_id: UUID) -> list[Document]:
+        statement = (
+            select(DocumentModel, UserModel.login)
+            .outerjoin(UserModel, UserModel.id == DocumentModel.uploaded_by)
+            .where(DocumentModel.project_id == project_id)
+            .order_by(DocumentModel.created_at.desc(), DocumentModel.id.desc())
+        )
+        rows = (await self._session.execute(statement)).all()
+        return [_to_entity(model, login) for model, login in rows]

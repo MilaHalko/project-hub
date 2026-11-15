@@ -117,3 +117,23 @@ async def test_nothing_stored_without_commit(database: Database) -> None:
 
     async with database.unit_of_work() as uow:
         assert await uow.documents.get(added.id) is None
+
+
+async def test_list_for_project_orders_newest_first_and_filters_project(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        other = await uow.projects.add(NewProject(mila.id, "Other", ""))
+        first = await uow.documents.add(_new(project.id, mila.id, "projects/a/documents/1"))
+        second = await uow.documents.add(_new(project.id, mila.id, "projects/a/documents/2"))
+        elsewhere = await uow.documents.add(_new(other.id, mila.id, "projects/b/documents/3"))
+        await uow.commit()
+
+    assert first.created_at == second.created_at
+    async with database.unit_of_work() as uow:
+        listed = await uow.documents.list_for_project(project.id)
+        assert listed == sorted([first, second], key=lambda d: d.id, reverse=True)
+        assert await uow.documents.list_for_project(other.id) == [elsewhere]
+        assert await uow.documents.list_for_project(uuid4()) == []
