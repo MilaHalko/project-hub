@@ -1,5 +1,5 @@
-import { postLogin, postRegister } from "../api/auth";
-import { setToken } from "./tokenStore";
+import { postLogin, postLogout, postRegister } from "../api/auth";
+import { clearToken, setToken } from "./tokenStore";
 
 export class LoginAfterRegisterError extends Error {
   constructor(options: { cause: unknown }) {
@@ -27,5 +27,15 @@ export async function register(
     await logIn(login, password);
   } catch (error) {
     throw new LoginAfterRegisterError({ cause: error });
+  }
+}
+
+export async function logOut(): Promise<void> {
+  try {
+    await postLogout();
+  } catch {
+    return;
+  } finally {
+    clearToken("logout");
   }
 }

@@ -67,6 +67,20 @@
   text-decoration: none;
 }
 
+button.link {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.link[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .link:hover {
   background: var(--color-line);
 }
