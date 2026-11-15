@@ -5,11 +5,14 @@ export type TestUser = { login: string; password: string };
 
 export async function createUser(
   request: APIRequestContext,
+  { loginLength }: { loginLength?: number } = {},
 ): Promise<TestUser> {
+  const unique =
+    "e2e" + Date.now().toString(36) + randomInt(2 ** 40).toString(36);
   const login = (
-    "e2e" +
-    Date.now().toString(36) +
-    randomInt(2 ** 40).toString(36)
+    loginLength === undefined
+      ? unique
+      : (unique + randomUUID().replaceAll("-", "")).slice(0, loginLength)
   ).slice(0, 32);
   const password = "pw-" + randomUUID();
   const response = await request.post("/api/auth", {
