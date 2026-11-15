@@ -24,3 +24,9 @@ class AuthenticationError(DomainError):
 
 class ValidationFailedError(DomainError):
     """Raise when the input is well-formed but breaks a business rule."""
+
+
+class ServiceUnavailableError(DomainError): ...
+
+
+class PayloadTooLargeError(DomainError): ...

@@ -56,3 +56,8 @@ def test_compose_ports_bind_loopback_only() -> None:
     services = _compose_config()["services"]
     for name in ("db", "api"):
         assert services[name]["ports"][0]["host_ip"] == "127.0.0.1"
+
+
+def test_compose_s3_port_binds_loopback_only() -> None:
+    ports = _compose_config()["services"]["s3"]["ports"]
+    assert [port["host_ip"] for port in ports] == ["127.0.0.1"]
