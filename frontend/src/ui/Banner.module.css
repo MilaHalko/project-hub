@@ -1,9 +1,16 @@
 .banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 18px;
   padding: 26px 28px;
   border-radius: var(--radius-banner);
   background: var(--holo);
   color: var(--color-ink);
+}
+
+.text {
+  min-width: 0;
 }
 
 .tag {

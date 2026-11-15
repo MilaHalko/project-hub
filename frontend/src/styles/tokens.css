@@ -1,7 +1,9 @@
 :root {
   --color-ink: #111111;
+  --color-ink-hover: #2b2b30;
   --color-muted: #6b6b73;
   --color-line: #e7e7ea;
+  --color-field-line: #8e8e96;
   --color-soft: #fafafa;
   --color-surface: #ffffff;
   --color-violet: #5b4ce0;
@@ -32,4 +34,7 @@
   --text-body: 14px;
   --text-table: 13px;
   --text-small: 12px;
+  --text-button: 13px;
+
+  --button-padding: 8px 14px;
 }

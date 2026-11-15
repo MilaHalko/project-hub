@@ -1,0 +1,45 @@
+.error {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+}
+
+.skeleton {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 26px 28px;
+  border-radius: var(--radius-banner);
+  background: var(--color-line);
+}
+
+.skeletonAvatar {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.skeletonLines {
+  display: grid;
+  gap: 10px;
+  flex: 1;
+}
+
+.skeletonLines span {
+  height: 14px;
+  max-width: 220px;
+  border-radius: 7px;
+  background: var(--color-surface);
+}
+
+@media (max-width: 767.98px) {
+  .skeleton {
+    padding: 20px;
+  }
+}

@@ -1,6 +1,8 @@
+import { signIn } from "./auth";
 import { expect, expectAccessible, test } from "./fixtures";
 
-test("shows the shell at /", async ({ page }, testInfo) => {
+test("shows the shell at /", async ({ page, request }, testInfo) => {
+  await signIn(page, request);
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Your projects" }),
@@ -19,7 +21,8 @@ test("shows the shell at /", async ({ page }, testInfo) => {
   }
 });
 
-test("shows not found for an unknown path", async ({ page }) => {
+test("shows not found for an unknown path", async ({ page, request }) => {
+  await signIn(page, request);
   await page.goto("/no-such-page");
   await expect(
     page.getByRole("heading", { name: "Page not found" }),
@@ -29,10 +32,11 @@ test("shows not found for an unknown path", async ({ page }) => {
   await expect(page).toHaveURL("/");
   await expect(
     page.getByRole("heading", { name: "Your projects" }),
-  ).toBeVisible();
+  ).toBeFocused();
 });
 
-test("skip link moves focus to the content", async ({ page }) => {
+test("skip link moves focus to the content", async ({ page, request }) => {
+  await signIn(page, request);
   await page.goto("/");
   await page.keyboard.press("Tab");
   await expect(
