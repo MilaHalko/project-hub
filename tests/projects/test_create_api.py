@@ -72,6 +72,19 @@ def test_create_invalid_body_is_422(
     assert _project_count(migrated_database_url) == 0
 
 
+def test_create_description_with_nul_names_the_description(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+
+    r = api_client.post(
+        "/projects", headers=bearer(token), json={"name": "ok", "description": "a\x00b"}
+    )
+
+    assert r.status_code == 422
+    assert [(e["loc"], e["msg"]) for e in r.json()["detail"]] == [
+        (["body", "description"], "Value error, Description must not contain NUL characters")
+    ]
+
+
 def test_create_keeps_description_newlines_and_tabs(api_client: TestClient) -> None:
     _, token = signed_in(api_client)
 
