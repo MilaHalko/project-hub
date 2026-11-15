@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.support.auth import signed_in
+from tests.support.auth import bearer, signed_in
 from tests.support.documents import docx_bytes, pdf_bytes, replace, upload, uploaded
 from tests.support.projects import create_project
 
@@ -71,6 +71,29 @@ def test_replace_logs_one_event_without_names(
     ]
     assert record.levelno == logging.INFO
     assert record.getMessage().startswith("document replaced")
+    assert _field(record, "login") == "mila"
+    assert _field(record, "user_id") == UUID(user_id)
+    assert _field(record, "project_id") == UUID(project["id"])
+    assert _field(record, "document_id") == UUID(document["id"])
+    assert not any("secret" in str(value) for value in vars(record).values())
+
+
+def test_delete_logs_one_event_without_name(
+    api_client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    user_id, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    (document,) = uploaded(api_client, token, project["id"], [("secret.pdf", pdf_bytes())])
+
+    with caplog.at_level(logging.INFO, logger=LOGGER):
+        r = api_client.delete(f"/document/{document['id']}", headers=bearer(token))
+
+    assert r.status_code == 204
+    (record,) = [
+        r for r in caplog.records if r.name == LOGGER and _field(r, "event") == "document deleted"
+    ]
+    assert record.levelno == logging.INFO
+    assert record.getMessage().startswith("document deleted")
     assert _field(record, "login") == "mila"
     assert _field(record, "user_id") == UUID(user_id)
     assert _field(record, "project_id") == UUID(project["id"])

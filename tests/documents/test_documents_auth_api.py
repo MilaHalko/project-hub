@@ -137,3 +137,22 @@ def test_replace_body_not_parsed_before_access(api_client: TestClient) -> None:
     assert outsider.status_code == 404
     assert outsider.json() == {"detail": "Document not found"}
     assert owner.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [pytest.param({}, id="no-header"), pytest.param(bearer("garbage"), id="garbage-token")],
+)
+def test_delete_requires_token(api_client: TestClient, headers: dict[str, str]) -> None:
+    r = api_client.delete(f"/document/{uuid4()}", headers=headers)
+
+    assert r.status_code == 401
+    assert r.headers["www-authenticate"] == "Bearer"
+
+
+def test_delete_with_non_uuid_id_is_422(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+
+    r = api_client.delete("/document/not-a-uuid", headers=bearer(token))
+
+    assert r.status_code == 422

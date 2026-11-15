@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from project_hub.documents.entities import Document, NewDocument, ReplacedFile
@@ -86,3 +86,18 @@ class OrmDocumentRepository:
         )
         rows = (await self._session.execute(statement)).all()
         return [_to_entity(model, login) for model, login in rows]
+
+    async def delete(self, document_id: UUID) -> Document | None:
+        statement = (
+            delete(DocumentModel)
+            .where(DocumentModel.id == document_id)
+            .returning(DocumentModel)
+            .execution_options(populate_existing=True)
+        )
+        model = (await self._session.execute(statement)).scalar_one_or_none()
+        if model is None:
+            return None
+        login = await self._session.scalar(
+            select(UserModel.login).where(UserModel.id == model.uploaded_by)
+        )
+        return _to_entity(model, login)

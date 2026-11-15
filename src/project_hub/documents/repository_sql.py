@@ -89,3 +89,12 @@ class SqlDocumentRepository:
                 (project_id,),
             )
             return await cur.fetchall()
+
+    async def delete(self, document_id: UUID) -> Document | None:
+        async with self._conn.cursor(row_factory=class_row(Document)) as cur:
+            await cur.execute(
+                "WITH d AS (DELETE FROM documents WHERE id = %s RETURNING *) "
+                "SELECT " + _COLUMNS + "FROM d LEFT JOIN users u ON u.id = d.uploaded_by",
+                (document_id,),
+            )
+            return await cur.fetchone()

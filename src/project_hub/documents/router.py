@@ -118,3 +118,15 @@ async def replace_document(
     (file,) = await read_uploads(request, settings, "file", exactly_one=True)
     replaced = await service.replace_document(uow, storage, user, document, file)
     return DocumentResponse.from_document(replaced)
+
+
+@router.delete(
+    "/document/{document_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response
+)
+async def delete_document(
+    document: AccessibleDocument,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Storage,
+) -> None:
+    await service.delete_document(uow, storage, user, document)
