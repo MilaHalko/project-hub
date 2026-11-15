@@ -103,6 +103,7 @@ export function LoginPage() {
   return (
     <>
       <h1
+        tabIndex={-1}
         className={styles.title}
         aria-describedby={
           server.form !== null || status !== null ? noticeId : undefined
