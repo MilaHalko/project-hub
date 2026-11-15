@@ -27,3 +27,7 @@ export function listProjects({
   query.set("offset", String(offset));
   return apiFetch<Project[]>(`/projects?${query.toString()}`);
 }
+
+export function getProject(id: string): Promise<Project> {
+  return apiFetch<Project>(`/project/${encodeURIComponent(id)}/info`);
+}
