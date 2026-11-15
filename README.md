@@ -401,6 +401,12 @@ Every uploaded, replaced or deleted document is logged at INFO by `project_hub.d
 as `document uploaded`, `document replaced` or `document deleted` with the login, user id, project id and document id;
 the file name is not logged.
 
+## Cloud
+
+The API runs on AWS (ECS Fargate, RDS PostgreSQL behind an HTTPS load balancer), described in Terraform under `infra/`.
+A cheap persistent layer stays up; the billed layer is brought up for a checkpoint and destroyed.
+See [`infra/README.md`](infra/README.md) for the steps.
+
 ## Checks
 
 ```bash
@@ -463,3 +469,4 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
 - Feature modules depend on `core/`; `core/` never imports from feature modules.
 - A module that needs another module calls that module's `service`, never its repository.
 - Tests mirror this layout under `tests/<feature>/`.
+- `infra/` holds the Terraform for AWS: `persistent/` (always on) and `ephemeral/` (database, load balancer, service), with a runbook in `infra/README.md`.

@@ -20,7 +20,7 @@ Each epic gets its own PRD in this folder and its own branch and PR.
   password, `GET /users/me`), useful checks, small UX or security
   improvements. Rules:
   - an addition never breaks or renames anything the spec defines, and never
-    breaks a hard rule (spec, AWS sandbox rules, "What to test");
+    breaks a hard rule (spec, AWS account rules, "What to test");
   - the agent **proposes, argues and asks**: for each addition say what it is,
     why it matters (for users, security or the defense), what it costs (files,
     endpoints, migrations, tests), and recommend yes or no. The user decides;
@@ -141,40 +141,36 @@ Notes:
 - Destroy rather than stop: a stopped RDS instance restarts by itself after 7
   days, and an idle load balancer is still billed.
 
-## AWS sandbox rules
+## AWS account rules
 
-The cloud is a course-provided AWS sandbox. Its usage agreement adds hard rules;
-breaking one terminates the sandbox and deletes everything in it.
+Decided in epic 8a (2026-11-15, see its
+[design](../superpowers/specs/2026-11-15-terraform-infra-design.md)). The course
+sandbox is not used: the cloud is the user's personal AWS account on the AWS
+Free plan, paid from its credits. The sandbox rules that cost nothing are kept.
 
-- **Regions:** only `us-east-1`, `eu-west-1` and `ap-south-1` are open. We use
-  `eu-west-1`.
-- **No company name:** the course provider's company name must not appear
-  anywhere in the sandbox: account name, resource names, tags, DNS records,
-  certificates, HTTP headers or page content, service banners. All names derive
-  from `project-hub`. The GitHub repository was renamed to `project-hub` for the
-  same reason (it shows up in the GitHub OIDC trust policy).
-- **No corporate email** for anything in the sandbox: AWS Budgets alerts, SES
-  senders or recipients (epic 10), registrations.
-- **Certificates:** only self-generated or AWS-issued (ACM).
-- **Scope:** only actions the project needs. Every action is logged.
-- **Limited lifespan:** when the sandbox expires, everything in it is deleted
-  with no recovery, the persistent layer included. So:
-  - all infrastructure must come back with `terraform init && terraform apply`
-    from this repository;
-  - nothing exists only in the sandbox: configuration and secrets have a source
-    outside it, and the Terraform state is never kept only in the sandbox;
-  - data in RDS and S3 is demo data, never the only copy of anything.
-- **Budget:** exceeding the sandbox budget terminates it. The AWS Budgets alert
-  in the persistent layer must fire well below that limit.
-
-Open questions for the mentors (answers go here, decided by 8a at the latest):
-
-| Question | Affects |
-|---|---|
-| Sandbox lifespan and expiry date | 8a, checkpoint planning |
-| Budget limit | 8a (Budgets alert threshold) |
-| Are IAM roles and a GitHub OIDC identity provider allowed? If not, CI uses access keys stored as GitHub secrets | 8a, 8b |
-| Where may the Terraform state live (S3 backend in the sandbox, or outside it)? | 8a |
+- **Region:** `eu-west-1`.
+- **No company name:** the course provider's company name never appears in
+  resource names, tags, DNS records, certificates, HTTP headers or page content.
+  All names derive from `project-hub`. The GitHub repository was renamed to
+  `project-hub` for the same reason (it shows up in the GitHub OIDC trust
+  policy).
+- **No corporate email:** AWS Budgets alerts, SES senders or recipients
+  (epic 10) and registrations use the user's personal address, kept only in
+  git-ignored `terraform.tfvars`.
+- **Certificates:** only self-generated or AWS-issued (ACM). The ALB uses a
+  self-signed certificate imported into ACM.
+- **Recreatable:** all infrastructure comes back with
+  `terraform init && terraform apply` from this repository. The Terraform state
+  lives on the user's laptop, git-ignored; data in RDS and S3 is demo data,
+  never the only copy of anything.
+- **CI access:** GitHub OIDC, trusted only for `main` of
+  `MilaHalko/project-hub`; no AWS access keys in GitHub secrets.
+- **Budget:** $20 a month (emails at 50 %, 80 %, 100 % and forecast) and $1 a
+  day, both counting cost before credits, so a forgotten ephemeral layer is
+  noticed on the first day.
+- **Free plan:** AWS keeps some services off the Free plan; the first real
+  `apply` shows whether ECS Fargate and ALB are allowed. Upgrading to the paid
+  plan is the user's decision.
 
 ## Other constraints
 
@@ -210,7 +206,7 @@ build it), **done** (merged), **later** (postponed).
 | If uploads go straight to S3 with presigned URLs: a bucket CORS rule for the app's origin, and the bucket origin in the app's CSP `connect-src` | The browser calls S3 directly | 6, 8a | F4 | not needed |
 | Used space and limit per project in project responses | The used-space bar; hidden until these fields exist, no stub | 7a | F4 | proposed |
 | The email links to the web app's `/join?token=…` page, which calls `GET /join` with the Bearer header; alternative: `GET /join` without an `Authorization` header from a browser answers `303` to that page (see the deferred question below) | A clicked email link carries no JWT | 10 | F5 | proposed |
-| HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo only | Passwords and tokens in plain text otherwise (Swagger too) | 8a | — | proposed |
+| HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo only | Passwords and tokens in plain text otherwise (Swagger too) | 8a | — | accepted (self-signed certificate in ACM, HTTP redirects to HTTPS) |
 | Totals for the projects list (projects, documents, space) | Summary counters above the list; `GET /projects` has no total count | — | — | later |
 | `DELETE /users/me` answering 409 "Delete your projects first" while the user owns projects | Account deletion dialog that never fails silently | after 6 | — | later |
 | Upload of one's own avatar picture | Custom avatars beyond the presets | — | — | later |
