@@ -1,15 +1,28 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { useLocation } from "react-router";
+import { NavigationType, useLocation, useNavigationType } from "react-router";
 
 export function useFocusHeadingOnNavigate(
   container: RefObject<HTMLElement | null>,
 ): void {
   const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   const previous = useRef(pathname);
+  const startedWithoutHeading = useRef(false);
+  const firstChange = useRef(true);
+
+  useEffect(() => {
+    startedWithoutHeading.current = !container.current?.querySelector("h1");
+  }, [container]);
 
   useEffect(() => {
     if (previous.current === pathname) return;
     previous.current = pathname;
+    const redirectedOnLoad =
+      firstChange.current &&
+      navigationType === NavigationType.Replace &&
+      startedWithoutHeading.current;
+    firstChange.current = false;
+    if (redirectedOnLoad) return;
     const root = container.current;
     if (!root) return;
 
@@ -35,5 +48,5 @@ export function useFocusHeadingOnNavigate(
     document.addEventListener("pointerdown", stop, true);
     document.addEventListener("keydown", stop, true);
     return stop;
-  }, [pathname, container]);
+  }, [pathname, navigationType, container]);
 }

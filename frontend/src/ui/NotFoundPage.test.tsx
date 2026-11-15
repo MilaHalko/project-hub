@@ -16,7 +16,7 @@ test("shows not found for an unknown path", async () => {
     ),
   ).toBeInTheDocument();
   const link = screen.getByRole("link", { name: "Go to projects" });
-  expect(link).toHaveAttribute("href", "/");
+  expect(link).toHaveAttribute("href", "/projects");
 
   await user.click(link);
 

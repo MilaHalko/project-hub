@@ -1,9 +1,10 @@
-import type { RouteObject } from "react-router";
+import { Navigate, type RouteObject } from "react-router";
 import { AuthLayout } from "./auth/AuthLayout";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { RequireAuth } from "./auth/RequireAuth";
 import { ProfilePage } from "./profile/ProfilePage";
+import { ProjectPage } from "./projects/ProjectPage";
 import { ProjectsPage } from "./projects/ProjectsPage";
 import { NotFoundPage } from "./ui/NotFoundPage";
 import { RouteRoot } from "./ui/RouteRoot";
@@ -23,7 +24,9 @@ export const routes: RouteObject[] = [
         path: "/",
         element: <RequireAuth />,
         children: [
-          { index: true, element: <ProjectsPage /> },
+          { index: true, element: <Navigate to="/projects" replace /> },
+          { path: "projects", element: <ProjectsPage /> },
+          { path: "projects/:projectId", element: <ProjectPage /> },
           { path: "profile", element: <ProfilePage /> },
           { path: "*", element: <NotFoundPage /> },
         ],
