@@ -72,6 +72,12 @@ async def list_documents(uow: UnitOfWork, project_id: UUID) -> list[Document]:
     return await uow.documents.list_for_project(project_id)
 
 
+async def documents_by_project(
+    uow: UnitOfWork, project_ids: Sequence[UUID]
+) -> dict[UUID, list[Document]]:
+    return await uow.documents.list_for_projects(project_ids)
+
+
 async def get_document(uow: UnitOfWork, user: User, document_id: UUID) -> Document:
     document = await uow.documents.get(document_id)
     if document is None:

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any, Final
 from uuid import UUID
 
@@ -89,6 +90,21 @@ class SqlDocumentRepository:
                 (project_id,),
             )
             return await cur.fetchall()
+
+    async def list_for_projects(self, project_ids: Sequence[UUID]) -> dict[UUID, list[Document]]:
+        grouped: dict[UUID, list[Document]] = {project_id: [] for project_id in project_ids}
+        if not grouped:
+            return grouped
+        async with self._conn.cursor(row_factory=class_row(Document)) as cur:
+            await cur.execute(
+                "SELECT " + _COLUMNS + "FROM documents d "
+                "LEFT JOIN users u ON u.id = d.uploaded_by WHERE d.project_id = ANY(%s) "
+                "ORDER BY d.created_at DESC, d.id DESC",
+                (list(grouped),),
+            )
+            for document in await cur.fetchall():
+                grouped[document.project_id].append(document)
+        return grouped
 
     async def delete(self, document_id: UUID) -> Document | None:
         async with self._conn.cursor(row_factory=class_row(Document)) as cur:
