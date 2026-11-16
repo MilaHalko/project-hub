@@ -57,7 +57,7 @@ real number ("60 of 50 MB used") with a full bar.
 | Under 80 % | Violet bar, "18 of 50 MB used" |
 | 80 % to under 100 % | `warn` bar, same text |
 | At or over 100 % | `warn` bar, full, "50 of 50 MB used · Limit reached", hint "Delete documents to make room." |
-| Upload refused with 413 (limit) | The file's row: "Report.pdf: not enough space. 49 MB of 50 MB used, this upload needs 3 MB. Delete documents to make room." |
+| Upload refused with 413 (limit) | The file's row: "Report.pdf: not enough space. 49 of 50 MB used, this file needs 3 MB. Delete documents to make room." A refused replacement shows the same sentence in its error toast. |
 | Upload refused with 413 (file over 10 MB) | Today's message, unchanged |
 
 ## Acceptance criteria
@@ -110,6 +110,69 @@ real number ("60 of 50 MB used") with a full bar.
 
 - Any backend change. The numbers and the 413 already exist on the 7a branch.
 - Per-user quotas, or changing the limit from the web app.
+
+## Review of the look
+
+Mockup: [`mockups/f4b-used-space.html`](../mockups/f4b-used-space.html). The
+user is not asked; `design:design-critique` and `design:ux-copy` are the gate
+(2026-11-16).
+
+Placement: the block (text, then the 6 px bar, 220 px wide) sits on the right
+of the "Documents" heading, above the upload zone, so the number is read
+before files are chosen; under 560 px of section width it drops below the
+heading and takes the full width. `look.html` put the number inside the drop
+zone's line; a separate block keeps the zone's text short and gives the bar
+room.
+
+Critique findings and what was done:
+
+| Finding | Severity | Done |
+|---|---|---|
+| "Tiny files only": a 0.4 % fill is invisible, so the bar looks empty while the text says something is stored | minor | the fill has a 4 px minimum width whenever anything is stored |
+| The `warn` orange (#e0821b) is 2.85:1 on white, under the 3:1 asked of graphics | minor | not changed: the bar is never the only signal; the text gives the numbers and "Limit reached" is written out (WCAG 1.4.11 applies to graphics needed to understand the content) |
+| At the limit the zone still says "PDF or DOCX, up to 10 MB each", which suggests an upload could work | moderate | the hint becomes "Delete documents to make room." while the project is at or over the limit |
+| The refused row repeats the file name (bold title and the message) | minor | kept: every upload error in F4 starts with the name, and the live region reads only the message, so the name must be in it |
+| Text and meter say the same thing to a screen reader twice | minor | the visible sentence is hidden from assistive tech (`aria-hidden`); the meter's value text carries it, plus "Limit reached" when it shows |
+| Hierarchy: heading first, number second, zone third; the block does not compete with the heading (12 px muted) | works | — |
+
+UX copy (`design:ux-copy`):
+
+- Meter: "18 of 50 MB used"; tiny: "Less than 0.1 MB of 50 MB used"; full:
+  "50 of 50 MB used · Limit reached". Accessible name "Space used".
+- Refused file: "Report.pdf: not enough space. 49 of 50 MB used, this file
+  needs 3 MB. Delete documents to make room." "this file needs" replaces the
+  API's "this upload needs": each request carries one file, and "file" is the
+  word on the row. The name prefix and lower-case start match the other F4
+  errors ("Scan.pdf: file is larger than 10 MB"). The numbers are the API's,
+  re-formatted with the bar's rules (the API writes "218 bytes" for sizes that
+  are not whole megabytes). If the API's sentence cannot be read, the message
+  is "Report.pdf: not enough space. Delete documents to make room."
+- Zone hint at the limit: "Delete documents to make room." (what happened is
+  already said by "Limit reached" right above).
+
+## Plan
+
+Executed inline (Native), test first in each slice; one commit per slice.
+
+1. **Show how much space a project uses on its page.** `Project` gets the two
+   optional fields; `formatMegabytes` and `usedText` in
+   `frontend/src/documents/space.ts` (unit tests: AC 4); `SpaceUsed` meter in
+   the documents heading row, `ProjectPage` passes the numbers, the upload
+   zone's hint changes at the limit (component tests: AC 1–3); e2e in
+   `frontend/e2e/space.spec.ts`: upload, replace with a bigger file, delete,
+   the number follows, axe on each state (AC 5, 7).
+2. **Say why an upload did not fit in the project.** `uploadErrorMessage`
+   turns the 413 limit detail into the message above, the single-file 413
+   keeps its text; the upload queue and the replace flow invalidate the
+   project query after a 413; the batch goes on (component tests: AC 6). The
+   e2e stack sets `APP_PROJECT_MAX_BYTES=3145728` (3 MB) in
+   `frontend/compose.yml`: above the largest existing e2e upload (2 MB plus
+   218 bytes) and shown as a whole number. The e2e test fills a project with
+   2 MB through the API, then uploads a 1.5 MB PDF and the 218-byte sample in
+   one batch: the first is refused with the message, the second is saved, the
+   bar shows the new total (AC 6, 7).
+3. **Docs.** `docs/frontend/roadmap.md`: the used-space row is done on
+   `feat/used-space-bar`, folded into slice 2, since the roadmap line names both the bar and the 413 message.
 
 ## Constraints
 
