@@ -11,6 +11,8 @@ export type Project = {
   my_role: ProjectRole;
   created_at: string;
   updated_at: string;
+  storage_used_bytes?: number;
+  storage_limit_bytes?: number;
   documents?: Document[];
 };
 
