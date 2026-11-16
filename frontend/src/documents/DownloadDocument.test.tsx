@@ -10,6 +10,7 @@ import {
   listRoute,
   project,
   PROJECT_ID,
+  projectLostAfterFirstLoad,
 } from "./testData";
 
 const createObjectURL = vi.fn<(blob: Blob) => string>(() => "blob:saved");
@@ -99,6 +100,32 @@ test("says when the document is gone and reloads the list", async () => {
     ).toHaveLength(2);
   });
   expect(clicked).toHaveLength(0);
+});
+
+test("tells a removed member they lost access instead of blaming the document", async () => {
+  await openPage({
+    [infoRoute]: projectLostAfterFirstLoad(),
+    [documentRoute("GET", brief.id)]: {
+      status: 404,
+      body: { detail: "Document not found" },
+    },
+  });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Download Client brief.pdf" }),
+  );
+
+  expect(
+    await screen.findByText("You no longer have access to this project."),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Your projects" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      "This document no longer exists. Someone may have deleted it.",
+    ),
+  ).not.toBeInTheDocument();
 });
 
 test("says when the download fails", async () => {

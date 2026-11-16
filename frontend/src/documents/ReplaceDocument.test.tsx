@@ -11,6 +11,7 @@ import {
   listRoute,
   project,
   PROJECT_ID,
+  projectLostAfterFirstLoad,
   siteMap,
 } from "./testData";
 
@@ -145,6 +146,33 @@ test("says when the document is gone and reloads the list", async () => {
       ),
     ).toHaveLength(2);
   });
+});
+
+test("tells a removed member they lost access instead of blaming the document", async () => {
+  await openPage({
+    [infoRoute]: projectLostAfterFirstLoad(),
+    [documentRoute("PUT", brief.id)]: {
+      status: 404,
+      body: { detail: "Document not found" },
+    },
+  });
+
+  await userEvent.upload(
+    screen.getByLabelText("Replace Client brief.pdf"),
+    v2(),
+  );
+
+  expect(
+    await screen.findByText("You no longer have access to this project."),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Your projects" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      "This document no longer exists. Someone may have deleted it.",
+    ),
+  ).not.toBeInTheDocument();
 });
 
 test("reaches the row's actions with Tab in the order they show", async () => {
