@@ -60,7 +60,7 @@ resource "aws_cloudwatch_event_rule" "storage_usage" {
     detail-type = ["Object Created", "Object Deleted"]
     detail = {
       bucket = { name = [data.aws_ssm_parameter.s3_bucket.value] }
-      object = { key = [{ prefix = "projects/" }] }
+      object = { key = [{ wildcard = "projects/*/documents/*" }] }
     }
   })
 }

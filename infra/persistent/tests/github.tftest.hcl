@@ -1,7 +1,10 @@
-mock_provider "aws" {}
+mock_provider "aws" {
+  source = "./tests/mocks"
+}
 
 variables {
-  alert_email = "alerts@example.com"
+  alert_email       = "alerts@example.com"
+  image_preview_zip = "tests/fixtures/image-preview-lambda.zip"
 }
 
 run "deploy_role_trusts_only_main" {
