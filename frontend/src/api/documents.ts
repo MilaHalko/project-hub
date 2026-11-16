@@ -33,3 +33,12 @@ export async function uploadDocument(
 export function downloadDocument(id: string): Promise<Blob> {
   return apiFetchBlob(`/document/${encodeURIComponent(id)}`);
 }
+
+export function replaceDocument(id: string, file: File): Promise<Document> {
+  const form = new FormData();
+  form.append("file", file);
+  return apiFetch<Document>(`/document/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: form,
+  });
+}
