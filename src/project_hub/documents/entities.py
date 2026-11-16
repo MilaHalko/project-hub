@@ -6,19 +6,37 @@ from uuid import UUID, uuid4
 
 PDF_CONTENT_TYPE: Final = "application/pdf"
 DOCX_CONTENT_TYPE: Final = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+JPEG_CONTENT_TYPE: Final = "image/jpeg"
+PNG_CONTENT_TYPE: Final = "image/png"
 
 
 class DocumentType(StrEnum):
     PDF = "pdf"
     DOCX = "docx"
+    JPEG = "jpeg"
+    PNG = "png"
 
     @property
     def extension(self) -> str:
         return f".{self.value}"
 
     @property
+    def extensions(self) -> tuple[str, ...]:
+        if self is DocumentType.JPEG:
+            return (".jpg", ".jpeg")
+        return (self.extension,)
+
+    @property
     def content_type(self) -> str:
-        return PDF_CONTENT_TYPE if self is DocumentType.PDF else DOCX_CONTENT_TYPE
+        return _CONTENT_TYPES[self]
+
+
+_CONTENT_TYPES: Final = {
+    DocumentType.PDF: PDF_CONTENT_TYPE,
+    DocumentType.DOCX: DOCX_CONTENT_TYPE,
+    DocumentType.JPEG: JPEG_CONTENT_TYPE,
+    DocumentType.PNG: PNG_CONTENT_TYPE,
+}
 
 
 @dataclass(frozen=True, slots=True)

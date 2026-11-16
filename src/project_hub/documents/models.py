@@ -23,7 +23,8 @@ class DocumentModel(Base):
         CheckConstraint("char_length(name) BETWEEN 1 AND 255", name="ck_documents_name_length"),
         CheckConstraint(
             "content_type IN ('application/pdf', "
-            "'application/vnd.openxmlformats-officedocument.wordprocessingml.document')",
+            "'application/vnd.openxmlformats-officedocument.wordprocessingml.document', "
+            "'image/jpeg', 'image/png')",
             name="ck_documents_content_type",
         ),
         CheckConstraint("size > 0", name="ck_documents_size_positive"),

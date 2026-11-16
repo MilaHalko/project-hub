@@ -8,6 +8,7 @@ from mypy_boto3_s3.client import S3Client
 from project_hub.documents.entities import DOCX_CONTENT_TYPE, PDF_CONTENT_TYPE
 from tests.support.auth import bearer, signed_in
 from tests.support.documents import (
+    JPEG_BYTES,
     PNG_BYTES,
     app_of,
     broken_storage,
@@ -234,3 +235,44 @@ def test_replace_updates_project_used_space(api_client: TestClient) -> None:
     assert r.status_code == 200, r.text
     total = len(bigger) + len(other)
     assert used_space(api_client, token, project["id"]) == (total, total)
+
+
+@pytest.mark.parametrize(
+    ("first", "second", "content_type"),
+    [
+        pytest.param(("a.pdf", pdf_bytes()), ("b.png", PNG_BYTES), "image/png", id="pdf-to-png"),
+        pytest.param(("a.png", PNG_BYTES), ("b.jpg", JPEG_BYTES), "image/jpeg", id="png-to-jpg"),
+        pytest.param(("a.jpeg", JPEG_BYTES), ("b.pdf", pdf_bytes()), PDF_CONTENT_TYPE, id="to-pdf"),
+    ],
+)
+def test_replace_with_and_from_images(
+    api_client: TestClient,
+    first: tuple[str, bytes],
+    second: tuple[str, bytes],
+    content_type: str,
+) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    (document,) = uploaded(api_client, token, project["id"], [first])
+
+    r = replace(api_client, token, document["id"], [second])
+
+    assert r.status_code == 200, r.text
+    assert r.json()["content_type"] == content_type
+    download = api_client.get(f"/document/{document['id']}", headers=bearer(token))
+    assert download.headers["content-type"] == content_type
+    assert download.content == second[1]
+
+
+def test_replace_with_mislabelled_image_is_422_and_keeps_old_file(
+    api_client: TestClient,
+) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    data = pdf_bytes("old")
+    (document,) = uploaded(api_client, token, project["id"], [("old.pdf", data)])
+
+    r = replace(api_client, token, document["id"], [("new.png", JPEG_BYTES)])
+
+    assert r.status_code == 422
+    assert _download(api_client, token, document["id"]) == data
