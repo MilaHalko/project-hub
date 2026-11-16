@@ -68,7 +68,7 @@ The ORM and non-ORM implementations must be interchangeable:
 | 1b | ✅ Data layer (PR #3) | Repository and Unit of Work protocols, SQLAlchemy and psycopg implementations, migrations, `APP_DB_BACKEND` switch, shared contract tests | 1a |
 | 2 | ✅ CI (PR #4) | GitHub Actions: lint, type check, tests for both DB backends, image build | 1b |
 | 8a | ✅ Terraform infrastructure (PR #28) | Persistent and ephemeral layers (see [AWS cost strategy](#aws-cost-strategy)); extras: HTTPS on the ALB with a self-signed certificate, monthly and daily budget emails, `terraform test` guards for the security groups and the main-only GitHub OIDC trust, CI job `terraform` (fmt, validate, tflint, checkov, test), checkpoint runbook in `infra/README.md` | 2 |
-| 8b | Deploy on merge | Push the image to ECR on every merge; deploy to ECS when the ephemeral layer is up | 8a |
+| 8b | ✅ Deploy on merge | Push the image to ECR on every merge; deploy to ECS when the ephemeral layer is up | 8a |
 | 3 | ✅ Users and auth (PR #8) | `POST /auth`, `POST /login`, password hashing, JWT valid for 1 hour, current-user dependency; extras: `POST /logout`, `GET /users/me`, `PUT /users/me/password`, security events log | 1b |
 | 4 | ✅ Projects and access (PR #13) | Project CRUD, owner/participant roles, access checks on every request, owner-only delete; extras: `GET /projects` sorted by last update with `limit`/`offset` and `role` filter, `GET /project/<id>/members`, project created/deleted in the security events log | 3 |
 | 5 | ✅ Invites (PR #17) | `POST /project/<id>/invite?user=<login>`, owner only; extras: `DELETE /project/<id>/members/<user_id>` (the owner removes a participant, a participant leaves), participant invited/removed/left in the security events log | 4 |
