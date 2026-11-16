@@ -7,6 +7,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from collections.abc import Mapping
 from importlib.metadata import version
 from pathlib import Path
@@ -65,6 +66,11 @@ def _single(directory: Path, pattern: str) -> Path:
     matches = sorted(directory.glob(pattern))
     assert len(matches) == 1, f"expected one {pattern} in {directory}, found {matches}"
     return matches[0]
+
+
+def _wheel_files(wheel: Path) -> list[str]:
+    with zipfile.ZipFile(wheel) as archive:
+        return sorted(archive.namelist())
 
 
 def _free_port() -> int:
@@ -223,3 +229,24 @@ def test_installed_migrate_applies_all_migrations(run_installed: RunInstalled) -
 
     assert versions == [(_source_head(),)]
     assert users == (True,)
+
+
+def test_sdist_rebuilds_a_wheel_with_the_same_files(
+    run_installed: RunInstalled, sdist: Path, wheel: Path, workdir: Path
+) -> None:
+    rebuilt_dir = workdir / "rebuilt"
+    run_installed(
+        "-m",
+        "pip",
+        "wheel",
+        "--disable-pip-version-check",
+        "--no-input",
+        "--no-deps",
+        "--wheel-dir",
+        str(rebuilt_dir),
+        str(sdist),
+    )
+
+    rebuilt = _single(rebuilt_dir, "project_hub-*.whl")
+    assert rebuilt.name == wheel.name
+    assert _wheel_files(rebuilt) == _wheel_files(wheel)
