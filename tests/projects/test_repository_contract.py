@@ -653,3 +653,68 @@ async def test_refresh_storage_used_stamps_write_time_not_transaction_start(
         ).fetchone()
     assert row is not None
     assert row[0].total_seconds() >= 0.2
+
+
+async def test_lock_storage_used_excludes_document(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        first = await uow.documents.add(_document(project.id, owner.id, 10))
+        await uow.documents.add(_document(project.id, owner.id, 20))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(project.id) == 30
+        assert await uow.projects.lock_storage_used(project.id, except_document=first.id) == 20
+        assert await uow.projects.lock_storage_used(project.id, except_document=uuid4()) == 30
+
+
+async def test_lock_storage_used_empty_project_is_zero(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(project.id) == 0
+
+
+async def test_lock_storage_used_unknown_project_is_none(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(uuid4()) is None
+
+
+async def test_second_lock_waits_for_first_transaction(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as first:
+        await first.projects.lock_storage_used(project.id)
+        async with database.unit_of_work() as second:
+            waiting = asyncio.create_task(second.projects.lock_storage_used(project.id))
+            done, _ = await asyncio.wait({waiting}, timeout=0.5)
+            assert not done
+            await first.commit()
+            assert await asyncio.wait_for(waiting, timeout=2) == 0
+
+
+async def test_lock_storage_used_lets_another_transaction_add_a_member(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as locking:
+        await locking.projects.lock_storage_used(project.id)
+        async with database.unit_of_work() as joining:
+            await asyncio.wait_for(joining.projects.add_member(project.id, anna.id), timeout=2)
+            await joining.commit()
+        await locking.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.get_for_user(project.id, anna.id) is not None

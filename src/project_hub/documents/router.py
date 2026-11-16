@@ -76,7 +76,9 @@ async def upload_documents(
 ) -> list[DocumentResponse]:
     settings: Settings = request.app.state.settings
     files = await read_uploads(request, settings, "files", exactly_one=False)
-    documents = await service.upload_documents(uow, storage, user, project.project.id, files)
+    documents = await service.upload_documents(
+        uow, storage, user, project.project.id, files, limit_bytes=settings.project_max_bytes
+    )
     return [DocumentResponse.from_document(document) for document in documents]
 
 
@@ -116,7 +118,9 @@ async def replace_document(
 ) -> DocumentResponse:
     settings: Settings = request.app.state.settings
     (file,) = await read_uploads(request, settings, "file", exactly_one=True)
-    replaced = await service.replace_document(uow, storage, user, document, file)
+    replaced = await service.replace_document(
+        uow, storage, user, document, file, limit_bytes=settings.project_max_bytes
+    )
     return DocumentResponse.from_document(replaced)
 
 

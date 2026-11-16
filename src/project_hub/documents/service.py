@@ -2,15 +2,25 @@ import logging
 from collections.abc import Sequence
 from uuid import UUID
 
-from project_hub.core.exceptions import NotFoundError
+from project_hub.core.config import Settings
+from project_hub.core.exceptions import NotFoundError, PayloadTooLargeError
 from project_hub.db.uow import UnitOfWork
 from project_hub.documents.entities import Document, NewDocument, ReplacedFile, new_storage_key
-from project_hub.documents.validation import ValidFile
+from project_hub.documents.validation import ValidFile, size_text
 from project_hub.projects.service import get_project
 from project_hub.storage.files import FileStorage, discard_quietly
 from project_hub.users.entities import User
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_LIMIT_BYTES = Settings.model_fields["project_max_bytes"].default
+
+
+def _over_limit(used: int, limit: int, incoming: int) -> PayloadTooLargeError:
+    return PayloadTooLargeError(
+        f"Project storage limit reached: {size_text(used)} of {size_text(limit)} used, "
+        f"this upload needs {size_text(incoming)}"
+    )
 
 
 def _log_event(event: str, user: User, project_id: UUID, document_id: UUID) -> None:
@@ -37,8 +47,16 @@ async def upload_documents(
     user: User,
     project_id: UUID,
     files: Sequence[ValidFile],
+    *,
+    limit_bytes: int = _DEFAULT_LIMIT_BYTES,
 ) -> list[Document]:
     await get_project(uow, user, project_id)
+    used = await uow.projects.lock_storage_used(project_id)
+    if used is None:
+        raise NotFoundError("Project not found")
+    incoming = sum(len(file.data) for file in files)
+    if used + incoming > limit_bytes:
+        raise _over_limit(used, limit_bytes, incoming)
     stored: list[tuple[str, ValidFile]] = []
     try:
         for file in files:
@@ -100,10 +118,19 @@ async def replace_document(
     user: User,
     document: Document,
     file: ValidFile,
+    *,
+    limit_bytes: int = _DEFAULT_LIMIT_BYTES,
 ) -> Document:
+    others = await uow.projects.lock_storage_used(document.project_id, except_document=document.id)
+    current = None if others is None else await uow.documents.get(document.id)
+    if others is None or current is None:
+        raise NotFoundError("Document not found")
+    incoming = len(file.data)
+    if others + incoming > limit_bytes and incoming > current.size:
+        raise _over_limit(others + current.size, limit_bytes, incoming)
     new_key = new_storage_key(document.project_id)
-    await storage.put(new_key, file.data, file.content_type)
     try:
+        await storage.put(new_key, file.data, file.content_type)
         replaced = await uow.documents.replace_file(
             document.id,
             ReplacedFile(
@@ -123,13 +150,14 @@ async def replace_document(
         await discard_quietly(storage, [new_key], project_id=document.project_id)
         raise
     _log_event("document replaced", user, document.project_id, document.id)
-    await discard_quietly(storage, [document.storage_key], project_id=document.project_id)
+    await discard_quietly(storage, [current.storage_key], project_id=document.project_id)
     return replaced
 
 
 async def delete_document(
     uow: UnitOfWork, storage: FileStorage, user: User, document: Document
 ) -> None:
+    await uow.projects.lock_storage_used(document.project_id)
     deleted = await uow.documents.delete(document.id)
     if deleted is None:
         raise NotFoundError("Document not found")

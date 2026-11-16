@@ -118,6 +118,23 @@ class SqlProjectRepository:
             row = await cur.fetchone()
         return 0 if row is None else int(row[0])
 
+    async def lock_storage_used(
+        self, project_id: UUID, *, except_document: UUID | None = None
+    ) -> int | None:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM projects WHERE id = %s FOR NO KEY UPDATE", (project_id,)
+            )
+            if await cur.fetchone() is None:
+                return None
+            await cur.execute(
+                "SELECT COALESCE(SUM(size), 0) FROM documents "
+                "WHERE project_id = %(id)s AND id IS DISTINCT FROM %(skip)s",
+                {"id": project_id, "skip": except_document},
+            )
+            row = await cur.fetchone()
+        return 0 if row is None else int(row[0])
+
     async def delete(self, project_id: UUID) -> bool:
         async with self._conn.cursor() as cur:
             await cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))

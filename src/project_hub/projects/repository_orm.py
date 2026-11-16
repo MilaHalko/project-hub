@@ -149,6 +149,23 @@ class OrmProjectRepository:
         )
         return (await self._session.execute(statement)).scalar_one_or_none() or 0
 
+    async def lock_storage_used(
+        self, project_id: UUID, *, except_document: UUID | None = None
+    ) -> int | None:
+        locked = await self._session.execute(
+            select(ProjectModel.id)
+            .where(ProjectModel.id == project_id)
+            .with_for_update(key_share=True)
+        )
+        if locked.scalar_one_or_none() is None:
+            return None
+        total = select(func.coalesce(func.sum(DocumentModel.size), 0)).where(
+            DocumentModel.project_id == project_id
+        )
+        if except_document is not None:
+            total = total.where(DocumentModel.id != except_document)
+        return int((await self._session.execute(total)).scalar_one())
+
     async def delete(self, project_id: UUID) -> bool:
         statement = (
             delete(ProjectModel).where(ProjectModel.id == project_id).returning(ProjectModel.id)
