@@ -17,7 +17,7 @@ The ephemeral layer finds persistent resources by name and tag, so the two layer
 
 An AWS account can have only one OIDC provider for `token.actions.githubusercontent.com`. If one already exists, the apply fails. Then import it with `terraform -chdir=infra/persistent import aws_iam_openid_connect_provider.github <its ARN>`, or delete the unused one (preferred). After an import the persistent layer owns the provider: a persistent `destroy` deletes it and `apply` resets its `client_id_list`.
 
-## 2. First image (until the deploy pipeline exists)
+## 2. First image (only before the first deploy-on-merge run)
 
 The ephemeral layer needs an image in ECR. Push one by hand:
 
@@ -32,7 +32,34 @@ ECR tags are immutable, so the tag must be new each time. `--provenance=false --
 
 `ecr_repository_url` is an output of the persistent layer: `terraform -chdir=infra/persistent output -raw ecr_repository_url`.
 
-## 3. Checkpoint
+## 3. Deploy on merge
+
+`.github/workflows/deploy.yml` runs on every push to `main` (and by hand from the Actions tab, on `main` only). It signs in to AWS through the OIDC role `project-hub-github-deploy`, which trusts only `refs/heads/main`; there are no AWS keys in GitHub.
+
+Set two **repository variables** (GitHub, Settings, Secrets and variables, Actions, tab Variables; variables, not secrets):
+
+| Variable | Value | Effect |
+|---|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | `terraform -chdir=infra/persistent output -raw github_deploy_role_arn` | Not set: the workflow does nothing. Set: every merge builds the image and pushes it to ECR. |
+| `ECS_DEPLOY_ENABLED` | `true` while the ephemeral layer is up; delete it or set `false` otherwise | `true`: after the push, the ECS service is rolled out to the new image. |
+
+Per checkpoint: after `terraform -chdir=infra/ephemeral apply` set `ECS_DEPLOY_ENABLED` to `true`; after `destroy` set it to `false`. If you forget, the run shows a warning and skips the rollout instead of failing.
+
+On a merge the job:
+
+1. builds the image for `linux/amd64` with `--provenance=false --sbom=false` and pushes it as `project-hub-api:<commit SHA>` (tags are immutable; a re-run finds the image already there and reuses it);
+2. if `ECS_DEPLOY_ENABLED` is `true` and the service is active: copies the task definition the service runs now, replaces the image in the `migrate` and `api` containers with the new digest, registers it as a new revision, updates the service `project-hub-api` and waits until it is stable;
+3. fails if ECS rolled the deploy back (circuit breaker), so a red run means the old version is still serving.
+
+Terraform and the deploy:
+
+- The ephemeral layer does not know about revisions registered by CI. On a normal checkpoint (`apply`, demo, `destroy`) there is no conflict: `apply` takes the newest ECR image and builds a fresh task definition.
+- If you run `apply` on a layer that is already up, the plan shows the service's `task_definition` changing, because the service runs a CI revision. That is expected and safe: Terraform registers a revision with the newest ECR image, which is the one CI deployed.
+- `ignore_changes` on the service was not added: it would stop Terraform from rolling out its own task definition changes.
+- CI cannot tag or deregister task definitions (no permission, and the role was left as it is). Its revisions have no tags, stay `ACTIVE` after `destroy`, and cost nothing.
+- Merges that follow each other quickly: GitHub keeps only the newest waiting run, so an in-between commit may not get its own image.
+
+## 4. Checkpoint
 
 ```bash
 terraform -chdir=infra/ephemeral init
@@ -54,7 +81,7 @@ When the checkpoint is done, stop the billing:
 terraform -chdir=infra/ephemeral destroy
 ```
 
-## 4. If an ephemeral apply fails
+## 5. If an ephemeral apply fails
 
 Run `destroy`, then `apply` again. The database password is written only when the database is created, so a half-finished apply cannot be repaired in place.
 
@@ -64,7 +91,7 @@ The service waits for a healthy task, so a broken task makes `apply` wait and th
 
 If uploads over 1 MB fail because the root filesystem is read-only, set `readonlyRootFilesystem = false` on the `api` container in `infra/ephemeral/service.tf` and apply again.
 
-## 5. Switch the data layer at the demo
+## 6. Switch the data layer at the demo
 
 ```bash
 aws ssm put-parameter --region eu-west-1 --name /project-hub/db-backend --value sql --overwrite
@@ -75,16 +102,16 @@ Use `orm` as the value to switch back.
 
 To rotate the JWT secret, raise `value_wo_version` in `infra/persistent/ssm.tf`, apply the persistent layer and force a new deployment as above. Every issued token becomes invalid.
 
-## 6. Cost
+## 7. Cost
 
 - Ephemeral layer: about $0.08 an hour while it is up, nothing after `destroy`.
 - Persistent layer: a few cents a month.
 - Budget alerts go to your email at $20 a month and $1 a day.
 
-## 7. Leftovers
+## 8. Leftovers
 
 If you are unsure whether something is still running, open Resource Groups, then Tag Editor, and search by tag `Project = project-hub`. After a `destroy`, search `Layer = ephemeral`: the result should be empty apart from INACTIVE ECS task definition revisions: they keep the tag, are free and can be ignored.
 
-## 8. State
+## 9. State
 
 Terraform state lives in `infra/*/terraform.tfstate` on this laptop only. Keep a backup and never commit it.
