@@ -142,6 +142,28 @@ stored) the line says `"storage usage not stored"` and adds a `reason`.
 | `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
 | `APP_S3_REGION` | `eu-west-1` | Bucket region |
 
+## Image preview Lambda
+
+`project_hub.image_preview.handler.handler` is a standalone AWS Lambda (it imports only the
+standard library, `boto3` and Pillow, and never touches the database). S3 sends `Object Created`
+and `Object Deleted` events for `projects/<project_id>/documents/<name>` through EventBridge
+straight to it. For a created object it reads the bytes, and when they are a JPEG or PNG (by
+signature) it writes a JPEG preview to `projects/<project_id>/previews/<name>.jpg`: at most
+512 x 512 px, aspect ratio kept, never enlarged, EXIF orientation applied, transparency flattened
+onto white, quality 80, `Content-Type: image/jpeg`. For a deleted object it deletes that preview.
+Other keys are ignored. Files that are not images, cannot be read, exceed Pillow's
+`MAX_IMAGE_PIXELS` guard or no longer exist get no preview and are not retried (the line
+`image preview skipped` carries the key and the reason). S3 errors are raised, so Lambda's
+asynchronous invoke retries the event up to 2 times within an hour (up to 3 invocations) and
+then sends it to the function's dead-letter queue; EventBridge's own retries cover only a
+failed delivery to the function. The other lines are `image preview stored` and
+`image preview deleted`. Pillow is a dev dependency only: the API never imports it.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
 ## Mail
 
 The app sends plain-text mail over SMTP through the small `Mailer` interface
