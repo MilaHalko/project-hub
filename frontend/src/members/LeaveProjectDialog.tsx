@@ -1,15 +1,14 @@
-import {
-  useMutation,
-  useQueryClient,
-  type InfiniteData,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useId, useRef, type SubmitEvent } from "react";
-import { useNavigate } from "react-router";
 import { ApiError } from "../api/errors";
-import { membersKey, removeMember } from "../api/members";
+import { removeMember } from "../api/members";
 import type { Project } from "../api/projects";
 import { useMe } from "../auth/useMe";
-import { withoutProject } from "../projects/projectPages";
+import {
+  LOST_ACCESS,
+  lostAccess,
+  useForgetProject,
+} from "../projects/useForgetProject";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { useToast } from "../ui/toast/useToast";
@@ -17,12 +16,6 @@ import styles from "./MemberDialog.module.css";
 
 function mutationKey(project: Project) {
   return ["leaveProject", project.id];
-}
-
-function lostAccess(error: Error): boolean {
-  return (
-    error instanceof ApiError && (error.status === 404 || error.status === 422)
-  );
 }
 
 function failureMessage(error: Error): string {
@@ -40,22 +33,10 @@ function LeaveForm({
   textId: string;
   onClose: () => void;
 }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const forgetProject = useForgetProject(project.id);
   const toast = useToast();
   const { data: me } = useMe();
   const sending = useRef(false);
-
-  async function forgetProject() {
-    await navigate("/projects");
-    queryClient.removeQueries({ queryKey: ["project", project.id] });
-    queryClient.removeQueries({ queryKey: membersKey(project.id) });
-    queryClient.setQueriesData<InfiniteData<Project[]>>(
-      { queryKey: ["projects"] },
-      (data) => data && withoutProject(data, project.id),
-    );
-    void queryClient.invalidateQueries({ queryKey: ["projects"] });
-  }
 
   const mutation = useMutation({
     mutationKey: mutationKey(project),
@@ -70,7 +51,7 @@ function LeaveForm({
     onError: async (error) => {
       if (!lostAccess(error)) return;
       await forgetProject();
-      toast.error("You no longer have access to this project.");
+      toast.error(LOST_ACCESS);
     },
   });
   const failed = mutation.isError && !lostAccess(mutation.error);
