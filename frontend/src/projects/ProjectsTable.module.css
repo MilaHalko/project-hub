@@ -28,6 +28,11 @@
   width: 22%;
 }
 
+.documentsColumn {
+  width: 100px;
+  text-align: right;
+}
+
 .updatedColumn {
   width: 140px;
 }
@@ -97,6 +102,12 @@
   overflow-wrap: anywhere;
 }
 
+.row td.documents {
+  color: var(--color-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
 .cardOnly {
   display: none;
 }
@@ -109,7 +120,7 @@
 
 .skeletonRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 22% 140px;
+  grid-template-columns: minmax(0, 1fr) 120px 22% 100px 140px;
   align-items: start;
   padding: 14px 0;
   border-bottom: 1px solid var(--color-line);
@@ -166,10 +177,10 @@
 
   .row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
     grid-template-areas:
-      "project project role"
-      "owner updated updated";
+      "project project project role"
+      "owner documents updated updated";
     row-gap: 4px;
     padding: 12px 14px;
     border-bottom: 1px solid var(--color-line);
@@ -201,7 +212,13 @@
     grid-area: updated;
   }
 
+  .row td.documents {
+    grid-area: documents;
+    text-align: left;
+  }
+
   .owner,
+  .row td.documents,
   .updated {
     font-size: var(--text-small);
   }
