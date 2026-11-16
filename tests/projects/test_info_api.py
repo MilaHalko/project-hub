@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tests.support.auth import bearer, signed_in
@@ -14,6 +15,19 @@ def test_owner_reads_info(api_client: TestClient) -> None:
 
     assert r.status_code == 200
     assert r.json() == created
+
+
+def test_info_shows_limit_from_settings(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+    created = create_project(api_client, token)
+    app = api_client.app
+    assert isinstance(app, FastAPI)
+    app.state.settings = app.state.settings.model_copy(update={"project_max_bytes": 1000})
+
+    r = api_client.get(f"/project/{created['id']}/info", headers=bearer(token))
+
+    assert r.status_code == 200
+    assert r.json()["storage_limit_bytes"] == 1000
 
 
 def test_outsider_gets_same_404_as_unknown_id(api_client: TestClient) -> None:

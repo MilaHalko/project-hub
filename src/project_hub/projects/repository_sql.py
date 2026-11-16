@@ -29,6 +29,7 @@ _ACCESS_CONDITION: dict[ProjectRole | None, LiteralString] = {
 }
 _SELECT_ACCESS = (
     "SELECT p.id, p.owner_id, p.name, p.description, p.created_at, p.updated_at, "
+    "p.storage_used_bytes, "
     "u.login AS owner_login "
     "FROM projects p JOIN users u ON u.id = p.owner_id "
 )
@@ -53,7 +54,8 @@ class SqlProjectRepository:
             async with self._conn.cursor(row_factory=class_row(Project)) as cur:
                 await cur.execute(
                     "INSERT INTO projects (owner_id, name, description) VALUES (%s, %s, %s) "
-                    "RETURNING id, owner_id, name, description, created_at, updated_at",
+                    "RETURNING id, owner_id, name, description, created_at, updated_at, "
+                    "storage_used_bytes",
                     (project.owner_id, project.name, project.description),
                 )
                 row = await cur.fetchone()
@@ -93,7 +95,8 @@ class SqlProjectRepository:
             await cur.execute(
                 "UPDATE projects SET name = %s, description = %s, updated_at = now() "
                 "WHERE id = %s "
-                "RETURNING id, owner_id, name, description, created_at, updated_at",
+                "RETURNING id, owner_id, name, description, created_at, updated_at, "
+                "storage_used_bytes",
                 (name, description, project_id),
             )
             return await cur.fetchone()

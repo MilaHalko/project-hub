@@ -66,6 +66,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_S3_REGION",
         "APP_DOCUMENT_MAX_BYTES",
         "APP_DOCUMENT_MAX_FILES",
+        "APP_PROJECT_MAX_BYTES",
         "APP_SMTP_HOST",
         "APP_SMTP_PORT",
         "APP_MAIL_FROM",

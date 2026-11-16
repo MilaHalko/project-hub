@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     web_url: str | None = None
     document_max_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
     document_max_files: int = Field(default=10, ge=1, le=100)
+    project_max_bytes: int = Field(default=52_428_800, ge=1, le=10_737_418_240)
 
     @field_validator(
         "jwt_secret",

@@ -31,6 +31,25 @@ async def test_add_returns_project_with_generated_fields(database: Database) -> 
     assert project.description == "Final project"
 
 
+async def test_new_project_has_no_storage_used(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+        listed = await uow.projects.list_for_user(owner.id, role=None, limit=50, offset=0)
+        updated = await uow.projects.update(project.id, "Thesis", "New")
+
+    assert project.storage_used_bytes == 0
+    assert access is not None
+    assert access.project.storage_used_bytes == 0
+    assert [item.project.storage_used_bytes for item in listed] == [0]
+    assert updated is not None
+    assert updated.storage_used_bytes == 0
+
+
 async def test_get_for_user_owner_sees_role_owner(database: Database) -> None:
     async with database.unit_of_work() as uow:
         owner = await uow.users.add(NewUser("mila", "hash"))

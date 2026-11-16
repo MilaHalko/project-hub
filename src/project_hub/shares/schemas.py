@@ -36,9 +36,9 @@ class JoinResponse(BaseModel):
     project: ProjectResponse
 
     @classmethod
-    def from_result(cls, login: str, result: JoinResult) -> Self:
+    def from_result(cls, login: str, result: JoinResult, storage_limit_bytes: int) -> Self:
         return cls(
             login=login,
             already_member=result.already_member,
-            project=ProjectResponse.from_access(result.access),
+            project=ProjectResponse.from_access(result.access, storage_limit_bytes),
         )
