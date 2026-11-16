@@ -110,15 +110,21 @@ async def join(uow: UnitOfWork, user: User, token: str, *, now: datetime) -> Joi
     access = await uow.projects.get_for_user(link.project_id, user.id)
     if access is not None:
         return JoinResult(access, already_member=True)
+    joined = await _become_participant(uow, link, user)
+    access = await _access(uow, link.project_id, user)
+    if joined:
+        await uow.commit()
+        _log_event("project joined", user, link.project_id, link.email)
+    return JoinResult(access, already_member=not joined)
+
+
+async def _become_participant(uow: UnitOfWork, link: ShareLink, user: User) -> bool:
     try:
         await uow.projects.add_member(link.project_id, user.id)
     except ConflictError:
-        return JoinResult(await _access(uow, link.project_id, user), already_member=True)
+        return False
     except NotFoundError as err:
         raise NotFoundError(_INVALID_LINK) from err
     if not await uow.shares.claim(link.id):
         raise NotFoundError(_INVALID_LINK)
-    access = await _access(uow, link.project_id, user)
-    await uow.commit()
-    _log_event("project joined", user, link.project_id, link.email)
-    return JoinResult(access, already_member=False)
+    return True
