@@ -40,7 +40,7 @@ an addition beyond the spec; the backend plan lives in
 | F2 | ✅ Projects (PR #20) | Projects list with tabs All / Owned / Shared with me, "Show more" paging, empty state; create and edit project; project page with the holographic header; delete for the owner only, with confirmation | 4 |
 | F3 | ✅ Members and invites (PR #27) | Invite by login (owner only); members panel with avatars and roles | 5 (members list comes with 4) |
 | F4 | ✅ Documents (PR #32) | Upload (drag and drop or picker, pdf/docx), list with sizes, download, replace, delete with confirmation; the used-space bar appears by itself when 7a adds the fields | 6 (space bar: 7a) |
-| F5 | Share and join | "Send a link by email" form (owner); join landing page `/join` on the web app; the `GET /join` browser redirect only if epic 10 chooses it | 10 |
+| F5 | Share and join | "Send a link by email" form (owner); join landing page `/join` on the web app; the API `GET /join` answers a browser without a sign-in with `303` to this page (epic 10 chose it) | 10 |
 | F6 | Ready for the defense | One end-to-end test for the whole demo scenario (two users, eight steps); phone-width pass on every screen; `design:accessibility-review`; README section "How to demo" (UI part and Swagger part) | F1–F5; before checkpoint 4 (final demo) |
 
 ## Order and parallel work
@@ -83,7 +83,7 @@ F1b, F3, F4, F5 ─→ F6 (before the final demo)
 | Invite form | `POST /project/<id>/invite?user=<login>` | 5 | planned |
 | Documents list, upload, download, replace, delete | spec document endpoints; size, type and upload date in the metadata; how download works | 6 | planned |
 | Used-space bar | used and limit values in project responses | 7a | planned; hidden until then |
-| Share form, join page | `GET /project/<id>/share?with=<email>`, `GET /join` browser flow | 10 | planned |
+| Share form, join page | `GET /project/<id>/share?with=<email>`, `GET /join` browser flow (`303` to the web page) | 10 | accepted |
 | Summary counters above the list | totals for projects, documents, space | — | later |
 | Delete account dialog | `DELETE /users/me` with 409 "Delete your projects first" | after 6 | later |
 
@@ -117,6 +117,6 @@ Rejected: PDF preview in the browser (cost, no docx), a second UI language.
 | HTTPS on the ALB: own domain with ACM, self-signed, or HTTP for the demo | backend 8a |
 | Document download: through the API or a presigned S3 URL | backend 6 |
 | Direct browser upload to S3 (needs a bucket CORS rule) or through the API | backend 6 |
-| `GET /join`: email links to the web app's `/join` page (proposed) or the API redirects a browser there | backend 10 |
+| `GET /join`: the API redirects a browser to the web app's `/join` page (`303`) | backend 10 (decided) |
 | Cloud hosting of the frontend: S3 static site or a second container; it does not touch backend 8a and 8b | frontend, after F6 |
 | Share by email: owner only, like invites? | backend 10 |

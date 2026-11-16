@@ -224,3 +224,40 @@ def test_public_url_rejects_other_schemes_queries_and_fragments(
     monkeypatch.setenv("APP_PUBLIC_URL", value)
     with pytest.raises(ValidationError):
         IsolatedSettings()
+
+
+@pytest.mark.parametrize("name", ["APP_PUBLIC_URL", "APP_WEB_URL"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        "ftp://x",
+        "http://x/?a=1",
+        "http://x/#f",
+        "http://",
+        "https://",
+        "http:///path",
+        "http://:8000",
+        "http://hub .example.com",
+        " http://x",
+        "http://x\n",
+    ],
+)
+def test_base_urls_reject_bad_values(
+    monkeypatch: pytest.MonkeyPatch, name: str, value: str
+) -> None:
+    monkeypatch.setenv(name, value)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
+
+
+@pytest.mark.parametrize(
+    ("name", "field"), [("APP_PUBLIC_URL", "public_url"), ("APP_WEB_URL", "web_url")]
+)
+def test_base_urls_strip_trailing_slash_and_blank_is_unset(
+    monkeypatch: pytest.MonkeyPatch, name: str, field: str
+) -> None:
+    assert getattr(IsolatedSettings(), field) is None
+    monkeypatch.setenv(name, "http://x/")
+    assert getattr(IsolatedSettings(), field) == "http://x"
+    monkeypatch.setenv(name, "  ")
+    assert getattr(IsolatedSettings(), field) is None

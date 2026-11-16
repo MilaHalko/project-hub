@@ -1,4 +1,5 @@
 from typing import Annotated, Any, Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,11 +27,18 @@ class Settings(BaseSettings):
     smtp_port: int = Field(default=25, ge=1, le=65535)
     mail_from: Annotated[str, Field(pattern=r"^[^@\s]+@[^@\s]+$")] = "noreply@project-hub.test"
     public_url: str | None = None
+    web_url: str | None = None
     document_max_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
     document_max_files: int = Field(default=10, ge=1, le=100)
 
     @field_validator(
-        "jwt_secret", "s3_bucket", "s3_endpoint_url", "smtp_host", "public_url", mode="before"
+        "jwt_secret",
+        "s3_bucket",
+        "s3_endpoint_url",
+        "smtp_host",
+        "public_url",
+        "web_url",
+        mode="before",
     )
     @classmethod
     def _blank_is_unset(cls, value: Any) -> Any:
@@ -43,11 +51,18 @@ class Settings(BaseSettings):
             raise ValueError("jwt_secret must be at least 32 characters")
         return value
 
-    @field_validator("public_url")
+    @field_validator("public_url", "web_url")
     @classmethod
-    def _public_url_is_a_base_url(cls, value: str | None) -> str | None:
+    def _is_a_base_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        if not value.startswith(("http://", "https://")) or "?" in value or "#" in value:
-            raise ValueError("public_url must be an http(s) URL without a query or fragment")
+        parts = urlsplit(value)
+        if (
+            parts.scheme not in ("http", "https")
+            or not parts.hostname
+            or any(c.isspace() for c in value)
+            or "?" in value
+            or "#" in value
+        ):
+            raise ValueError("must be an http(s) URL with a host, without a query or fragment")
         return value.rstrip("/")
