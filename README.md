@@ -197,7 +197,8 @@ succeeded`, `login failed`, `logout`, `password changed`) with the login and use
 hashes and tokens never appear in the log. An unknown login in `login failed` is masked to its
 first two characters (`my***`), since it may be a password typed into the login field. The app
 writes `project_hub.*` records at INFO and above to stderr (also under `uvicorn`); a missing
-`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`).
+`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`). The
+`uvicorn` access log shows a join link's `?token=` value as `token=***`.
 
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
