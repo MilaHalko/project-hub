@@ -75,7 +75,7 @@ The ORM and non-ORM implementations must be interchangeable:
 | 6 | ✅ Documents and S3 (PR #21) | Upload, download, update and delete documents; delete files with the project; extras: `GET /project/<id>/documents`, documents in `GET /projects` items, pdf/docx checked by content, size and count limits as settings, document changes in the security events log, S3 on moto locally and in CI | 4 |
 | 7a | Lambda: size and quota | S3 event → Lambda sums the project's file sizes into a denormalized total → per-project limit | 6 |
 | 7b | Lambda: image resize | S3 event → Lambda resizes images | 6 |
-| 9 | Package | Build the package with Poetry in CI | 2 |
+| 9 | ✅ Package (PR #33) | Build the package with Poetry in CI; the wheel is installed into a clean virtualenv and proven to start, serve `GET /health` and migrate a real Postgres; extras: sdist rebuild check, `project-hub-migrate` command, package metadata, CI job `package` uploading the built files as an artifact | 2 |
 | 10 | Email share and join | `GET /project/<id>/share?with=<email>`, hashed token, `GET /join` | 5 |
 
 Pydantic validation and JWT authorization are not separate epics: they are part
