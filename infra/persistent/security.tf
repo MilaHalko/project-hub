@@ -82,3 +82,21 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_app" {
   to_port                      = 5432
   referenced_security_group_id = aws_security_group.app.id
 }
+
+resource "aws_vpc_security_group_egress_rule" "alb_to_web" {
+  description                  = "To the web container of the app tasks"
+  security_group_id            = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = aws_security_group.app.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "app_web_from_alb" {
+  description                  = "Web container, from the load balancer"
+  security_group_id            = aws_security_group.app.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = aws_security_group.alb.id
+}

@@ -25,3 +25,7 @@ output "ecs_cluster_name" {
 output "documents_bucket" {
   value = aws_s3_bucket.documents.bucket
 }
+
+output "web_ecr_repository_url" {
+  value = aws_ecr_repository.web.repository_url
+}
