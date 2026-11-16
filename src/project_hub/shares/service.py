@@ -3,21 +3,24 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from project_hub.core.exceptions import (
+    ConflictError,
+    NotFoundError,
     PermissionDeniedError,
     ServiceUnavailableError,
     TooManyRequestsError,
 )
 from project_hub.db.uow import UnitOfWork
 from project_hub.mail.mailer import MailDeliveryError, Mailer, OutgoingMail
-from project_hub.projects.entities import ProjectRole
+from project_hub.projects.entities import ProjectAccess, ProjectRole
 from project_hub.projects.service import get_project
-from project_hub.shares.entities import ShareLink
+from project_hub.shares.entities import JoinResult, ShareLink
 from project_hub.shares.tokens import hash_token, new_token
 from project_hub.users.entities import User
 
 SHARE_TTL = timedelta(days=7)
 MAX_PENDING_SHARES = 10
 SUBJECT = "You are invited to a project on Project Hub"
+_INVALID_LINK = "Invite link is invalid or expired"
 
 logger = logging.getLogger(__name__)
 
@@ -91,3 +94,31 @@ async def share(
     await uow.commit()
     _log_event("project shared", user, project_id, email)
     return link
+
+
+async def _access(uow: UnitOfWork, project_id: UUID, user: User) -> ProjectAccess:
+    access = await uow.projects.get_for_user(project_id, user.id)
+    if access is None:
+        raise NotFoundError(_INVALID_LINK)
+    return access
+
+
+async def join(uow: UnitOfWork, user: User, token: str, *, now: datetime) -> JoinResult:
+    link = await uow.shares.find_pending(hash_token(token), now)
+    if link is None:
+        raise NotFoundError(_INVALID_LINK)
+    access = await uow.projects.get_for_user(link.project_id, user.id)
+    if access is not None:
+        return JoinResult(access, already_member=True)
+    try:
+        await uow.projects.add_member(link.project_id, user.id)
+    except ConflictError:
+        return JoinResult(await _access(uow, link.project_id, user), already_member=True)
+    except NotFoundError as err:
+        raise NotFoundError(_INVALID_LINK) from err
+    if not await uow.shares.claim(link.id):
+        raise NotFoundError(_INVALID_LINK)
+    access = await _access(uow, link.project_id, user)
+    await uow.commit()
+    _log_event("project joined", user, link.project_id, link.email)
+    return JoinResult(access, already_member=False)

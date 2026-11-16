@@ -446,12 +446,41 @@ The address is compared and stored in lower case. Sharing again with the same ad
 the link: the old one stops working. Expired links are deleted on the next share of that project.
 The project's `updated_at` does not change.
 
-A successful share is logged at INFO by `project_hub.shares.service` as `project shared` with the
-login, user id, project id and the recipient's address. Refused shares are not logged.
+`GET /join?token=<token>` lets a signed-in user join with the mailed link. Every answer of this
+route carries `Cache-Control: no-store`, errors included, so a shared computer keeps no copy. The
+checks, in order:
 
-Demo: `docker compose up -d --build`, then in Swagger (`http://localhost:8000/docs`) register,
-log in, authorize with the token, create a project and call the share route with an address such
-as `anna@example.com`. The mail appears in the Mailpit inbox at `http://localhost:8025`.
+- `token` missing, empty or longer than 128 characters → `422`;
+- no `Authorization` header, a broken or expired JWT, or a header that is not `Bearer` (such as
+  `Basic …`) → `401` (with `WWW-Authenticate: Bearer`); the link stays pending;
+- no pending link with this token (unknown, expired, already used, replaced by a newer share, or
+  its project deleted) → `404 {"detail": "Invite link is invalid or expired"}`, the same answer in
+  every case;
+- the caller already has access (owner or participant) → `200` with `already_member: true`; the
+  link is **not** used up and stays for the real recipient;
+- otherwise the link is used up and the caller becomes a participant → `200` with
+  `already_member: false`.
+
+The answer is `{"login": "<caller>", "already_member": <bool>, "project": {…}}`, where `project`
+is the same object as `GET /project/{project_id}/info` (with `my_role`). `login` shows who joined,
+for a shared computer. The link has no recipient check: whoever uses it first while signed in
+joins. Two people using it at once: only one joins, the other gets the `404`. The project's
+`updated_at` does not change.
+
+A successful share is logged at INFO by `project_hub.shares.service` as `project shared` with the
+login, user id, project id and the recipient's address. A successful join is logged as
+`project joined` with the new participant's login and user id, the project id and the address the
+link was sent to. Refused shares and joins, and joins with `already_member: true`, are not logged.
+The token and its hash are never logged.
+
+Demo: `docker compose up -d --build`, then in Swagger (`http://localhost:8000/docs`):
+
+1. Register and log in as `mila`, authorize with the token, create a project and call the share
+   route with an address such as `anna@example.com`.
+2. Open the Mailpit inbox at `http://localhost:8025` and copy the token from the link in the mail.
+3. Register and log in as `anna`, authorize with her token, and call `GET /join` with the copied
+   token: `200`, `already_member: false`. `GET /project/{project_id}/info` now works for her.
+4. Call `GET /join` with the same token again (as `anna` or anyone else): `404`.
 
 ## Cloud
 

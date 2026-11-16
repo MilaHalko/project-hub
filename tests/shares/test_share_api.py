@@ -12,7 +12,7 @@ from project_hub.shares.tokens import hash_token
 from tests.support.auth import bearer, signed_in
 from tests.support.mail import messages_to, random_address
 from tests.support.projects import add_participant, create_project
-from tests.support.shares import LINK, closed_port, mailed_token, share
+from tests.support.shares import LINK, closed_port, join, mailed_token, share
 
 SENDER = "noreply@project-hub.test"
 SUBJECT = "You are invited to a project on Project Hub"
@@ -228,6 +228,7 @@ def test_second_share_to_the_same_address_replaces_the_link(
     api_client: TestClient, mailpit_url: str, migrated_database_url: str
 ) -> None:
     _, mila = signed_in(api_client)
+    _, anna = signed_in(api_client, "anna")
     created = create_project(api_client, mila)
     address = random_address()
 
@@ -241,6 +242,8 @@ def test_second_share_to_the_same_address_replaces_the_link(
     assert len(tokens) == 2
     (second,) = tokens - {first}
     assert stored_shares(migrated_database_url, address) == [(hash_token(second),)]
+    assert join(api_client, first, anna).status_code == 404
+    assert join(api_client, second, anna).status_code == 200
 
 
 def test_cyrillic_project_name_is_mailed(api_client: TestClient, mailpit_url: str) -> None:
