@@ -308,3 +308,4 @@ await check("swagger", () => swagger(docs));
 await browser.close();
 console.log("console errors:", consoleErrors.length ? consoleErrors : "none");
 console.log("problems:", bugs.length ? bugs : "none");
+if (bugs.length) process.exitCode = 1;
