@@ -4,6 +4,18 @@ import { ownerLabel } from "./ownerLabel";
 import styles from "./ProjectsTable.module.css";
 import { formatDateTime, formatUpdated } from "./time";
 
+function DocumentsCell({ count }: { count: number }) {
+  return (
+    <td className={styles.documents}>
+      <span className={styles.cardOnly}>, </span>
+      {count}
+      <span className={styles.cardOnly}>
+        {count === 1 ? " document" : " documents"}
+      </span>
+    </td>
+  );
+}
+
 export function ProjectsTable({ projects }: { projects: Project[] }) {
   return (
     <div className={styles.frame}>
@@ -16,6 +28,9 @@ export function ProjectsTable({ projects }: { projects: Project[] }) {
             </th>
             <th scope="col" className={styles.ownerColumn}>
               Owner
+            </th>
+            <th scope="col" className={styles.documentsColumn}>
+              Documents
             </th>
             <th scope="col" className={styles.updatedColumn}>
               Updated
@@ -54,6 +69,7 @@ export function ProjectsTable({ projects }: { projects: Project[] }) {
                 </span>
               </td>
               <td className={styles.owner}>{ownerLabel(project)}</td>
+              <DocumentsCell count={project.documents?.length ?? 0} />
               <td className={styles.updated}>
                 <span className={styles.cardOnly}>, updated </span>
                 <time
@@ -82,6 +98,7 @@ export function ProjectsSkeleton() {
             <span />
           </span>
           <span className={styles.skeletonBadge} />
+          <span className={styles.skeletonMeta} />
           <span className={styles.skeletonMeta} />
           <span className={styles.skeletonMeta} />
         </div>

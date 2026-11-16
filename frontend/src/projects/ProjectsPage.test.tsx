@@ -91,7 +91,7 @@ test("lists each project with its name, description, role, owner and update", as
   expect(name).toHaveAttribute("href", `/projects/${owned.id}`);
   expect(
     screen.getAllByRole("columnheader").map((header) => header.textContent),
-  ).toEqual(["Project", "Role", "Owner", "Updated"]);
+  ).toEqual(["Project", "Role", "Owner", "Documents", "Updated"]);
 
   const ownedRow = within(
     screen.getByRole("row", { name: /Website redesign/ }),
@@ -632,4 +632,49 @@ test("moves focus to the New project button on the page when the opener was repl
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "New project" })).toHaveFocus();
   });
+});
+
+test("shows how many documents each project has", async () => {
+  const document = {
+    id: "20000000-0000-4000-8000-000000000001",
+    project_id: owned.id,
+    name: "Brief.pdf",
+    content_type: "application/pdf",
+    size: 10,
+    uploaded_by: null,
+    created_at: "2026-11-12T10:00:00Z",
+    updated_at: "2026-11-12T10:00:00Z",
+  };
+  mockApi({
+    [ALL]: {
+      status: 200,
+      body: [
+        {
+          ...owned,
+          documents: [
+            document,
+            { ...document, id: "x" },
+            { ...document, id: "y" },
+          ],
+        },
+        { ...shared, documents: [document] },
+        {
+          ...owned,
+          id: "10000000-0000-4000-8000-000000000003",
+          name: "No list",
+        },
+      ],
+    },
+  });
+  renderApp("/projects");
+
+  const ownedRow = await screen.findByRole("row", { name: /Website redesign/ });
+  const cells = (row: HTMLElement) => within(row).getAllByRole("cell");
+  expect(cells(ownedRow)[3]).toHaveTextContent(/\b3 documents$/);
+  expect(
+    cells(screen.getByRole("row", { name: /Thesis materials/ }))[3],
+  ).toHaveTextContent(/\b1 document$/);
+  expect(
+    cells(screen.getByRole("row", { name: /No list/ }))[3],
+  ).toHaveTextContent(/\b0 documents$/);
 });
