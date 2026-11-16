@@ -1,7 +1,7 @@
 # Epic 10: Email share and join
 
 Date: 2026-11-16
-Status: draft for approval (builder check done)
+Status: approved (2026-11-16, by the coordinator on Mila's behalf, at her request)
 Roadmap: [`docs/PRDs/roadmap.md`](../../PRDs/roadmap.md), epic 10 and the "Deferred to
 implementation" questions "Email share details" and "How a browser user authenticates on
 `GET /join`"
