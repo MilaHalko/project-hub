@@ -74,3 +74,8 @@ class Document:
 
 def new_storage_key(project_id: UUID) -> str:
     return f"projects/{project_id}/documents/{uuid4().hex}"
+
+
+def preview_key(storage_key: str) -> str:
+    prefix, _, name = storage_key.rpartition("/documents/")
+    return f"{prefix}/previews/{name}.jpg"

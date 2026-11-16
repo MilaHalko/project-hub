@@ -452,6 +452,14 @@ both give `404 {"detail": "Document not found"}`; a file missing from storage gi
 The route needs the Bearer header, so the frontend downloads with `fetch` and the Bearer header
 and saves the response as a blob, not with a plain link.
 
+`GET /document/{document_id}/preview` answers `200` with the JPEG preview (at most 512 px on the
+long side) that the image preview Lambda writes for a jpg or png document, as `Content-Type:
+image/jpeg` shown inline (no `Content-Disposition`), with `X-Content-Type-Options: nosniff` and
+`Cache-Control: private, max-age=300`. A pdf or docx gives `404 {"detail": "This document has no
+preview"}`; an image whose preview does not exist yet gives `404 {"detail": "The preview is not
+ready yet. Try again in a few seconds."}`. The access rules and the `404 Document not found` are
+those of the download; the route needs the Bearer header too.
+
 `PUT /document/{document_id}` replaces the file of one document with exactly one new file in
 the multipart field `file` (zero or several files → `422 Exactly one file is required`). The
 id and `created_at` stay; `name`, `size`, `content_type`, `uploaded_by` (the caller) and

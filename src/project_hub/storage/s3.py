@@ -59,6 +59,14 @@ class S3FileStorage:
         except _ERRORS as err:
             raise self._unavailable("get") from err
 
+    async def get_if_exists(self, key: str) -> bytes | None:
+        try:
+            return await asyncio.to_thread(self._read, key)
+        except self._client.exceptions.NoSuchKey:
+            return None
+        except _ERRORS as err:
+            raise self._unavailable("get") from err
+
     async def delete(self, keys: Sequence[str]) -> None:
         for start in range(0, len(keys), _DELETE_BATCH):
             chunk = keys[start : start + _DELETE_BATCH]
