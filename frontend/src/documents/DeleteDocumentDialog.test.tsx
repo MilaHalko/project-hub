@@ -10,6 +10,7 @@ import {
   listRoute,
   project,
   PROJECT_ID,
+  projectLostAfterFirstLoad,
   siteMap,
 } from "./testData";
 
@@ -99,6 +100,59 @@ test("removes a document someone already deleted", async () => {
   ).toBeInTheDocument();
   expect(screen.queryByText("Client brief.pdf")).not.toBeInTheDocument();
   expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+});
+
+test("tells a removed member they lost access instead of blaming the document", async () => {
+  await openPage({
+    [infoRoute]: projectLostAfterFirstLoad(),
+    [documentRoute("DELETE", brief.id)]: {
+      status: 404,
+      body: { detail: "Document not found" },
+    },
+  });
+  const dialog = await openDialog();
+
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Delete document" }),
+  );
+
+  expect(
+    await screen.findByText("You no longer have access to this project."),
+  ).toBeInTheDocument();
+  expect(
+    await screen.findByRole("heading", { level: 1, name: "Your projects" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText(
+      "This document no longer exists. Someone may have deleted it.",
+    ),
+  ).not.toBeInTheDocument();
+});
+
+test("keeps the dialog open when the project can't be checked after a 404", async () => {
+  let loads = 0;
+  await openPage({
+    [infoRoute]: () => {
+      loads += 1;
+      return loads === 1 ? { status: 200, body: project } : { status: 500 };
+    },
+    [documentRoute("DELETE", brief.id)]: {
+      status: 404,
+      body: { detail: "Document not found" },
+    },
+  });
+  const dialog = await openDialog();
+
+  await userEvent.click(
+    within(dialog).getByRole("button", { name: "Delete document" }),
+  );
+
+  expect(
+    await within(dialog).findByText("Couldn't delete the document. Try again."),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Download Client brief.pdf" }),
+  ).toBeInTheDocument();
 });
 
 test("keeps the dialog open with a message when the delete fails", async () => {

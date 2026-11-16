@@ -43,3 +43,16 @@ export const uploadRoute = `POST /api/project/${PROJECT_ID}/documents`;
 export function documentRoute(method: string, id: string): string {
   return `${method} /api/document/${id}`;
 }
+
+export function projectLostAfterFirstLoad(): () => {
+  status: number;
+  body: unknown;
+} {
+  let loads = 0;
+  return () => {
+    loads += 1;
+    return loads === 1
+      ? { status: 200, body: project }
+      : { status: 404, body: { detail: "Project not found" } };
+  };
+}

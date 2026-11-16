@@ -18,6 +18,7 @@ import {
 } from "./documentsCache";
 import { checkFile, uploadErrorMessage } from "./fileRules";
 import { saveBlob } from "./saveBlob";
+import { useWhatIsGone } from "./useWhatIsGone";
 
 function isGone(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
@@ -36,9 +37,16 @@ export function DocumentActions({
   const downloading = useRef(false);
   const [deleting, setDeleting] = useState(false);
 
-  function gone() {
-    toast.error(DOCUMENT_GONE);
-    reloadDocuments(queryClient, document.project_id);
+  const whatIsGone = useWhatIsGone(document.project_id);
+
+  async function notFound(otherwise: () => void) {
+    const gone = await whatIsGone();
+    if (gone === "document") {
+      toast.error(DOCUMENT_GONE);
+      reloadDocuments(queryClient, document.project_id);
+    } else if (gone === "unknown") {
+      otherwise();
+    }
   }
 
   const download = useMutation({
@@ -49,12 +57,15 @@ export function DocumentActions({
     onSuccess: (blob) => {
       saveBlob(blob, document.name);
     },
-    onError: (error) => {
+    onError: async (error) => {
+      const failed = () => {
+        toast.error(`Couldn't download ${document.name}. Try again.`);
+      };
       if (isGone(error)) {
-        gone();
+        await notFound(failed);
         return;
       }
-      toast.error(`Couldn't download ${document.name}. Try again.`);
+      failed();
     },
   });
 
@@ -66,12 +77,15 @@ export function DocumentActions({
       );
       toast.success("File replaced");
     },
-    onError: (error, file) => {
+    onError: async (error, file) => {
+      const failed = () => {
+        toast.error(uploadErrorMessage(error, file.name));
+      };
       if (isGone(error)) {
-        gone();
+        await notFound(failed);
         return;
       }
-      toast.error(uploadErrorMessage(error, file.name));
+      failed();
     },
   });
 

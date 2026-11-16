@@ -7,6 +7,7 @@ import { Dialog } from "../ui/Dialog";
 import { useToast } from "../ui/toast/useToast";
 import styles from "./DeleteDocumentDialog.module.css";
 import { DOCUMENT_GONE, documentsChanged } from "./documentsCache";
+import { useWhatIsGone } from "./useWhatIsGone";
 
 function mutationKey(document: Document) {
   return ["deleteDocument", document.id];
@@ -26,6 +27,7 @@ function DeleteForm({
   const queryClient = useQueryClient();
   const toast = useToast();
   const sent = useRef(false);
+  const whatIsGone = useWhatIsGone(document.project_id);
 
   function removed() {
     documentsChanged(queryClient, document.project_id, (documents) =>
@@ -42,11 +44,15 @@ function DeleteForm({
       removed();
       toast.success("Document deleted");
     },
-    onError: (error) => {
+    onError: async (error) => {
       if (error instanceof ApiError && error.status === 404) {
-        removed();
-        toast.error(DOCUMENT_GONE);
-        return;
+        const gone = await whatIsGone();
+        if (gone === "project") return;
+        if (gone === "document") {
+          removed();
+          toast.error(DOCUMENT_GONE);
+          return;
+        }
       }
       sent.current = false;
     },
