@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { APIRequestContext } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { apiToken, type TestUser } from "./auth";
 
 export const PDF = "application/pdf";
@@ -33,4 +33,14 @@ export async function uploadViaApi(
   }
   const [{ id }] = (await response.json()) as [{ id: string }];
   return { id };
+}
+
+export async function animationsDone(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate<boolean>(
+        "document.getAnimations().every((animation) => animation.playState !== 'running')",
+      ),
+    )
+    .toBe(true);
 }

@@ -42,3 +42,9 @@ export function replaceDocument(id: string, file: File): Promise<Document> {
     body: form,
   });
 }
+
+export function deleteDocument(id: string): Promise<void> {
+  return apiFetch<undefined>(`/document/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}

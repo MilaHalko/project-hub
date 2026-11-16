@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { listDocuments, type Document } from "../api/documents";
 import type { ApiError } from "../api/errors";
 import { Button } from "../ui/Button";
@@ -30,11 +30,28 @@ function DocumentsSkeleton() {
 
 export function DocumentsSection({ projectId }: { projectId: string }) {
   const headingId = useId();
+  const section = useRef<HTMLElement>(null);
+  const focusAfterRemoval = useRef<number | null>(null);
   const documents = useQuery<Document[], ApiError>({
     queryKey: documentsQueryKey(projectId),
     queryFn: () => listDocuments(projectId),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    const removedAt = focusAfterRemoval.current;
+    if (removedAt === null) return;
+    focusAfterRemoval.current = null;
+    const downloads = section.current?.querySelectorAll<HTMLElement>(
+      'button[aria-label^="Download "]',
+    );
+    const next =
+      downloads?.[Math.min(removedAt, downloads.length - 1)] ??
+      section.current?.querySelector<HTMLElement>(
+        'input[type="file"][multiple]',
+      );
+    next?.focus();
+  }, [documents.data]);
 
   let body;
   if (documents.isPending) {
@@ -64,11 +81,18 @@ export function DocumentsSection({ projectId }: { projectId: string }) {
   } else {
     body = (
       <ul className={styles.list} aria-labelledby={headingId}>
-        {documents.data.map((document) => (
+        {documents.data.map((document, index) => (
           <DocumentRow
             key={document.id}
             document={document}
-            actions={<DocumentActions document={document} />}
+            actions={
+              <DocumentActions
+                document={document}
+                onRemoved={() => {
+                  focusAfterRemoval.current = index;
+                }}
+              />
+            }
           />
         ))}
       </ul>
@@ -76,7 +100,11 @@ export function DocumentsSection({ projectId }: { projectId: string }) {
   }
 
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
+    <section
+      ref={section}
+      className={styles.section}
+      aria-labelledby={headingId}
+    >
       <h2 id={headingId} className={styles.heading}>
         Documents{" "}
         {documents.data !== undefined && (
