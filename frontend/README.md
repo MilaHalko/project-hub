@@ -17,7 +17,8 @@ npm run dev        # http://localhost:5173/, /api/… proxied to the API on loca
 
 The app calls the API under `/api/` (for example `/api/login` for `POST /login`); the dev
 server strips the prefix, so start the API as described in the root
-[`README.md`](../README.md).
+[`README.md`](../README.md). For the email join link to reach this dev server, start the API with
+`APP_WEB_URL=http://localhost:5173`.
 
 ## Checks
 
@@ -51,6 +52,10 @@ APP_JWT_SECRET=$(openssl rand -hex 32) docker compose -f docker-compose.yml -f f
 
 The app is then at <http://127.0.0.1:8080/> (`WEB_PORT` changes the host port), the API
 under <http://127.0.0.1:8080/api/> and, as before, at <http://127.0.0.1:8000/docs>.
+`compose.yml` also sets `APP_WEB_URL` on the API to `http://127.0.0.1:${WEB_PORT}` (override it
+with `APP_WEB_URL`): the join link in a share mail opens the API's `GET /join`, which sends a
+browser to this app's `/join` page. Open the app at that same address, because the sign-in lives
+in the browser tab's storage of one origin.
 
 ## Browser tests
 
