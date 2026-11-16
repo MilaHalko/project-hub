@@ -43,6 +43,11 @@ gets `index.html`. Every response carries the CSP, `Referrer-Policy: no-referrer
 under `/api/`: one document may be 10 MB and the form around it needs room; with nginx's default of
 1 MB a larger upload would stop at the proxy.
 
+The access log writes each request's path and referrer without the query string, so the join
+token of `/join?token=…` and `/api/join?token=…` never lands in it; `location = /api/join` also
+keeps upstream errors for that path out of the error log, which would repeat the request line.
+The `e2e` job checks the `web` log after the browser tests.
+
 `compose.yml` adds a `web` service to the root `docker-compose.yml`, which stays as it is.
 Run both from the repository root (paths in `compose.yml` are relative to the root):
 
