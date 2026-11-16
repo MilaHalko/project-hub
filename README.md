@@ -98,6 +98,7 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
 | `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
 | `0004` | creates `documents` (`project_id` → `projects`, `CASCADE`; `uploaded_by` → `users`, `SET NULL`; unique `storage_key`; checks on name length, content type and size), index on `project_id` |
+| `0005` | creates `project_shares` (email share links: `project_id` → `projects`, `CASCADE`; unique `(project_id, email)` and `token_hash`; checks on email length and the hash format) |
 
 ## File storage
 
@@ -132,8 +133,9 @@ really sent: start it with `docker compose up -d --wait mail` and read the mail 
 | `APP_SMTP_HOST` | unset | SMTP server; when unset the app starts without mail |
 | `APP_SMTP_PORT` | `25` | SMTP port (1-65535) |
 | `APP_MAIL_FROM` | `noreply@project-hub.test` | Sender address |
+| `APP_PUBLIC_URL` | unset | Public base URL of the API (`http`/`https`, no query, trailing `/` dropped), used for the link in share mail; when unset sharing answers `503`. Compose sets `http://localhost:${APP_PORT}` |
 
-A blank `APP_SMTP_HOST` counts as unset. When the server cannot be reached or refuses the
+A blank `APP_SMTP_HOST` or `APP_PUBLIC_URL` counts as unset. When the server cannot be reached or refuses the
 mail, sending raises `MailDeliveryError`.
 
 ## Auth
@@ -418,6 +420,38 @@ storage` with the key is logged by `project_hub.storage.files`.
 Every uploaded, replaced or deleted document is logged at INFO by `project_hub.documents.service`
 as `document uploaded`, `document replaced` or `document deleted` with the login, user id, project id and document id;
 the file name is not logged.
+
+## Share by email
+
+`GET /project/{project_id}/share?with=<email>` mails a join link for the project to an address
+and answers `200` with `{"email": "<address in lower case>", "expires_at": "<UTC time>"}`. The
+link is `<APP_PUBLIC_URL>/join?token=<token>`: it works once and lasts 7 days. Only the SHA-256
+hash of the token is stored (table `project_shares`); the token is never in the answer, the
+database or the log. The checks, in order (the first that fails decides):
+
+- no valid JWT → `401` (with `WWW-Authenticate: Bearer`), whatever the parameters;
+- `APP_SMTP_HOST` or `APP_PUBLIC_URL` unset → `503 {"detail": "Email sharing is not configured"}`,
+  also checked before the parameters;
+- `project_id` not a UUID, `with` missing or not a valid address (at most 254 characters, no
+  surrounding spaces) → `422`;
+- an outsider or an unknown project → `404 {"detail": "Project not found"}`;
+- a participant → `403 {"detail": "Only the project owner can share the project"}`;
+- the project already has 10 pending (unused, unexpired) links to other addresses →
+  `429 {"detail": "Too many pending share links for this project"}`;
+- the SMTP server cannot take the mail → `503 {"detail": "Email could not be sent"}`, nothing is
+  stored, and a WARNING `share mail could not be sent` is logged with the failure type in
+  `reason` (never the link).
+
+The address is compared and stored in lower case. Sharing again with the same address replaces
+the link: the old one stops working. Expired links are deleted on the next share of that project.
+The project's `updated_at` does not change.
+
+A successful share is logged at INFO by `project_hub.shares.service` as `project shared` with the
+login, user id, project id and the recipient's address. Refused shares are not logged.
+
+Demo: `docker compose up -d --build`, then in Swagger (`http://localhost:8000/docs`) register,
+log in, authorize with the token, create a project and call the share route with an address such
+as `anna@example.com`. The mail appears in the Mailpit inbox at `http://localhost:8025`.
 
 ## Cloud
 

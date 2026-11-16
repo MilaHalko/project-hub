@@ -141,6 +141,23 @@ Notes:
 - Destroy rather than stop: a stopped RDS instance restarts by itself after 7
   days, and an idle load balancer is still billed.
 
+Email share in AWS (from [epic 10](../superpowers/specs/2026-11-16-share-join-design.md#for-the-aws-epics-8a-8b);
+nothing is built for it yet):
+
+- SES SMTP needs STARTTLS on port 587 and SMTP credentials. Add settings
+  `APP_SMTP_STARTTLS`, `APP_SMTP_USERNAME`, `APP_SMTP_PASSWORD` (`SecretStr`, from SSM) and use
+  them in `SmtpMailer`.
+- A verified SES identity for `APP_MAIL_FROM`: the personal address or an own domain, never a
+  corporate one.
+- An SES account in the sandbox can only send to verified addresses. Every demo recipient must be
+  verified, or production access requested.
+- The app security group needs egress to SES SMTP (587).
+- SSM: the SMTP password; `APP_PUBLIC_URL` = the ALB's HTTPS URL; `APP_WEB_URL` once the frontend
+  is hosted.
+- When nginx (frontend) is hosted, its access log must hide `token` too (a note for F5).
+- The share keeps its database transaction open while the SMTP send runs (timeout 10 s), so a slow
+  SES SMTP holds a pooled connection that long. Keep the timeout short and watch the send latency.
+
 ## AWS account rules
 
 Decided in epic 8a (2026-11-15, see its
@@ -217,5 +234,5 @@ build it), **done** (merged), **later** (postponed).
 |---|---|
 | Upload path: through the API or presigned S3 URL | decided in 6: through the API |
 | Which images exist for the resize Lambda (documents are only pdf and docx) | 7b |
-| Email share details | 10 |
+| Email share details | decided in 10: owner only, a single-use link valid 7 days (only its SHA-256 hash stored), a repeat share replaces the link, at most 10 pending links per project, SMTP mail caught by Mailpit locally and in CI ([design](../superpowers/specs/2026-11-16-share-join-design.md)) |
 | How a browser user authenticates on `GET /join` (JWT is sent in a header, which a clicked link does not carry). Proposed by the [frontend plan](../frontend/2026-11-14-frontend-design.md#get-join-in-a-browser-proposal-for-epic-10): the email links to the web app's page `/join?token=…`, which signs the user in and then calls `GET /join` with the header; the alternative keeps the spec link in the email and answers a browser request without a JWT with `303` to that page | 10 |

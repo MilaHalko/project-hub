@@ -16,6 +16,7 @@ from project_hub.db.migrate import downgrade, upgrade
 from project_hub.db.urls import sqlalchemy_url
 from project_hub.documents.models import DocumentModel
 from project_hub.projects.models import ProjectMemberModel, ProjectModel
+from project_hub.shares.models import ShareModel
 from project_hub.users.models import UserModel
 from tests.support.database import DEFAULT_ADMIN_URL, create_test_database, drop_test_database
 
@@ -98,7 +99,7 @@ def test_downgrade_then_upgrade_round_trip(fresh_database_url: str) -> None:
 def test_upgrade_twice_is_noop(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     upgrade(fresh_database_url)
-    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0004",)]
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0005",)]
 
 
 def _users_columns(url: str) -> set[object]:
@@ -332,12 +333,98 @@ def test_downgrade_to_0003_drops_documents(fresh_database_url: str) -> None:
     assert _exists(fresh_database_url, "documents")
 
 
+def test_upgrade_creates_project_shares_table(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    assert _columns(fresh_database_url, "project_shares") == {
+        ("id", "uuid", "NO"),
+        ("project_id", "uuid", "NO"),
+        ("email", "text", "NO"),
+        ("token_hash", "text", "NO"),
+        ("expires_at", "timestamp with time zone", "NO"),
+        ("created_at", "timestamp with time zone", "NO"),
+    }
+    constraints = set(
+        _fetchall(
+            fresh_database_url,
+            "select conname, contype, confdeltype from pg_constraint "
+            "where conrelid = 'public.project_shares'::regclass and contype in ('f', 'c', 'u')",
+        )
+    )
+    assert constraints == {
+        ("fk_project_shares_project_id_projects", "f", "c"),
+        ("uq_project_shares_project_id_email", "u", " "),
+        ("uq_project_shares_token_hash", "u", " "),
+        ("ck_project_shares_email_length", "c", " "),
+        ("ck_project_shares_token_hash_format", "c", " "),
+    }
+
+
+def test_project_shares_constraints_reject_bad_rows(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+    with psycopg.connect(fresh_database_url, autocommit=True) as conn:
+        user = conn.execute(
+            "insert into users (login, password_hash) values ('mila', 'h') returning id"
+        ).fetchone()
+        assert user is not None
+        project = conn.execute(
+            "insert into projects (owner_id, name) values (%s, 'Diploma') returning id",
+            (user[0],),
+        ).fetchone()
+        assert project is not None
+
+        def insert(email: str, token_hash: str) -> None:
+            conn.execute(
+                "insert into project_shares (project_id, email, token_hash, expires_at) "
+                "values (%s, %s, %s, now())",
+                (project[0], email, token_hash),
+            )
+
+        insert("a@example.com", "a" * 64)
+        for email, token_hash in (
+            ("ab", "b" * 64),
+            ("x" * 243 + "@example.com", "b" * 64),
+            ("b@example.com", "A" * 64),
+            ("b@example.com", "b" * 63),
+            ("b@example.com", "g" * 64),
+        ):
+            with pytest.raises(psycopg.errors.CheckViolation):
+                insert(email, token_hash)
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            insert("a@example.com", "b" * 64)
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            insert("b@example.com", "a" * 64)
+        with pytest.raises(psycopg.errors.ForeignKeyViolation):
+            conn.execute(
+                "insert into project_shares (project_id, email, token_hash, expires_at) "
+                "values (gen_random_uuid(), 'c@example.com', %s, now())",
+                ("c" * 64,),
+            )
+        insert("b@example.com", "b" * 64)
+        conn.execute("delete from projects where id = %s", (project[0],))
+
+        row = conn.execute("select count(*) from project_shares").fetchone()
+    assert row == (0,)
+
+
+def test_downgrade_to_0004_drops_project_shares(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    downgrade(fresh_database_url, "0004")
+
+    assert not _exists(fresh_database_url, "project_shares")
+    assert _exists(fresh_database_url, "documents")
+    upgrade(fresh_database_url)
+    assert _exists(fresh_database_url, "project_shares")
+
+
 def test_orm_metadata_matches_migrated_schema(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     assert UserModel.__tablename__ in Base.metadata.tables
     assert ProjectModel.__tablename__ in Base.metadata.tables
     assert ProjectMemberModel.__tablename__ in Base.metadata.tables
     assert DocumentModel.__tablename__ in Base.metadata.tables
+    assert ShareModel.__tablename__ in Base.metadata.tables
     engine = create_engine(sqlalchemy_url(fresh_database_url))
     try:
         with engine.connect() as conn:

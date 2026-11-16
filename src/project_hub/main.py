@@ -16,6 +16,7 @@ from project_hub.documents.upload_limit import UploadLimitMiddleware
 from project_hub.health.router import router as health_router
 from project_hub.mail.mailer import create_mailer
 from project_hub.projects.router import router as projects_router
+from project_hub.shares.router import router as shares_router
 from project_hub.storage.s3 import create_s3_storage
 from project_hub.users.router import router as users_router
 
@@ -59,6 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(users_router)
     app.include_router(projects_router)
     app.include_router(documents_router)
+    app.include_router(shares_router)
     return app
 
 
