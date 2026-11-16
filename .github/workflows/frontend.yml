@@ -77,6 +77,14 @@ jobs:
       - name: Browser tests
         working-directory: frontend
         run: npx playwright test
+      - name: Check the web log hides join tokens
+        run: |
+          log=$(docker compose -f docker-compose.yml -f frontend/compose.yml logs --no-color web)
+          grep -q '"GET /api/join HTTP' <<<"$log" || { echo "::error::No GET /api/join in the web log"; exit 1; }
+          if grep -q 'token=' <<<"$log"; then
+            echo "::error::The web log contains a join token"
+            exit 1
+          fi
       - name: Show the stack logs
         if: failure()
         run: docker compose -f docker-compose.yml -f frontend/compose.yml logs --no-color

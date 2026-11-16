@@ -3,6 +3,8 @@ import { AuthLayout } from "./auth/AuthLayout";
 import { LoginPage } from "./auth/LoginPage";
 import { RegisterPage } from "./auth/RegisterPage";
 import { RequireAuth } from "./auth/RequireAuth";
+import { JoinLanding } from "./join/JoinLanding";
+import { JoinPage } from "./join/JoinPage";
 import { ProfilePage } from "./profile/ProfilePage";
 import { ProjectPage } from "./projects/ProjectPage";
 import { ProjectsPage } from "./projects/ProjectsPage";
@@ -18,6 +20,16 @@ export const routes: RouteObject[] = [
         children: [
           { path: "/login", element: <LoginPage /> },
           { path: "/register", element: <RegisterPage /> },
+        ],
+      },
+      {
+        path: "/join",
+        element: <JoinLanding />,
+        children: [
+          {
+            element: <RequireAuth />,
+            children: [{ index: true, element: <JoinPage /> }],
+          },
         ],
       },
       {

@@ -17,7 +17,8 @@ npm run dev        # http://localhost:5173/, /api/… proxied to the API on loca
 
 The app calls the API under `/api/` (for example `/api/login` for `POST /login`); the dev
 server strips the prefix, so start the API as described in the root
-[`README.md`](../README.md).
+[`README.md`](../README.md). For the email join link to reach this dev server, start the API with
+`APP_WEB_URL=http://localhost:5173`.
 
 ## Checks
 
@@ -42,6 +43,11 @@ gets `index.html`. Every response carries the CSP, `Referrer-Policy: no-referrer
 under `/api/`: one document may be 10 MB and the form around it needs room; with nginx's default of
 1 MB a larger upload would stop at the proxy.
 
+The access log writes each request's path and referrer without the query string, so the join
+token of `/join?token=…` and `/api/join?token=…` never lands in it; `location = /api/join` also
+keeps upstream errors for that path out of the error log, which would repeat the request line.
+The `e2e` job checks the `web` log after the browser tests.
+
 `compose.yml` adds a `web` service to the root `docker-compose.yml`, which stays as it is.
 Run both from the repository root (paths in `compose.yml` are relative to the root):
 
@@ -51,6 +57,10 @@ APP_JWT_SECRET=$(openssl rand -hex 32) docker compose -f docker-compose.yml -f f
 
 The app is then at <http://127.0.0.1:8080/> (`WEB_PORT` changes the host port), the API
 under <http://127.0.0.1:8080/api/> and, as before, at <http://127.0.0.1:8000/docs>.
+`compose.yml` also sets `APP_WEB_URL` on the API to `http://127.0.0.1:${WEB_PORT}` (override it
+with `APP_WEB_URL`): the join link in a share mail opens the API's `GET /join`, which sends a
+browser to this app's `/join` page. Open the app at that same address, because the sign-in lives
+in the browser tab's storage of one origin.
 
 ## Browser tests
 
@@ -90,6 +100,11 @@ Documents: `e2e/documents.ts` has `uploadViaApi(request, user, projectId, file)`
 files `samplePdf` and `sampleDocx` (from `e2e/files/`); `mockApi` answers
 `GET /api/project/<id>/documents` with an empty list by default, so project page tests list only
 the routes they care about.
+
+Mail: `e2e/mail.ts` reads the mail the API sends from Mailpit's HTTP API at `E2E_MAIL_URL`
+(default `http://127.0.0.1:8025`, the compose port `APP_MAIL_UI_PORT`); `readJoinLink(request, to)`
+waits for the mail to that address and returns the join link in it. A stack on other ports needs
+both variables, for example `E2E_BASE_URL=http://127.0.0.1:8091 E2E_MAIL_URL=http://127.0.0.1:8035`.
 
 Dialogs use `ui/Dialog`, a native `<dialog>` opened with `showModal()`: the browser traps the
 focus, closes it on Esc and returns the focus to the opener, so the end-to-end tests prove those.

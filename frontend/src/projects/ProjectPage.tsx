@@ -34,7 +34,7 @@ function Crumbs({ name }: { name?: string }) {
   );
 }
 
-function RoleBadge({ role }: { role: Project["my_role"] }) {
+export function RoleBadge({ role }: { role: Project["my_role"] }) {
   return (
     <span
       className={role === "owner" ? styles.ownerBadge : styles.participantBadge}
