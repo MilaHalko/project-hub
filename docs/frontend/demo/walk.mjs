@@ -14,6 +14,7 @@ const ANNA = { login: "anna", password: "anna1234" };
 const BORIS = { login: "boris", password: "boris1234" };
 const NEW_PASSWORD = "anna-new-5678";
 const DEMO_PROJECT = "Демо для ментора";
+const FILES = path.join(here, "files");
 
 const bugs = [];
 let step = 0;
@@ -157,6 +158,56 @@ async function walk(page) {
   await openProject(page, "Дипломный проект");
   await shot(page, "owner-project-members");
 
+  const list = page.getByRole("list", { name: /^Documents/ });
+  await list.getByText("thesis-plan.pdf").waitFor();
+  await page
+    .getByLabel("Choose files")
+    .setInputFiles(path.join(FILES, "meeting-notes.pdf"));
+  await page.getByText("File uploaded").first().waitFor();
+  await list.getByText("meeting-notes.pdf").waitFor();
+  await shot(page, "documents-uploaded");
+
+  await page.getByLabel("Choose files").setInputFiles({
+    name: "fake.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("this is not a pdf"),
+  });
+  await page
+    .getByRole("list", { name: "Uploads" })
+    .getByText(/fake\.pdf/)
+    .waitFor();
+  await shot(page, "documents-fake-rejected");
+  await page.getByRole("button", { name: "Dismiss fake.pdf" }).click();
+
+  const downloading = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download meeting-notes.pdf" })
+    .click();
+  const download = await downloading;
+  if (download.suggestedFilename() !== "meeting-notes.pdf") {
+    throw new Error(`downloaded as ${download.suggestedFilename()}`);
+  }
+
+  await page
+    .getByLabel("Replace meeting-notes.pdf")
+    .setInputFiles(path.join(FILES, "meeting-notes-v2.pdf"));
+  await page.getByText("File replaced").first().waitFor();
+  await list.getByText("meeting-notes-v2.pdf").waitFor();
+  await shot(page, "documents-replaced");
+
+  await page
+    .getByRole("button", { name: "Delete meeting-notes-v2.pdf" })
+    .click();
+  await shot(page, "documents-delete-dialog");
+  await page
+    .locator("dialog[open]")
+    .getByRole("button", { name: /delete/i })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete meeting-notes-v2.pdf" })
+    .waitFor({ state: "detached" });
+  await shot(page, "documents-deleted");
+
   await openProject(page, "Поездка в Карпаты");
   await shot(page, "participant-project");
   await page.getByRole("button", { name: "Leave project" }).click();
@@ -280,6 +331,25 @@ async function restore() {
     console.log("restore anna in trip", invited.status);
   }
   const anna = await token(ANNA);
+  const { json: thesisList } = await api(
+    "GET",
+    "/projects?role=owner&limit=100",
+    anna,
+  );
+  const thesis = thesisList.find((p) => p.name === "Дипломный проект");
+  const { json: thesisDocs } = await api(
+    "GET",
+    `/project/${thesis.id}/documents`,
+    anna,
+  );
+  for (const d of thesisDocs.filter((d) =>
+    d.name.startsWith("meeting-notes"),
+  )) {
+    console.log(
+      "restore delete document",
+      (await api("DELETE", `/document/${d.id}`, anna)).status,
+    );
+  }
   const { json: own } = await api(
     "GET",
     "/projects?role=owner&limit=100",

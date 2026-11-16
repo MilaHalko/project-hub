@@ -110,7 +110,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 Скриншоты: [все](demo/03-projects-all.jpeg), [мои](demo/04-projects-owned.jpeg), [доступные мне](demo/05-projects-shared.jpeg).
 
 - **Кликнуть:** вкладки All → Owned → Shared with me.
-- **Сказать:** «Это `GET /projects?role=owner|participant`. Роль считает сервер, у каждого проекта видно, кто я в нём: Owner или Participant. Список идёт страницами (`limit`/`offset`)».
+- **Сказать:** «Это `GET /projects?role=owner|participant`. В колонке Documents — сколько файлов в проекте. Роль считает сервер, у каждого проекта видно, кто я в нём: Owner или Participant. Список идёт страницами (`limit`/`offset`)».
 - **Где в коде:** `src/project_hub/projects/router.py`, `src/project_hub/projects/repository_orm.py` и `repository_sql.py`; в вебе `frontend/src/projects/ProjectsPage.tsx`.
 - **Почему так:**
   - Вкладка — это часть адреса (`?role=owner`). Можно обновить страницу или дать ссылку — откроется та же вкладка.
@@ -127,7 +127,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ### 1.4 Страница проекта
 
-Скриншот: [страница владельца](demo/15-owner-project-members.jpeg), [страница участника](demo/16-participant-project.jpeg).
+Скриншот: [страница владельца](demo/15-owner-project-members.jpeg), [страница участника](demo/21-participant-project.jpeg).
 
 - **Кликнуть:** «Projects» → «Дипломный проект». Потом «Поездка в Карпаты».
 - **Сказать:** «Владелец видит Edit и Delete project и может приглашать. Участник видит только Leave project. Кнопки — это удобство; настоящая проверка прав на сервере».
@@ -136,7 +136,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ### 1.5 Участники: пригласить, удалить, выйти
 
-Скриншоты: [нет такого логина](demo/09-invite-unknown-login.jpeg), [vera добавлена](demo/10-invite-vera.jpeg), [удалить vera?](demo/11-remove-vera-dialog.jpeg), [удалена](demo/12-vera-removed.jpeg), [выйти?](demo/17-leave-dialog.jpeg), [после выхода](demo/18-after-leave.jpeg).
+Скриншоты: [нет такого логина](demo/09-invite-unknown-login.jpeg), [vera добавлена](demo/10-invite-vera.jpeg), [удалить vera?](demo/11-remove-vera-dialog.jpeg), [удалена](demo/12-vera-removed.jpeg), [выйти?](demo/22-leave-dialog.jpeg), [после выхода](demo/23-after-leave.jpeg).
 
 - **Кликнуть:** в «Демо для ментора» в поле «Invite by login» ввести `nobody` → «Invite» → «No user with that login». Ввести `vera` → «Invite». Потом «Remove» у vera → подтвердить.
 - **Выйти из проекта:** открыть «Поездка в Карпаты» (там anna участник) → «Leave project» → подтвердить. Проект пропал из списка.
@@ -147,9 +147,22 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ### 1.6 Документы
 
-**Ожидает F4.** Веб-часть документов (F4) ещё не в `main`. Когда её сольют, здесь будет: загрузить, скачать, заменить, удалить.
+Скриншоты: [загружен](demo/16-documents-uploaded.jpeg), [поддельный pdf отклонён](demo/17-documents-fake-rejected.jpeg), [заменён](demo/18-documents-replaced.jpeg), [удалить?](demo/19-documents-delete-dialog.jpeg), [удалён](demo/20-documents-deleted.jpeg).
 
-Если F4 не успеет — документы показать в Swagger (раздел 2.4): API для них уже есть в `main`.
+- **Кликнуть:** в «Дипломный проект» блок «Documents», там уже `thesis-plan.pdf` и `requirements.docx`.
+  1. «Choose files» → `docs/frontend/demo/files/meeting-notes.pdf` → «File uploaded», файл в списке. Можно и просто перетащить файл в рамку.
+  2. «Download» у `meeting-notes.pdf` → файл скачается под своим именем.
+  3. «Replace» у `meeting-notes.pdf` → выбрать `meeting-notes-v2.pdf` → «File replaced». Имя в списке поменялось на новое.
+  4. «Delete» у `meeting-notes-v2.pdf` → подтвердить → «Document deleted».
+  5. По желанию: переименовать любой текстовый файл в `fake.pdf` и загрузить → «content is not a valid pdf».
+- **Сказать:** «Загрузить — `POST /project/{id}/documents` (можно сразу несколько файлов), список — `GET /project/{id}/documents`, скачать — `GET /document/{id}`, заменить — `PUT /document/{id}`, удалить — `DELETE /document/{id}`. Сами файлы лежат в S3, в базе только запись о них: имя, тип, размер, кто загрузил».
+- **Кто может:** любой участник проекта, не только владелец: загружать, скачивать, заменять, удалять. Посторонний получит 404.
+- **Где в коде:** бэкенд `src/project_hub/documents/router.py`, `service.py`, `validation.py`, хранилище `src/project_hub/storage/s3.py`. Веб `frontend/src/documents/DocumentsSection.tsx`, `UploadZone.tsx`, `DocumentActions.tsx`.
+- **Почему так:**
+  - Тип файла проверяется по содержимому, а не по расширению (подробнее в 2.4). Поэтому `fake.pdf` не прошёл.
+  - Веб заранее проверяет расширение и размер (`frontend/src/documents/fileRules.ts`), чтобы не отправлять зря файл больше 10 МБ. Содержимое проверяет только сервер, и решает всегда он.
+  - Файл качается через API с токеном, а не по прямой ссылке на S3: так чужой не скачает файл, даже если узнает его адрес.
+- Если зелёные уведомления справа закрыли кнопку «Delete» — подождать 5 секунд или закрыть их крестиком.
 
 ### 1.7 Удалить проект
 
@@ -162,7 +175,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ### 1.8 Профиль и смена пароля
 
-Скриншоты: [неверный текущий](demo/19-password-wrong-current.jpeg), [пароль сменён](demo/20-password-changed.jpeg).
+Скриншоты: [неверный текущий](demo/24-password-wrong-current.jpeg), [пароль сменён](demo/25-password-changed.jpeg).
 
 - **Кликнуть:** «Profile» → ввести неверный текущий пароль → ошибка. Потом верный: текущий `anna1234`, новый — любой от 8 символов → «Change password».
 - **Сказать:** «`PUT /users/me/password`. После смены все старые токены перестают работать — на других устройствах тебя выкинет. Эта вкладка получает новый токен и остаётся в системе».
@@ -172,7 +185,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ### 1.9 Выход и истёкшая сессия
 
-Скриншоты: [вышла](demo/21-logged-out.jpeg), [сессия истекла](demo/22-session-expired.jpeg).
+Скриншоты: [вышла](demo/26-logged-out.jpeg), [сессия истекла](demo/27-session-expired.jpeg).
 
 - **Кликнуть:** «Log out» → страница входа «You are logged out».
 - **Как показать истёкшую сессию:** войти, открыть инструменты разработчика (F12) → Application → Session Storage → поменять значение `project-hub.token` на любую строку → кликнуть «Profile». Приложение покажет «Your session expired. Log in again.»
@@ -189,11 +202,11 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 
 ## 2. Swagger
 
-Адрес: <http://127.0.0.1:8020/docs>. Скриншот: [общий вид](demo/23-swagger-overview.jpeg).
+Адрес: <http://127.0.0.1:8020/docs>. Скриншот: [общий вид](demo/28-swagger-overview.jpeg).
 
 ### 2.1 Получить токен и нажать Authorize
 
-Скриншоты: [вход](demo/24-swagger-login-token.jpeg), [Authorize](demo/25-swagger-authorize.jpeg), [GET /users/me](demo/26-swagger-users-me-200.jpeg).
+Скриншоты: [вход](demo/29-swagger-login-token.jpeg), [Authorize](demo/30-swagger-authorize.jpeg), [GET /users/me](demo/31-swagger-users-me-200.jpeg).
 
 1. Раскрыть `POST /login` → «Try it out» → в теле `{"login": "anna", "password": "anna1234"}` → «Execute».
 2. Скопировать `access_token` из ответа (без кавычек).
@@ -246,7 +259,7 @@ docker compose -p demo -f docker-compose.yml -f frontend/compose.yml down -v
 | Стенд не отвечает | `docker compose -p demo -f docker-compose.yml -f frontend/compose.yml ps` — все ли `healthy`. Логи API: `docker compose -p demo -f docker-compose.yml -f frontend/compose.yml logs api --tail 50`. Если Docker Desktop не запущен — запустить его и выполнить «Запуск». |
 | Данные перепутались, удалила не то | Полный сброс: `down -v`, «Запуск», «Заполнить» (раздел 0). Около 3 минут. |
 | Веб пишет «Your session expired» | Нормально после перезапуска стенда или через час. Войти заново. |
-| Swagger пустой (белая страница) | Нет интернета: Swagger грузит скрипты с CDN. Показать скриншоты 23–26 из `docs/frontend/demo/` или `curl` из таблицы 2.3. |
+| Swagger пустой (белая страница) | Нет интернета: Swagger грузит скрипты с CDN. Показать скриншоты 28–31 из `docs/frontend/demo/` или `curl` из таблицы 2.3. |
 | Документ не скачивается после перезапуска | Файлы в moto пропали при остановке. Полный сброс. |
 
 ---
