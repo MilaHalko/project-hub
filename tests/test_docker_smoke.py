@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from tests.support.docker import ROOT, cleanup, parse_compose_ps, published_port
+from tests.support.mail import messages_to, random_address
 
 pytestmark = pytest.mark.docker
 
@@ -274,5 +276,69 @@ def test_compose_stack_round_trips_a_document() -> None:
 
             assert status == 200, f"{downloaded!r}\n{compose_logs()}"
             assert downloaded == pdf
+        finally:
+            cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
+
+
+def _signed_in(base: str, login: str) -> str:
+    credentials = {"login": login, "password": "correct-horse-1"}
+    status, text = _call(
+        "POST", f"{base}/auth", json_body={**credentials, "repeat_password": "correct-horse-1"}
+    )
+    assert status == 201, text
+    status, text = _call("POST", f"{base}/login", json_body=credentials)
+    assert status == 200, text
+    return str(json.loads(text)["access_token"])
+
+
+def test_compose_stack_shares_and_joins_a_project() -> None:
+    docker = _docker()
+    project = f"project-hub-smoke-{uuid.uuid4().hex}"
+    env = {
+        **os.environ,
+        "APP_PORT": "0",
+        "APP_DB_PORT": "0",
+        "APP_S3_PORT": "0",
+        "APP_MAIL_PORT": "0",
+        "APP_MAIL_UI_PORT": "0",
+        "APP_JWT_SECRET": uuid.uuid4().hex + uuid.uuid4().hex,
+        "APP_PUBLIC_URL": "http://share.smoke.test",
+    }
+    link = re.compile(r"http://share\.smoke\.test/join\?token=([A-Za-z0-9_-]{43})")
+    with tempfile.TemporaryDirectory() as tmp:
+        empty_env_file = Path(tmp) / "empty.env"
+        empty_env_file.write_text("", encoding="utf-8")
+        compose = [docker, "compose", "--env-file", str(empty_env_file), "-p", project]
+        try:
+            _run(*compose, "up", "-d", "--build", "--wait", env=env)
+            app_port = published_port(_run(*compose, "port", "api", "8000", env=env).stdout)
+            inbox_port = published_port(_run(*compose, "port", "mail", "8025", env=env).stdout)
+            base = f"http://127.0.0.1:{app_port}"
+            status, health = _wait_for_health(f"{base}/health")
+
+            def compose_logs() -> str:
+                return _logs(*compose, "logs", "--no-color", env=env)
+
+            assert status == 200, f"{health}\n{compose_logs()}"
+            mila = _signed_in(base, "mila")
+            status, text = _call(
+                "POST", f"{base}/projects", token=mila, json_body={"name": "Smoke"}
+            )
+            assert status == 201, f"{text!r}\n{compose_logs()}"
+            project_id = json.loads(text)["id"]
+            address = random_address()
+            status, text = _call(
+                "GET", f"{base}/project/{project_id}/share?with={address}", token=mila
+            )
+            assert status == 200, f"{text!r}\n{compose_logs()}"
+            (message,) = messages_to(f"http://127.0.0.1:{inbox_port}", address, timeout=30)
+            assert message["Text"].count("http://share.smoke.test/join?token=") == 1
+            (token,) = link.findall(message["Text"])
+            anna = _signed_in(base, "anna")
+
+            status, text = _call("GET", f"{base}/join?token={token}", token=anna)
+
+            assert status == 200, f"{text!r}\n{compose_logs()}"
+            assert json.loads(text)["already_member"] is False
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)

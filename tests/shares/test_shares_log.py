@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from tests.support.auth import signed_in
 from tests.support.mail import random_address
 from tests.support.projects import add_participant, create_project
-from tests.support.shares import closed_port, share
+from tests.support.shares import closed_port, join, share, shared_token
 
 LOGGER = "project_hub.shares.service"
 
@@ -82,3 +82,35 @@ def test_mail_failure_is_a_warning_without_the_link(
     assert "reason=ConnectionRefusedError" in record.getMessage()
     assert "token" not in record.getMessage()
     assert "join" not in record.getMessage()
+
+
+def test_join_is_logged_only_when_someone_is_added(
+    api_client: TestClient, mailpit_url: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    _, mila = signed_in(api_client)
+    anna_id, anna = signed_in(api_client, "anna")
+    _, zoe = signed_in(api_client, "zoe")
+    created = create_project(api_client, mila)
+    address = random_address()
+    token = shared_token(api_client, mailpit_url, mila, created["id"], address)
+
+    caplog.clear()
+    with caplog.at_level(logging.INFO, logger=LOGGER):
+        assert join(api_client, token, mila).json()["already_member"] is True
+        assert join(api_client, token).status_code == 401
+        assert join(api_client, token, headers={"Authorization": "Basic eDp5"}).status_code == 401
+        assert join(api_client, "", anna).status_code == 422
+        assert join(api_client, "a" * 43, anna).status_code == 404
+        assert not _security_events(caplog)
+
+        assert join(api_client, token, anna).json()["already_member"] is False
+        assert join(api_client, token, zoe).status_code == 404
+
+    (record,) = _security_events(caplog)
+    assert _field(record, "event") == "project joined"
+    assert _field(record, "login") == "anna"
+    assert _field(record, "user_id") == UUID(anna_id)
+    assert _field(record, "project_id") == UUID(created["id"])
+    assert _field(record, "email") == address
+    assert "project joined" in record.getMessage()
+    assert token not in record.getMessage()

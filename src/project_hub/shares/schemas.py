@@ -3,7 +3,8 @@ from typing import Annotated, Self
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, StringConstraints
 
-from project_hub.shares.entities import ShareLink
+from project_hub.projects.schemas import ProjectResponse
+from project_hub.shares.entities import JoinResult, ShareLink
 
 
 def _reject_surrounding_whitespace(value: object) -> object:
@@ -27,3 +28,17 @@ class ShareResponse(BaseModel):
     @classmethod
     def from_link(cls, link: ShareLink) -> Self:
         return cls(email=link.email, expires_at=link.expires_at)
+
+
+class JoinResponse(BaseModel):
+    login: str
+    already_member: bool
+    project: ProjectResponse
+
+    @classmethod
+    def from_result(cls, login: str, result: JoinResult) -> Self:
+        return cls(
+            login=login,
+            already_member=result.already_member,
+            project=ProjectResponse.from_access(result.access),
+        )

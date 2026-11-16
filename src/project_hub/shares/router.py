@@ -2,14 +2,22 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials
 
-from project_hub.auth.dependencies import CurrentUser
+from project_hub.auth.dependencies import (
+    CurrentUser,
+    bearer_scheme,
+    get_current_user,
+    get_token_service,
+)
+from project_hub.auth.tokens import TokenService
+from project_hub.core.exceptions import AuthenticationError
 from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
 from project_hub.shares import service
 from project_hub.shares.dependencies import PublicUrl, ShareMailer
-from project_hub.shares.schemas import ShareEmail, ShareResponse
+from project_hub.shares.schemas import JoinResponse, ShareEmail, ShareResponse
 
 router = APIRouter(tags=["shares"])
 
@@ -27,3 +35,18 @@ async def share_project(
         uow, mailer, public_url, user, project_id, email, now=datetime.now(UTC)
     )
     return ShareResponse.from_link(link)
+
+
+@router.get("/join")
+async def join_project(
+    request: Request,
+    token: Annotated[str, Query(min_length=1, max_length=128)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    tokens: Annotated[TokenService, Depends(get_token_service)],
+) -> JoinResponse:
+    if "authorization" not in request.headers:
+        raise AuthenticationError("Not authenticated")
+    user = await get_current_user(credentials, uow, tokens)
+    result = await service.join(uow, user, token, now=datetime.now(UTC))
+    return JoinResponse.from_result(user.login, result)
