@@ -1,8 +1,27 @@
 import type { APIRequestContext } from "@playwright/test";
+import { apiToken, type TestUser } from "./auth";
 
 export const MAIL_URL = process.env.E2E_MAIL_URL ?? "http://127.0.0.1:8025";
 
 const JOIN_LINK = /https?:\/\/\S+\/join\?token=[\w-]+/;
+
+export async function shareViaApi(
+  request: APIRequestContext,
+  owner: TestUser,
+  projectId: string,
+  email: string,
+): Promise<void> {
+  const token = await apiToken(request, owner);
+  const response = await request.get(
+    `/api/project/${projectId}/share?${new URLSearchParams({ with: email }).toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (response.status() !== 200) {
+    throw new Error(
+      `GET /api/project/${projectId}/share answered ${String(response.status())}`,
+    );
+  }
+}
 
 async function findMessageId(
   request: APIRequestContext,

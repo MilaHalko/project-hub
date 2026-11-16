@@ -170,3 +170,12 @@ test("fills in the login of a freshly created account", async () => {
   expect(await screen.findByLabelText("Login")).toHaveValue("mila");
   expect(screen.getByText("Account created. Log in.")).toBeInTheDocument();
 });
+
+test("asks to log in to join only when coming from a join link", async () => {
+  mockApi({});
+  await openLogin("/login?next=%2Fprojects");
+
+  expect(
+    screen.queryByText("Log in or create an account to join the project."),
+  ).not.toBeInTheDocument();
+});
