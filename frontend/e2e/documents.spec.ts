@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { signIn } from "./auth";
-import { DOCX, PDF, sampleDocx, samplePdf, uploadViaApi } from "./documents";
+import {
+  animationsDone,
+  DOCX,
+  PDF,
+  sampleDocx,
+  samplePdf,
+  uploadViaApi,
+} from "./documents";
 import { expect, expectAccessible, test } from "./fixtures";
 import { createProjectViaApi } from "./projects";
 
@@ -66,6 +73,7 @@ test("uploads a pdf from the file picker", async ({ page, request }) => {
   const documents = page.getByRole("list", { name: /^Documents/ });
   await expect(documents.getByRole("listitem")).toHaveText(/Client brief\.pdf/);
   await expect(page.getByText("File uploaded")).toBeVisible();
+  await animationsDone(page);
   await expectAccessible(page);
 });
 
@@ -201,5 +209,39 @@ test("replaces a pdf with a docx and keeps its place", async ({
   await expect(rows.nth(1)).toContainText("Client brief v2.docx");
   await expect(rows.nth(1)).toContainText(`Updated just now by ${user.login}`);
   await expect(page.getByLabel("Replace Client brief v2.docx")).toBeFocused();
+  await animationsDone(page);
+  await expectAccessible(page);
+});
+
+test("deletes a document after confirming", async ({ page, request }) => {
+  const user = await signIn(page, request);
+  const { id } = await createProjectViaApi(request, user, {
+    name: "Cleanup",
+  });
+  await uploadViaApi(request, user, id, {
+    name: "Old draft.pdf",
+    mimeType: PDF,
+    buffer: samplePdf,
+  });
+  await page.goto(`/projects/${id}`);
+
+  const remove = page.getByRole("button", { name: "Delete Old draft.pdf" });
+  await remove.click();
+  const dialog = page.getByRole("alertdialog", {
+    name: "Delete this document?",
+  });
+  await expect(dialog).toBeVisible();
+  await expectAccessible(page);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(remove).toBeFocused();
+
+  await remove.click();
+  await dialog.getByRole("button", { name: "Delete document" }).click();
+
+  await expect(page.getByText("Document deleted")).toBeVisible();
+  await expect(page.getByText("No documents yet")).toBeVisible();
+  await expect(page.getByLabel("Choose files")).toBeFocused();
+  await animationsDone(page);
   await expectAccessible(page);
 });

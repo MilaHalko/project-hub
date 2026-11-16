@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 import {
   downloadDocument,
   replaceDocument,
@@ -9,6 +9,7 @@ import {
 import { ApiError } from "../api/errors";
 import { Button, buttonClassName } from "../ui/Button";
 import { useToast } from "../ui/toast/useToast";
+import { DeleteDocumentDialog } from "./DeleteDocumentDialog";
 import styles from "./DocumentsSection.module.css";
 import {
   DOCUMENT_GONE,
@@ -22,11 +23,18 @@ function isGone(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-export function DocumentActions({ document }: { document: Document }) {
+export function DocumentActions({
+  document,
+  onRemoved,
+}: {
+  document: Document;
+  onRemoved: () => void;
+}) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const inputId = useId();
   const downloading = useRef(false);
+  const [deleting, setDeleting] = useState(false);
 
   function gone() {
     toast.error(DOCUMENT_GONE);
@@ -79,6 +87,25 @@ export function DocumentActions({ document }: { document: Document }) {
 
   return (
     <>
+      {replace.isPending ? (
+        <span className={styles.replacing}>
+          <LoaderCircle className={styles.spinner} size={14} aria-hidden />
+          Replacing…
+        </span>
+      ) : (
+        <Button
+          variant="secondary"
+          busy={download.isPending}
+          aria-label={`Download ${document.name}`}
+          onClick={(event) => {
+            if (downloading.current || event.detail > 1) return;
+            downloading.current = true;
+            download.mutate();
+          }}
+        >
+          Download
+        </Button>
+      )}
       <input
         id={inputId}
         className={styles.input}
@@ -90,33 +117,33 @@ export function DocumentActions({ document }: { document: Document }) {
           event.target.value = "";
         }}
       />
-      {replace.isPending ? (
-        <span className={styles.replacing}>
-          <LoaderCircle className={styles.spinner} size={14} aria-hidden />
-          Replacing…
-        </span>
-      ) : (
+      {!replace.isPending && (
         <>
-          <Button
-            variant="secondary"
-            busy={download.isPending}
-            aria-label={`Download ${document.name}`}
-            onClick={(event) => {
-              if (downloading.current || event.detail > 1) return;
-              downloading.current = true;
-              download.mutate();
-            }}
-          >
-            Download
-          </Button>
           <label
             htmlFor={inputId}
             className={buttonClassName({ variant: "secondary" })}
           >
             Replace
           </label>
+          <Button
+            variant="danger"
+            aria-label={`Delete ${document.name}`}
+            onClick={() => {
+              setDeleting(true);
+            }}
+          >
+            Delete
+          </Button>
         </>
       )}
+      <DeleteDocumentDialog
+        open={deleting}
+        document={document}
+        onClose={() => {
+          setDeleting(false);
+        }}
+        onRemoved={onRemoved}
+      />
     </>
   );
 }

@@ -146,3 +146,19 @@ test("says when the document is gone and reloads the list", async () => {
     ).toHaveLength(2);
   });
 });
+
+test("reaches the row's actions with Tab in the order they show", async () => {
+  await openPage({});
+  const row = screen.getAllByRole("listitem")[1];
+  if (!row) throw new Error("No second row");
+  within(row)
+    .getByRole("button", { name: "Download Client brief.pdf" })
+    .focus();
+
+  await userEvent.tab();
+  expect(screen.getByLabelText("Replace Client brief.pdf")).toHaveFocus();
+  await userEvent.tab();
+  expect(
+    within(row).getByRole("button", { name: "Delete Client brief.pdf" }),
+  ).toHaveFocus();
+});

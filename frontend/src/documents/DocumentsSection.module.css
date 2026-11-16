@@ -112,7 +112,7 @@
   white-space: nowrap;
 }
 
-.input:focus-visible + * + label {
+.input:focus-visible + label {
   outline: 2px solid var(--color-violet);
   outline-offset: 2px;
 }
