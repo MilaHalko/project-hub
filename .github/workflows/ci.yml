@@ -86,6 +86,50 @@ jobs:
       - name: Docker smoke tests
         run: poetry run pytest -m docker -v
 
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: project_hub
+          POSTGRES_PASSWORD: project_hub
+          POSTGRES_DB: project_hub
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U project_hub -d project_hub"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgresql://project_hub:project_hub@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Poetry
+        run: pipx install poetry==2.5.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+          cache: poetry
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      - name: Build the wheel and sdist
+        run: poetry build --no-interaction
+      - name: Upload the package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: project-hub-dist
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Package smoke tests
+        env:
+          PACKAGE_DIST_DIR: dist
+        run: poetry run pytest -m package -v
+
   terraform:
     runs-on: ubuntu-latest
     timeout-minutes: 10
