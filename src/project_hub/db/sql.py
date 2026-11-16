@@ -9,6 +9,8 @@ from project_hub.documents.repository import DocumentRepository
 from project_hub.documents.repository_sql import SqlDocumentRepository
 from project_hub.projects.repository import ProjectRepository
 from project_hub.projects.repository_sql import SqlProjectRepository
+from project_hub.shares.repository import ShareRepository
+from project_hub.shares.repository_sql import SqlShareRepository
 from project_hub.users.repository import UserRepository
 from project_hub.users.repository_sql import SqlUserRepository
 
@@ -21,6 +23,7 @@ class SqlUnitOfWork:
     users: UserRepository
     projects: ProjectRepository
     documents: DocumentRepository
+    shares: ShareRepository
 
     def __init__(self, pool: AsyncConnectionPool[psycopg.AsyncConnection[Any]]) -> None:
         self._pool = pool
@@ -43,6 +46,7 @@ class SqlUnitOfWork:
         self.users = SqlUserRepository(self._conn)
         self.projects = SqlProjectRepository(self._conn)
         self.documents = SqlDocumentRepository(self._conn)
+        self.shares = SqlShareRepository(self._conn)
         return self
 
     async def __aexit__(

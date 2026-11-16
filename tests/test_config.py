@@ -191,3 +191,36 @@ def test_mail_from_rejects_malformed_addresses(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setenv("APP_MAIL_FROM", value)
     with pytest.raises(ValidationError):
         IsolatedSettings()
+
+
+def test_public_url_defaults_to_unset_and_blank_is_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert IsolatedSettings().public_url is None
+    monkeypatch.setenv("APP_PUBLIC_URL", " ")
+    assert IsolatedSettings().public_url is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("http://localhost:8000", "http://localhost:8000"),
+        ("https://hub.example.com/", "https://hub.example.com"),
+        ("https://hub.example.com/api//", "https://hub.example.com/api"),
+    ],
+)
+def test_public_url_drops_trailing_slashes(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: str
+) -> None:
+    monkeypatch.setenv("APP_PUBLIC_URL", value)
+    assert IsolatedSettings().public_url == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["localhost:8000", "ftp://hub.example.com", "http://hub.example.com/?a=1", "http://x/#top"],
+)
+def test_public_url_rejects_other_schemes_queries_and_fragments(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    monkeypatch.setenv("APP_PUBLIC_URL", value)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
