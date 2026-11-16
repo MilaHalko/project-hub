@@ -60,6 +60,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_DEBUG",
         "APP_DB_BACKEND",
         "APP_DATABASE_URL",
+        "APP_DATABASE_URL_PARAMETER",
         "APP_JWT_SECRET",
         "APP_S3_BUCKET",
         "APP_S3_ENDPOINT_URL",
