@@ -99,7 +99,7 @@ def test_downgrade_then_upgrade_round_trip(fresh_database_url: str) -> None:
 def test_upgrade_twice_is_noop(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     upgrade(fresh_database_url)
-    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0006",)]
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0007",)]
 
 
 def _users_columns(url: str) -> set[object]:
@@ -511,3 +511,76 @@ def test_migrate_cli_without_url_fails(tmp_path: Path) -> None:
     result = _run_cli(tmp_path, _cli_env())
     assert result.returncode == 1
     assert "APP_DATABASE_URL is not set" in result.stderr
+
+
+DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
+def _insert_document(url: str, content_type: str, key: str) -> None:
+    with psycopg.connect(url, autocommit=True) as conn:
+        row = conn.execute("select id from users where login = 'mila'").fetchone()
+        if row is None:
+            row = conn.execute(
+                "insert into users (login, password_hash) values ('mila', 'h') returning id"
+            ).fetchone()
+        assert row is not None
+        project = conn.execute("select id from projects").fetchone()
+        if project is None:
+            project = conn.execute(
+                "insert into projects (owner_id, name) values (%s, 'Diploma') returning id",
+                (row[0],),
+            ).fetchone()
+        assert project is not None
+        conn.execute(
+            "insert into documents "
+            "(project_id, name, content_type, size, storage_key, uploaded_by) "
+            "values (%s, 'f', %s, 1, %s, %s)",
+            (project[0], content_type, key, row[0]),
+        )
+
+
+def test_0007_accepts_image_content_types(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    for index, content_type in enumerate((PDF_TYPE, DOCX_TYPE, "image/jpeg", "image/png")):
+        _insert_document(fresh_database_url, content_type, f"k{index}")
+    with pytest.raises(psycopg.errors.CheckViolation):
+        _insert_document(fresh_database_url, "image/gif", "gif")
+
+    assert _fetchall(fresh_database_url, "select count(*) from documents") == [(4,)]
+
+
+def test_0006_rejects_image_content_types(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url, "0006")
+
+    with pytest.raises(psycopg.errors.CheckViolation):
+        _insert_document(fresh_database_url, "image/png", "k")
+
+
+def test_downgrade_to_0006_restores_old_constraint(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+    _insert_document(fresh_database_url, PDF_TYPE, "k")
+
+    downgrade(fresh_database_url, "0006")
+
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0006",)]
+    with pytest.raises(psycopg.errors.CheckViolation):
+        _insert_document(fresh_database_url, "image/png", "img")
+    _insert_document(fresh_database_url, DOCX_TYPE, "docx")
+    upgrade(fresh_database_url)
+    _insert_document(fresh_database_url, "image/png", "img")
+
+
+def test_downgrade_to_0006_with_image_rows_fails_and_deletes_nothing(
+    fresh_database_url: str,
+) -> None:
+    upgrade(fresh_database_url)
+    _insert_document(fresh_database_url, PDF_TYPE, "k1")
+    _insert_document(fresh_database_url, "image/png", "k2")
+
+    with pytest.raises(Exception, match="ck_documents_content_type"):
+        downgrade(fresh_database_url, "0006")
+
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0007",)]
+    assert _fetchall(fresh_database_url, "select count(*) from documents") == [(2,)]
+    _insert_document(fresh_database_url, "image/jpeg", "k3")

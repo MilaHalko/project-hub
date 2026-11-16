@@ -353,7 +353,7 @@ user, for the participant events); the project name is not logged. Refused reque
 
 ## Documents
 
-A project keeps its documents (pdf and docx). The files live in S3 (see `## File storage`);
+A project keeps its documents (pdf, docx, jpg and png). The files live in S3 (see `## File storage`);
 Postgres keeps what is known about them. Every document route needs
 `Authorization: Bearer <access_token>` (`401` with `WWW-Authenticate: Bearer` otherwise). The
 owner and the participants of the project have the same rights; anybody else gets
@@ -389,16 +389,19 @@ of them before anything is stored:
   stripped (`../../etc/x.pdf` becomes `x.pdf`). Missing → `422 File name is missing`; longer
   than 255 characters or with a control character → `422`. The name is stored as cleaned (path
   part dropped, whitespace stripped) and never decides where the file goes in S3.
-- Extension: `.pdf` or `.docx`, in any case → else `422 <name>: only pdf and docx documents are
-  allowed`.
+- Extension: `.pdf`, `.docx`, `.jpg`, `.jpeg` or `.png`, in any case → else `422 <name>: only pdf,
+  docx, jpg and png documents are allowed`.
 - Size: at most `APP_DOCUMENT_MAX_BYTES` (default 10485760 = 10 MB, 1-104857600) → else
   `413 <name>: file is larger than 10 MB`; an empty file → `422 <name>: file is empty`.
 - Content: a pdf starts with `%PDF-`; a docx is a zip that lists `[Content_Types].xml` and
   `word/document.xml` (only the list of members is read, nothing is unpacked). It must match the
-  extension → else `422 <name>: content is not a valid pdf` (or `docx`). The stored
-  `content_type` is `application/pdf` or
-  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, whatever the
-  client sent.
+  extension → else `422 <name>: content is not a valid pdf` (or `docx`, `jpeg`, `png`). A jpeg
+  starts with `FF D8 FF`, a png with the 8-byte PNG signature (only the start is read). The
+  stored `content_type` is `application/pdf`,
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `image/jpeg` or
+  `image/png`, whatever the client sent.
+  Migration `0007` allows the two image types; its downgrade fails while any jpg or png document
+  exists (delete those documents first).
 
 A request is all or nothing: one bad file and none of its files is stored. Each file goes to
 S3 under a new key `projects/<project_id>/documents/<random>`, then the rows are written and
@@ -430,7 +433,7 @@ and saves the response as a blob, not with a plain link.
 `PUT /document/{document_id}` replaces the file of one document with exactly one new file in
 the multipart field `file` (zero or several files → `422 Exactly one file is required`). The
 id and `created_at` stay; `name`, `size`, `content_type`, `uploaded_by` (the caller) and
-`updated_at` change, and a pdf may become a docx and the other way round. The new file is
+`updated_at` change, and a document may change type (a pdf may become a docx or a png, and so on). The new file is
 checked like an upload, stored under a new key, and only then is the row switched and the old
 file deleted; an invalid file, an unavailable storage (`503`) or a database failure leaves the
 document and its old file as they were. The project's `updated_at` is set. The access rules

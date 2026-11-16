@@ -37,6 +37,7 @@ def zip_bytes(**members: str) -> bytes:
 
 
 PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 16
 
 
 def _multipart(files: list[tuple[str, bytes]], field: str) -> bytes:

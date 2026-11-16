@@ -14,6 +14,8 @@ _MAX_NAME_LENGTH: Final = 255
 _FORBIDDEN_CATEGORIES: Final = frozenset({"Cc", "Cs"})
 _MIB: Final = 1_048_576
 _PATH_SEPARATORS: Final = re.compile(r"[/\\]")
+_JPEG_SIGNATURE: Final = b"\xff\xd8\xff"
+_PNG_SIGNATURE: Final = b"\x89PNG\r\n\x1a\n"
 _DOCX_MEMBERS: Final = frozenset({"[Content_Types].xml", "word/document.xml"})
 
 
@@ -46,6 +48,10 @@ def _zip_members(data: bytes) -> set[str] | None:
 def detect_type(data: bytes) -> DocumentType | None:
     if data.startswith(b"%PDF-"):
         return DocumentType.PDF
+    if data.startswith(_JPEG_SIGNATURE):
+        return DocumentType.JPEG
+    if data.startswith(_PNG_SIGNATURE):
+        return DocumentType.PNG
     members = _zip_members(data)
     if members is not None and members >= _DOCX_MEMBERS:
         return DocumentType.DOCX
@@ -55,7 +61,7 @@ def detect_type(data: bytes) -> DocumentType | None:
 def _type_from_extension(name: str) -> DocumentType | None:
     lowered = name.lower()
     for document_type in DocumentType:
-        if lowered.endswith(document_type.extension):
+        if lowered.endswith(document_type.extensions):
             return document_type
     return None
 
@@ -70,7 +76,7 @@ async def read_valid_file(upload: UploadFile, max_bytes: int) -> ValidFile:
     name = clean_file_name(upload.filename)
     expected = _type_from_extension(name)
     if expected is None:
-        raise ValidationFailedError(f"{name}: only pdf and docx documents are allowed")
+        raise ValidationFailedError(f"{name}: only pdf, docx, jpg and png documents are allowed")
     data = await upload.read(max_bytes + 1)
     if len(data) > max_bytes:
         raise PayloadTooLargeError(f"{name}: file is larger than {size_text(max_bytes)}")

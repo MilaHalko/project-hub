@@ -9,6 +9,7 @@ from mypy_boto3_s3.client import S3Client
 from project_hub.documents.entities import DOCX_CONTENT_TYPE, PDF_CONTENT_TYPE
 from tests.support.auth import bearer, signed_in
 from tests.support.documents import (
+    JPEG_BYTES,
     PNG_BYTES,
     app_of,
     broken_storage,
@@ -140,7 +141,7 @@ def test_outsider_and_unknown_project_get_same_404(
 @pytest.mark.parametrize(
     ("bad", "names"),
     [
-        pytest.param(("photo.png", PNG_BYTES), "photo.png", id="extension"),
+        pytest.param(("photo.gif", PNG_BYTES), "photo.gif", id="extension"),
         pytest.param(("photo.pdf", PNG_BYTES), "photo.pdf", id="png-as-pdf"),
         pytest.param(
             ("notes.docx", zip_bytes(**{"[Content_Types].xml": "<Types/>"})),
@@ -431,3 +432,53 @@ def test_upload_adds_sizes_to_project_used_space(api_client: TestClient) -> None
 
     total = len(first) + len(second)
     assert used_space(api_client, token, project["id"]) == (total, total)
+
+
+def test_uploads_jpg_png_and_jpeg_alias(
+    api_client: TestClient, s3_client: S3Client, storage_bucket: str
+) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+
+    documents = uploaded(
+        api_client,
+        token,
+        project["id"],
+        [("a.jpg", JPEG_BYTES), ("b.JPEG", JPEG_BYTES), ("c.png", PNG_BYTES)],
+    )
+
+    assert [(d["name"], d["content_type"]) for d in documents] == [
+        ("a.jpg", "image/jpeg"),
+        ("b.JPEG", "image/jpeg"),
+        ("c.png", "image/png"),
+    ]
+    assert len(bucket_keys(s3_client, storage_bucket)) == 3
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        pytest.param(("a.png", JPEG_BYTES), id="jpeg-as-png"),
+        pytest.param(("a.png", pdf_bytes()), id="pdf-as-png"),
+        pytest.param(("a.jpg", PNG_BYTES), id="png-as-jpg"),
+    ],
+)
+def test_mislabelled_image_is_422_and_nothing_stored(
+    api_client: TestClient,
+    migrated_database_url: str,
+    s3_client: S3Client,
+    storage_bucket: str,
+    bad: tuple[str, bytes],
+) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+
+    r = upload(api_client, token, project["id"], [bad])
+
+    assert r.status_code == 422
+    assert r.json() == {"detail": f"{bad[0]}: content is not a valid {_image_kind(bad[0])}"}
+    _assert_nothing_stored(migrated_database_url, s3_client, storage_bucket)
+
+
+def _image_kind(name: str) -> str:
+    return "png" if name.endswith(".png") else "jpeg"
