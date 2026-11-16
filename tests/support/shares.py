@@ -34,7 +34,8 @@ def shared_token(
 def join(
     client: TestClient, token: str, user: str | None = None, headers: dict[str, str] | None = None
 ) -> httpx2.Response:
-    return client.get("/join", params={"token": token}, headers=bearer(user) if user else headers)
+    merged = {**(headers or {}), **(bearer(user) if user else {})}
+    return client.get("/join", params={"token": token}, headers=merged)
 
 
 def closed_port() -> int:

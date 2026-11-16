@@ -1,8 +1,10 @@
 from datetime import UTC, datetime
 from typing import Annotated
+from urllib.parse import urlencode
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials
 
 from project_hub.auth.dependencies import (
@@ -37,15 +39,20 @@ async def share_project(
     return ShareResponse.from_link(link)
 
 
-@router.get("/join")
+@router.get("/join", response_model=JoinResponse)
 async def join_project(
     request: Request,
     token: Annotated[str, Query(min_length=1, max_length=128)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     tokens: Annotated[TokenService, Depends(get_token_service)],
-) -> JoinResponse:
+) -> JoinResponse | RedirectResponse:
     if "authorization" not in request.headers:
+        web_url = request.app.state.settings.web_url
+        if web_url and "text/html" in request.headers.get("accept", ""):
+            return RedirectResponse(
+                f"{web_url}/join?{urlencode({'token': token})}", status_code=303
+            )
         raise AuthenticationError("Not authenticated")
     user = await get_current_user(credentials, uow, tokens)
     result = await service.join(uow, user, token, now=datetime.now(UTC))

@@ -134,9 +134,10 @@ really sent: start it with `docker compose up -d --wait mail` and read the mail 
 | `APP_SMTP_PORT` | `25` | SMTP port (1-65535) |
 | `APP_MAIL_FROM` | `noreply@project-hub.test` | Sender address |
 | `APP_PUBLIC_URL` | unset | Public base URL of the API (`http`/`https`, no query, trailing `/` dropped), used for the link in share mail; when unset sharing answers `503`. Compose sets `http://localhost:${APP_PORT}` |
+| `APP_WEB_URL` | unset | Base URL of the web app (same rules as `APP_PUBLIC_URL`); when set, `GET /join` sends a browser without a sign-in there (see "Share by email"). Compose passes it on, empty by default |
 
-A blank `APP_SMTP_HOST` or `APP_PUBLIC_URL` counts as unset. When the server cannot be reached or refuses the
-mail, sending raises `MailDeliveryError`.
+A blank `APP_SMTP_HOST`, `APP_PUBLIC_URL` or `APP_WEB_URL` counts as unset. When the server
+cannot be reached or refuses the mail, sending raises `MailDeliveryError`.
 
 ## Auth
 
@@ -451,7 +452,10 @@ route carries `Cache-Control: no-store`, errors included, so a shared computer k
 checks, in order:
 
 - `token` missing, empty or longer than 128 characters → `422`;
-- no `Authorization` header, a broken or expired JWT, or a header that is not `Bearer` (such as
+- no `Authorization` header, `APP_WEB_URL` set and `Accept` contains `text/html` (a browser that
+  opened the mailed link) → `303` to `<APP_WEB_URL>/join?token=<token>` (token percent-encoded);
+  the link stays pending and the web page then calls `/join` with the Bearer header;
+- no `Authorization` header otherwise, a broken or expired JWT, or a header that is not `Bearer` (such as
   `Basic …`) → `401` (with `WWW-Authenticate: Bearer`); the link stays pending;
 - no pending link with this token (unknown, expired, already used, replaced by a newer share, or
   its project deleted) → `404 {"detail": "Invite link is invalid or expired"}`, the same answer in

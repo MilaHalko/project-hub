@@ -70,6 +70,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_SMTP_PORT",
         "APP_MAIL_FROM",
         "APP_PUBLIC_URL",
+        "APP_WEB_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
