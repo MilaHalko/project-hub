@@ -32,6 +32,8 @@ ECR tags are immutable, so the tag must be new each time. `--provenance=false --
 
 `ecr_repository_url` is an output of the persistent layer: `terraform -chdir=infra/persistent output -raw ecr_repository_url`.
 
+The web app needs an image in its own repository too. Build it from `frontend/` the same way and push it to `$(terraform -chdir=infra/persistent output -raw web_ecr_repository_url):$TAG`. It runs as the `web` container in the same task as the API: the load balancer sends every request to it, and nginx passes `/api/` on to the API over `127.0.0.1:8000`. Deploy on merge does not build it yet; after a new web image, run the ephemeral `apply` again.
+
 ## 3. Deploy on merge
 
 `.github/workflows/deploy.yml` runs on every push to `main` (and by hand from the Actions tab, on `main` only). It signs in to AWS through the OIDC role `project-hub-github-deploy`, which trusts only `refs/heads/main`; there are no AWS keys in GitHub.
@@ -69,8 +71,8 @@ terraform -chdir=infra/ephemeral apply
 This takes about 10 minutes. Then check:
 
 ```bash
-curl -ksS -o /dev/null -w '%{http_code}\n' "$(terraform -chdir=infra/ephemeral output -raw url)/health"
-curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "http://$(terraform -chdir=infra/ephemeral output -raw alb_dns_name)/health"
+curl -ksS -o /dev/null -w '%{http_code}\n' "$(terraform -chdir=infra/ephemeral output -raw url)/api/health"
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "http://$(terraform -chdir=infra/ephemeral output -raw alb_dns_name)/api/health"
 ```
 
 The first must print `200`, the second `301` with an `https://` address. The certificate is self-signed, so a browser shows a warning once; `curl -k` skips it.

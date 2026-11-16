@@ -35,7 +35,7 @@ resource "aws_iam_role_policy" "ecs_execution" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
         ]
-        Resource = aws_ecr_repository.api.arn
+        Resource = [aws_ecr_repository.api.arn, aws_ecr_repository.web.arn]
       },
       {
         Effect   = "Allow"

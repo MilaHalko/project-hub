@@ -35,16 +35,16 @@ resource "aws_acm_certificate" "alb" {
   }
 }
 
-resource "aws_lb_target_group" "api" {
-  name                 = "project-hub-api"
-  port                 = 8000
+resource "aws_lb_target_group" "web" {
+  name                 = "project-hub-web"
+  port                 = 8080
   protocol             = "HTTP"
   target_type          = "ip"
   vpc_id               = data.aws_vpc.main.id
   deregistration_delay = 30
 
   health_check {
-    path    = "/health"
+    path    = "/api/health"
     matcher = "200"
   }
 }
@@ -74,6 +74,6 @@ resource "aws_lb_listener" "https" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.api.arn
+    target_group_arn = aws_lb_target_group.web.arn
   }
 }
