@@ -36,9 +36,14 @@ jobs:
       s3:
         image: motoserver/moto:5.2.5
         ports: ["5000:5000"]
+      mailpit:
+        image: axllent/mailpit:v1.33.0
+        ports: ["1025:1025", "8025:8025"]
     env:
       TEST_DATABASE_URL: postgresql://project_hub:project_hub@localhost:5432/postgres
       TEST_S3_ENDPOINT_URL: http://localhost:5000
+      TEST_SMTP_PORT: "1025"
+      TEST_MAILPIT_URL: http://localhost:8025
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
     steps:

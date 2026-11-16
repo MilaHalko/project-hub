@@ -46,6 +46,7 @@ exits. The API starts only after both completed successfully and is served at
 | `api` | 8000 | `APP_PORT` |
 | `db` | 55433 | `APP_DB_PORT` |
 | `s3` | 55435 | `APP_S3_PORT` |
+| `mail` | 55436 (SMTP), 8025 (inbox) | `APP_MAIL_PORT`, `APP_MAIL_UI_PORT` |
 | `storage-init` | — | one-shot, exits 0 |
 
 The database uses 55433 so it does not clash with local Postgres servers on 5432 or 5433. Set the variables
@@ -53,10 +54,10 @@ in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docke
 The `POSTGRES_*` values are local development credentials only; they take effect only when
 the database volume is first created (run `docker compose down -v` to reset it).
 
-The tests expect the `db` and `s3` services to be running:
+The tests expect the `db`, `s3` and `mail` services to be running:
 
 ```bash
-docker compose up -d --wait db s3
+docker compose up -d --wait db s3 mail
 ```
 
 Stop everything with `docker compose down` (add `-v` to delete the database volume).
@@ -117,6 +118,23 @@ chain (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` locally, the task role in AWS
 CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put real AWS
 keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
 missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
+
+## Mail
+
+The app sends plain-text mail over SMTP through the small `Mailer` interface
+(`mail/mailer.py`: `OutgoingMail`, `SmtpMailer`, `MailDeliveryError`). Locally and in CI the
+mail is caught by [Mailpit](https://mailpit.axllent.org) (`axllent/mailpit`), so nothing is
+really sent: start it with `docker compose up -d --wait mail` and read the mail in the inbox at
+`http://localhost:8025`. Compose points the `api` at it (`mail:1025`).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_SMTP_HOST` | unset | SMTP server; when unset the app starts without mail |
+| `APP_SMTP_PORT` | `25` | SMTP port (1-65535) |
+| `APP_MAIL_FROM` | `noreply@project-hub.test` | Sender address |
+
+A blank `APP_SMTP_HOST` counts as unset. When the server cannot be reached or refuses the
+mail, sending raises `MailDeliveryError`.
 
 ## Auth
 
@@ -413,7 +431,7 @@ See [`infra/README.md`](infra/README.md) for the steps.
 poetry run ruff check
 poetry run ruff format --check
 poetry run pyright
-docker compose up -d --wait db s3   # tests need Postgres and the S3 emulator
+docker compose up -d --wait db s3 mail   # tests need Postgres, the S3 emulator and Mailpit
 poetry run pytest
 ```
 
