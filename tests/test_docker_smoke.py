@@ -340,5 +340,13 @@ def test_compose_stack_shares_and_joins_a_project() -> None:
 
             assert status == 200, f"{text!r}\n{compose_logs()}"
             assert json.loads(text)["already_member"] is False
+            api_logs = ""
+            deadline = time.monotonic() + 10
+            while "/join?token=***" not in api_logs and time.monotonic() < deadline:
+                time.sleep(0.2)
+                logged = _run(*compose, "logs", "--no-color", "api", env=env)
+                api_logs = logged.stdout + logged.stderr
+            assert "/join?token=***" in api_logs, _tail(api_logs)
+            assert token not in api_logs
         finally:
             cleanup(*compose, "down", "-v", "--rmi", "local", env=env)
