@@ -8,7 +8,7 @@ import time
 import urllib.error
 import urllib.request
 import zipfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from importlib.metadata import version
 from pathlib import Path
 from typing import Protocol
@@ -37,12 +37,12 @@ def _tail(text: str, limit: int = 4000) -> str:
 
 
 def _run(
-    *args: str, cwd: Path, env: Mapping[str, str] | None = None
+    *args: str, cwd: Path, env: Mapping[str, str] | None = None, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             args,
-            check=True,
+            check=check,
             capture_output=True,
             text=True,
             cwd=cwd,
@@ -58,7 +58,9 @@ def _run(
 
 
 def _clean_env(extra: Mapping[str, str] | None = None) -> dict[str, str]:
-    env = {key: value for key, value in os.environ.items() if not key.startswith("APP_")}
+    env = {
+        key: value for key, value in os.environ.items() if not key.startswith(("APP_", "PYTHON"))
+    }
     return {**env, **(extra or {})}
 
 
@@ -101,7 +103,7 @@ def _wait_for_health(
 def dist_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     given = os.environ.get("PACKAGE_DIST_DIR")
     if given:
-        return Path(given).resolve()
+        return (ROOT / given).resolve()
     poetry = shutil.which("poetry")
     assert poetry is not None, "poetry is not on PATH"
     out = tmp_path_factory.mktemp("dist")
@@ -194,6 +196,7 @@ def test_installed_app_serves_health(venv_python: Path, workdir: Path) -> None:
         )
         try:
             status, body = _wait_for_health(f"http://127.0.0.1:{port}/health", process)
+            exited_early = process.poll() is not None
         finally:
             process.terminate()
             try:
@@ -204,6 +207,7 @@ def test_installed_app_serves_health(venv_python: Path, workdir: Path) -> None:
 
     output = _tail(log_path.read_text(encoding="utf-8", errors="replace"))
     assert status == 200, f"{body}\n--- uvicorn output ---\n{output}"
+    assert not exited_early, f"uvicorn exited, so something else answered\n{output}"
     assert json.loads(body) == {"status": "ok"}
 
 
@@ -215,11 +219,11 @@ def _source_head() -> str:
     return heads[0]
 
 
-def test_installed_migrate_applies_all_migrations(run_installed: RunInstalled) -> None:
+def _assert_migrates_fresh_database(migrate: Callable[[str], object]) -> None:
     admin_url = os.environ.get("TEST_DATABASE_URL", DEFAULT_ADMIN_URL)
     database_url = create_test_database(admin_url)
     try:
-        run_installed("-m", "project_hub.db.migrate", env={"APP_DATABASE_URL": database_url})
+        migrate(database_url)
 
         with psycopg.connect(database_url) as conn:
             versions = conn.execute("select version_num from alembic_version").fetchall()
@@ -229,6 +233,32 @@ def test_installed_migrate_applies_all_migrations(run_installed: RunInstalled) -
 
     assert versions == [(_source_head(),)]
     assert users == (True,)
+
+
+def test_installed_migrate_applies_all_migrations(run_installed: RunInstalled) -> None:
+    _assert_migrates_fresh_database(
+        lambda url: run_installed("-m", "project_hub.db.migrate", env={"APP_DATABASE_URL": url})
+    )
+
+
+def test_installed_command_applies_migrations(venv_python: Path, workdir: Path) -> None:
+    command = str(venv_python.parent / "project-hub-migrate")
+
+    _assert_migrates_fresh_database(
+        lambda url: _run(command, cwd=workdir, env=_clean_env({"APP_DATABASE_URL": url}))
+    )
+
+
+def test_installed_command_fails_without_database_url(venv_python: Path, workdir: Path) -> None:
+    result = _run(
+        str(venv_python.parent / "project-hub-migrate"),
+        cwd=workdir,
+        env=_clean_env(),
+        check=False,
+    )
+
+    assert result.returncode == 1, result.stderr
+    assert "APP_DATABASE_URL is not set" in result.stderr
 
 
 def test_sdist_rebuilds_a_wheel_with_the_same_files(
