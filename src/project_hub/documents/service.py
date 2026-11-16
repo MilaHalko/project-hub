@@ -5,7 +5,15 @@ from uuid import UUID
 from project_hub.core.config import Settings
 from project_hub.core.exceptions import NotFoundError, PayloadTooLargeError
 from project_hub.db.uow import UnitOfWork
-from project_hub.documents.entities import Document, NewDocument, ReplacedFile, new_storage_key
+from project_hub.documents.entities import (
+    JPEG_CONTENT_TYPE,
+    PNG_CONTENT_TYPE,
+    Document,
+    NewDocument,
+    ReplacedFile,
+    new_storage_key,
+    preview_key,
+)
 from project_hub.documents.validation import ValidFile, size_text
 from project_hub.projects.service import get_project
 from project_hub.storage.files import FileStorage, discard_quietly
@@ -13,6 +21,7 @@ from project_hub.users.entities import User
 
 logger = logging.getLogger(__name__)
 
+_PREVIEWABLE = frozenset({JPEG_CONTENT_TYPE, PNG_CONTENT_TYPE})
 _DEFAULT_LIMIT_BYTES = Settings.model_fields["project_max_bytes"].default
 
 
@@ -110,6 +119,15 @@ async def get_document(uow: UnitOfWork, user: User, document_id: UUID) -> Docume
 
 async def download_document(storage: FileStorage, document: Document) -> bytes:
     return await storage.get(document.storage_key)
+
+
+async def preview_document(storage: FileStorage, document: Document) -> bytes:
+    if document.content_type not in _PREVIEWABLE:
+        raise NotFoundError("This document has no preview")
+    data = await storage.get_if_exists(preview_key(document.storage_key))
+    if data is None:
+        raise NotFoundError("The preview is not ready yet. Try again in a few seconds.")
+    return data
 
 
 async def replace_document(

@@ -57,6 +57,20 @@ async def test_put_then_get_returns_same_bytes(
     assert head["ContentType"] == "application/pdf"
 
 
+async def test_get_if_exists_returns_bytes_or_none(storage: S3FileStorage) -> None:
+    await storage.put("projects/p/previews/k.jpg", PDF, "image/jpeg")
+
+    assert await storage.get_if_exists("projects/p/previews/k.jpg") == PDF
+    assert await storage.get_if_exists("projects/p/previews/missing.jpg") is None
+
+
+async def test_get_if_exists_in_a_missing_bucket_is_unavailable(
+    missing_bucket_storage: S3FileStorage,
+) -> None:
+    with pytest.raises(StorageUnavailableError):
+        await missing_bucket_storage.get_if_exists("projects/p/previews/k.jpg")
+
+
 async def test_delete_removes_several_keys(
     storage: S3FileStorage, s3_client: S3Client, storage_bucket: str
 ) -> None:
