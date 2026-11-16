@@ -39,7 +39,7 @@ an addition beyond the spec; the backend plan lives in
 | F1b | Avatar picker | Frontend only: picker on the profile page that saves through `PATCH /users/me`; avatars (and the display name, if accepted) shown wherever a user appears | F1; the backend task "users: avatar and display name" merged (it needs 4 for the migration order and the `owner` object) |
 | F2 | ✅ Projects (PR #20) | Projects list with tabs All / Owned / Shared with me, "Show more" paging, empty state; create and edit project; project page with the holographic header; delete for the owner only, with confirmation | 4 |
 | F3 | ✅ Members and invites (PR #27) | Invite by login (owner only); members panel with avatars and roles | 5 (members list comes with 4) |
-| F4 | ✅ Documents (PR #32) | Upload (drag and drop or picker, pdf/docx), list with sizes, download, replace, delete with confirmation; the used-space bar appears by itself when 7a adds the fields | 6 (space bar: 7a) |
+| F4 | ✅ Documents (PR #32) | Upload (drag and drop or picker, pdf/docx), list with sizes, download, replace, delete with confirmation; the used-space bar ✅ on branch `feat/used-space-bar` ([design](specs/2026-11-16-used-space-bar-design.md)): "18 of 50 MB used" with a meter, `warn` from 80 %, "Limit reached", and the 413 limit message on the refused file | 6 (space bar: 7a) |
 | F5 | ✅ Share and join (PR #38) | "Send a link by email" form (owner); join landing page `/join` on the web app; the API `GET /join` answers a browser without a sign-in with `303` to this page (epic 10 chose it) | 10 |
 | F6 | Ready for the defense | One end-to-end test for the whole demo scenario (two users, eight steps); phone-width pass on every screen; `design:accessibility-review`; README section "How to demo" (UI part and Swagger part) | F1–F5; before checkpoint 4 (final demo) |
 
@@ -82,7 +82,7 @@ F1b, F3, F4, F5 ─→ F6 (before the final demo)
 | Members panel | `GET /project/<id>/members` → `[{id, login, role, joined_at}]`, owner first | 4 | accepted in epic 4 |
 | Invite form | `POST /project/<id>/invite?user=<login>` | 5 | planned |
 | Documents list, upload, download, replace, delete | spec document endpoints; size, type and upload date in the metadata; how download works | 6 | planned |
-| Used-space bar | used and limit values in project responses | 7a | planned; hidden until then |
+| Used-space bar | `storage_used_bytes`, `storage_limit_bytes` in project responses; 413 when a file does not fit | 7a | ✅ done on `feat/used-space-bar` |
 | Share form, join page | `GET /project/<id>/share?with=<email>`, `GET /join` browser flow (`303` to the web page) | 10 | ✅ merged |
 | Summary counters above the list | totals for projects, documents, space | — | later |
 | Delete account dialog | `DELETE /users/me` with 409 "Delete your projects first" | after 6 | later |
