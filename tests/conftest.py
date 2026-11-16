@@ -23,6 +23,7 @@ from tests.support.database import (
     drop_test_database,
     truncate_tables,
 )
+from tests.support.mail import DEFAULT_MAILPIT_URL, DEFAULT_SMTP_PORT, mailpit_unreachable_reason
 from tests.support.storage import (
     DEFAULT_S3_ENDPOINT_URL,
     TEST_S3_REGION,
@@ -62,6 +63,9 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_S3_REGION",
         "APP_DOCUMENT_MAX_BYTES",
         "APP_DOCUMENT_MAX_FILES",
+        "APP_SMTP_HOST",
+        "APP_SMTP_PORT",
+        "APP_MAIL_FROM",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -102,6 +106,25 @@ def s3_endpoint_url() -> str:
     reason = unreachable_reason(url)
     if reason is not None:
         pytest.fail(unavailable_message(url, reason), pytrace=False)
+    return url
+
+
+@pytest.fixture(scope="session")
+def smtp_port() -> int:
+    return int(os.environ.get("TEST_SMTP_PORT", DEFAULT_SMTP_PORT))
+
+
+@pytest.fixture(scope="session")
+def mailpit_url() -> str:
+    url = os.environ.get("TEST_MAILPIT_URL", DEFAULT_MAILPIT_URL)
+    reason = mailpit_unreachable_reason(url)
+    if reason is not None:
+        pytest.fail(
+            f"Mailpit is not reachable at {url}. "
+            "Start it with: docker compose up -d --wait mail (or set TEST_MAILPIT_URL)\n"
+            f"Reason: {reason}",
+            pytrace=False,
+        )
     return url
 
 

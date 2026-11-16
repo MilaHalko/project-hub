@@ -165,3 +165,29 @@ def test_document_limits_accept_range_ends(
 ) -> None:
     monkeypatch.setenv(name, value)
     assert getattr(IsolatedSettings(), field) == int(value)
+
+
+def test_mail_settings_default() -> None:
+    s = IsolatedSettings()
+    assert s.smtp_host is None
+    assert s.smtp_port == 25
+    assert s.mail_from == "noreply@project-hub.test"
+
+
+def test_blank_smtp_host_is_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_SMTP_HOST", " ")
+    assert IsolatedSettings().smtp_host is None
+
+
+@pytest.mark.parametrize("value", ["0", "65536"])
+def test_smtp_port_rejects_out_of_range_values(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setenv("APP_SMTP_PORT", value)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
+
+
+@pytest.mark.parametrize("value", ["noreply", "a@b\r\nBcc: c@d", "a b@c"])
+def test_mail_from_rejects_malformed_addresses(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setenv("APP_MAIL_FROM", value)
+    with pytest.raises(ValidationError):
+        IsolatedSettings()

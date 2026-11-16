@@ -14,6 +14,7 @@ from project_hub.db.database import create_database
 from project_hub.documents.router import router as documents_router
 from project_hub.documents.upload_limit import UploadLimitMiddleware
 from project_hub.health.router import router as health_router
+from project_hub.mail.mailer import create_mailer
 from project_hub.projects.router import router as projects_router
 from project_hub.storage.s3 import create_s3_storage
 from project_hub.users.router import router as users_router
@@ -46,6 +47,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title=settings.name, debug=settings.debug, lifespan=lifespan)
     app.state.settings = settings
     app.state.storage = storage
+    app.state.mailer = create_mailer(settings)
     app.state.password_hasher = PasswordHasher()
     app.state.token_service = (
         TokenService(settings.jwt_secret.get_secret_value()) if settings.jwt_secret else None

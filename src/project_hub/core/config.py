@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,10 +22,13 @@ class Settings(BaseSettings):
     s3_bucket: str | None = None
     s3_endpoint_url: str | None = None
     s3_region: str = "eu-west-1"
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=25, ge=1, le=65535)
+    mail_from: Annotated[str, Field(pattern=r"^[^@\s]+@[^@\s]+$")] = "noreply@project-hub.test"
     document_max_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
     document_max_files: int = Field(default=10, ge=1, le=100)
 
-    @field_validator("jwt_secret", "s3_bucket", "s3_endpoint_url", mode="before")
+    @field_validator("jwt_secret", "s3_bucket", "s3_endpoint_url", "smtp_host", mode="before")
     @classmethod
     def _blank_is_unset(cls, value: Any) -> Any:
         return None if isinstance(value, str) and value.strip() == "" else value
