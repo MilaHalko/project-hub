@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 import { ApiError } from "../api/errors";
 import { getProject, type Project } from "../api/projects";
 import { DocumentsSection } from "../documents/DocumentsSection";
+import { spaceOf } from "../documents/space";
 import { LeaveProjectDialog } from "../members/LeaveProjectDialog";
 import { MembersPanel } from "../members/MembersPanel";
 import { Banner } from "../ui/Banner";
@@ -190,7 +191,11 @@ export function ProjectPage() {
       <div className={styles.body}>
         <div>
           <Details project={data} />
-          <DocumentsSection key={data.id} projectId={data.id} />
+          <DocumentsSection
+            key={data.id}
+            projectId={data.id}
+            space={spaceOf(data)}
+          />
         </div>
         <MembersPanel project={data} />
       </div>

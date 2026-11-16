@@ -46,7 +46,10 @@ Megabytes (1 MB = 1 048 576 bytes, as the API's own messages count): whole
 numbers from 10 MB up, one decimal below 10 MB, "0 MB" for nothing, and
 "less than 0.1 MB" for 1 byte to 0.1 MB. The limit is shown the same way
 ("50 MB", "1.5 MB"). Used above the limit (the limit was lowered) shows the
-real number ("60 of 50 MB used") with a full bar.
+real number ("60 of 50 MB used") with a full bar. The shown amount never equals
+the shown limit unless the limit is really reached: when used is below the
+limit but rounds to it, the amount is rounded down to one decimal ("49.9 of
+50 MB used", "2.9 of 3 MB used"). The 413 message uses the same rule.
 
 ## States
 

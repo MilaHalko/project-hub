@@ -67,7 +67,13 @@ function UploadRow({
   );
 }
 
-export function UploadZone({ projectId }: { projectId: string }) {
+export function UploadZone({
+  projectId,
+  full = false,
+}: {
+  projectId: string;
+  full?: boolean;
+}) {
   const { items, announcement, add, dismiss } = useUploadQueue(projectId);
   const zone = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -145,7 +151,11 @@ export function UploadZone({ projectId }: { projectId: string }) {
               Choose files
             </label>
           </p>
-          <p className={styles.hint}>PDF or DOCX, up to 10 MB each</p>
+          <p className={styles.hint}>
+            {full
+              ? "Delete documents to make room."
+              : "PDF or DOCX, up to 10 MB each"}
+          </p>
         </div>
       </div>
       {items.length > 0 && (
