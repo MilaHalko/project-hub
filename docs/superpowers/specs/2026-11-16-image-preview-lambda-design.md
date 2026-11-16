@@ -105,12 +105,16 @@ persistent layer.
 - **Terraform (persistent layer)**: function `project-hub-image-preview`
   (python3.13, arm64, 512 MB, 30 s), its role (S3 `GetObject` on
   `projects/*/documents/*`, `PutObject` and `DeleteObject` on
-  `projects/*/previews/*`, logs to its own group), log group 14 days, rule and
-  target with a retry policy and the SQS DLQ, and the permission for
+  `projects/*/previews/*`, unconditional `ListBucket` on the bucket so a
+  missing key reads as `NoSuchKey` and not `AccessDenied`, logs to its own
+  group), log group 14 days, rule and target with a retry policy and the SQS
+  DLQ, and the permission for
   EventBridge to invoke it. Variable `image_preview_zip`, default
   `../../dist/image-preview-lambda.zip`. A `terraform test` asserts the role
   cannot write under `documents/` (a security property: the Lambda must not be
-  able to change what the API stored).
+  able to change what the API stored), and that both this role and the API task
+  role have that `ListBucket` (without it a preview not made yet is a `503`,
+  not a `404`).
 - **API**: `GET /document/<id>/preview` uses the existing `AccessibleDocument`
   dependency; it reads `projects/<project_id>/previews/<hex>.jpg` through the
   storage layer and returns it with `Cache-Control: private, max-age=300`.

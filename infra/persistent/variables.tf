@@ -22,3 +22,8 @@ variable "alert_email" {
     error_message = "alert_email must be a valid email address."
   }
 }
+
+variable "image_preview_zip" {
+  type    = string
+  default = "../../dist/image-preview-lambda.zip"
+}
