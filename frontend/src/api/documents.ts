@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob } from "./client";
 
 export type Document = {
   id: string;
@@ -28,4 +28,8 @@ export async function uploadDocument(
     { method: "POST", body: form },
   );
   return document;
+}
+
+export function downloadDocument(id: string): Promise<Blob> {
+  return apiFetchBlob(`/document/${encodeURIComponent(id)}`);
 }

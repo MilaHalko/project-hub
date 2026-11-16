@@ -3,6 +3,7 @@ import { useId } from "react";
 import { listDocuments, type Document } from "../api/documents";
 import type { ApiError } from "../api/errors";
 import { Button } from "../ui/Button";
+import { DocumentActions } from "./DocumentActions";
 import { DocumentRow } from "./DocumentRow";
 import { documentsQueryKey } from "./documentsCache";
 import styles from "./DocumentsSection.module.css";
@@ -64,7 +65,11 @@ export function DocumentsSection({ projectId }: { projectId: string }) {
     body = (
       <ul className={styles.list} aria-labelledby={headingId}>
         {documents.data.map((document) => (
-          <DocumentRow key={document.id} document={document} />
+          <DocumentRow
+            key={document.id}
+            document={document}
+            actions={<DocumentActions document={document} />}
+          />
         ))}
       </ul>
     );

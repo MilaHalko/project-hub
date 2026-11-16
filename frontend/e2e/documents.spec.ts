@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { signIn } from "./auth";
 import { DOCX, PDF, sampleDocx, samplePdf, uploadViaApi } from "./documents";
 import { expect, expectAccessible, test } from "./fixtures";
@@ -140,4 +141,26 @@ test.describe("a file the API refuses", () => {
     await pending.getByRole("button", { name: "Dismiss fake.pdf" }).click();
     await expect(pending).toHaveCount(0);
   });
+});
+
+test("downloads a document under its name", async ({ page, request }) => {
+  const user = await signIn(page, request);
+  const { id } = await createProjectViaApi(request, user, {
+    name: "Downloads",
+  });
+  await uploadViaApi(request, user, id, {
+    name: "Client brief.pdf",
+    mimeType: PDF,
+    buffer: samplePdf,
+  });
+  await page.goto(`/projects/${id}`);
+
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Client brief.pdf" }).click();
+  const download = await downloading;
+
+  expect(download.suggestedFilename()).toBe("Client brief.pdf");
+  const path = await download.path();
+  expect(readFileSync(path)).toEqual(samplePdf);
+  await expectAccessible(page);
 });
