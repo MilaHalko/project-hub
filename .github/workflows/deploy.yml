@@ -97,7 +97,7 @@ jobs:
           aws ecs describe-task-definition --task-definition "$current" --query taskDefinition \
             | jq --arg repo "$REPOSITORY_URI" --arg image "$IMAGE" '
                 del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
-                | .containerDefinitions |= map(if (.image | startswith($repo)) then .image = $image else . end)' \
+                | .containerDefinitions |= map(if (.image | startswith($repo + "@") or startswith($repo + ":")) then .image = $image else . end)' \
             > "$RUNNER_TEMP/taskdef.json"
           jq -e --arg image "$IMAGE" '[.containerDefinitions[].image] | index($image) != null' "$RUNNER_TEMP/taskdef.json" > /dev/null
           arn=$(aws ecs register-task-definition --cli-input-json "file://$RUNNER_TEMP/taskdef.json" --query taskDefinition.taskDefinitionArn --output text)
