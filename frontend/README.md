@@ -91,6 +91,11 @@ files `samplePdf` and `sampleDocx` (from `e2e/files/`); `mockApi` answers
 `GET /api/project/<id>/documents` with an empty list by default, so project page tests list only
 the routes they care about.
 
+Mail: `e2e/mail.ts` reads the mail the API sends from Mailpit's HTTP API at `E2E_MAIL_URL`
+(default `http://127.0.0.1:8025`, the compose port `APP_MAIL_UI_PORT`); `readJoinLink(request, to)`
+waits for the mail to that address and returns the join link in it. A stack on other ports needs
+both variables, for example `E2E_BASE_URL=http://127.0.0.1:8091 E2E_MAIL_URL=http://127.0.0.1:8035`.
+
 Dialogs use `ui/Dialog`, a native `<dialog>` opened with `showModal()`: the browser traps the
 focus, closes it on Esc and returns the focus to the opener, so the end-to-end tests prove those.
 jsdom has no `showModal`, so `src/test/setup.ts` stubs it (it sets `open`; `close()` removes it and
