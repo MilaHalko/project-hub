@@ -106,6 +106,18 @@ class SqlProjectRepository:
             "UPDATE projects SET updated_at = now() WHERE id = %s", (project_id,)
         )
 
+    async def refresh_storage_used(self, project_id: UUID) -> int:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE projects SET storage_used_bytes = "
+                "(SELECT COALESCE(SUM(size), 0) FROM documents WHERE project_id = %(id)s), "
+                "storage_counted_at = clock_timestamp() "
+                "WHERE id = %(id)s RETURNING storage_used_bytes",
+                {"id": project_id},
+            )
+            row = await cur.fetchone()
+        return 0 if row is None else int(row[0])
+
     async def delete(self, project_id: UUID) -> bool:
         async with self._conn.cursor() as cur:
             await cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))
