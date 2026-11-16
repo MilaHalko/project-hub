@@ -38,7 +38,9 @@ nginx proxies `/api/…` to the API with the prefix stripped, so the browser tal
 and the API needs no CORS. Files under `/assets/` are cached for a year, everything else
 (`index.html`, the favicon, deep links) is `no-cache`; a missing file is 404, any other path
 gets `index.html`. Every response carries the CSP, `Referrer-Policy: no-referrer` and
-`X-Content-Type-Options: nosniff` (`nginx/security-headers.conf`).
+`X-Content-Type-Options: nosniff` (`nginx/security-headers.conf`). nginx accepts request bodies up to 11 MB
+under `/api/`: one document may be 10 MB and the form around it needs room; with nginx's default of
+1 MB a larger upload would stop at the proxy.
 
 `compose.yml` adds a `web` service to the root `docker-compose.yml`, which stays as it is.
 Run both from the repository root (paths in `compose.yml` are relative to the root):
@@ -83,6 +85,11 @@ list) by default, so a test only lists the routes it cares about. `apiFetch` has
 turns it off. Page headings come from `Banner`, or from any plain `h1`; after navigation
 `useFocusHeadingOnNavigate` gives that `h1` `tabindex="-1"` and focuses it, except after a redirect
 on page load (such as `/` → `/projects`), where the focus stays where the browser put it.
+
+Documents: `e2e/documents.ts` has `uploadViaApi(request, user, projectId, file)` and the small valid
+files `samplePdf` and `sampleDocx` (from `e2e/files/`); `mockApi` answers
+`GET /api/project/<id>/documents` with an empty list by default, so project page tests list only
+the routes they care about.
 
 Dialogs use `ui/Dialog`, a native `<dialog>` opened with `showModal()`: the browser traps the
 focus, closes it on Esc and returns the focus to the opener, so the end-to-end tests prove those.

@@ -17,6 +17,7 @@ const defaultRoutes: Record<string, Route> = {
 
 const defaultPatterns: [RegExp, Answer][] = [
   [/^GET \/api\/project\/[^/]+\/members$/, { status: 200, body: [] }],
+  [/^GET \/api\/project\/[^/]+\/documents$/, { status: 200, body: [] }],
 ];
 
 function defaultFor(key: string): Answer | undefined {
@@ -49,6 +50,11 @@ export function mockApi(
       throw new Error(`No mocked answer for ${key}`);
     }
     const answer = typeof route === "function" ? await route() : route;
+    if (answer.body instanceof Blob) {
+      return new Response(await answer.body.arrayBuffer(), {
+        status: answer.status,
+      });
+    }
     const body = answer.body === undefined ? null : JSON.stringify(answer.body);
     return new Response(body, {
       status: answer.status,

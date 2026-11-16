@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { signIn } from "./auth";
+import { PDF, samplePdf, uploadViaApi } from "./documents";
 import { expect, expectAccessible, test } from "./fixtures";
 import { createProjectViaApi } from "./projects";
 
@@ -18,9 +19,14 @@ test("lists the user's projects with the newest first", async ({
   request,
 }) => {
   const user = await signIn(page, request);
-  await createProjectViaApi(request, user, {
+  const thesis = await createProjectViaApi(request, user, {
     name: "Thesis materials",
     description: "Chapter drafts, references and the reading list",
+  });
+  await uploadViaApi(request, user, thesis.id, {
+    name: "Chapter 1.pdf",
+    mimeType: PDF,
+    buffer: samplePdf,
   });
   await createProjectViaApi(request, user, { name: "Website redesign" });
 
@@ -35,6 +41,8 @@ test("lists the user's projects with the newest first", async ({
   ).toBeVisible();
   await expect(page.getByText("No description")).toBeVisible();
   await expect(page.getByText(`${user.login} (you)`)).toHaveCount(2);
+  const counts = page.getByRole("row").locator("td:nth-child(4)");
+  await expect(counts).toHaveText([/\b0 documents$/, /\b1 document$/]);
   await expect(tab(page, "All")).toHaveAttribute("aria-current", "page");
   await expectAccessible(page);
 });

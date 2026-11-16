@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { Document } from "./documents";
 
 export type ProjectRole = "owner" | "participant";
 
@@ -10,6 +11,7 @@ export type Project = {
   my_role: ProjectRole;
   created_at: string;
   updated_at: string;
+  documents?: Document[];
 };
 
 export function listProjects({
