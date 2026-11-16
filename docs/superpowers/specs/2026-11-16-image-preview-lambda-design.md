@@ -58,8 +58,10 @@ persistent layer.
 1. **EventBridge rule → Lambda directly, in the persistent layer (chosen).**
    The bucket already sends events to EventBridge (7a). No database and no VPC
    are needed, so the function sits outside the VPC, reaches S3 over its
-   public endpoint, and costs nothing while idle. EventBridge retries a failed
-   invoke and sends what still fails to an SQS dead-letter queue.
+   public endpoint, and costs nothing while idle. EventBridge invokes it
+   asynchronously: Lambda retries an invoke that raised, EventBridge retries a
+   delivery that failed, and both send what still fails to an SQS dead-letter
+   queue.
 2. EventBridge → SQS → Lambda like 7a. Rejected: 7a needed the queue to cap
    database connections; 7b has no database, so the queue only adds parts.
 3. Resize in the API on upload. Rejected: the epic is about S3 + Lambda, and
@@ -79,11 +81,17 @@ persistent layer.
 - **Which objects are images**: the Lambda reads the object and checks the
   same JPEG/PNG signatures as the API; anything else (pdf, docx) is skipped
   without an error.
+- **Pixel guard**: the handler sets Pillow's `MAX_IMAGE_PIXELS` to 40 000 000 (the
+  function has 512 MB and a PNG cannot be reduced while it is decoded); JPEGs
+  are decoded at reduced size (`draft`) before the orientation is applied.
 - **Errors**: a file Pillow cannot open, or one over `MAX_IMAGE_PIXELS`, is
   logged (`image preview skipped`, key, reason) and does not raise, so it is
-  not retried. S3 errors raise, so EventBridge retries (retry policy: 2
-  attempts, 1 hour) and then sends the event to the DLQ
-  `project-hub-image-preview-dlq`.
+  not retried. S3 errors raise, so Lambda's asynchronous invoke retries the
+  event (`event_invoke_config`: up to 2 retries, so up to 3 invocations,
+  within 1 hour) and then sends it to the function's DLQ
+  `project-hub-image-preview-dlq`. The EventBridge target's retry policy (same
+  limits, same DLQ) covers only a failed delivery to the function, not an
+  error the function raised.
 - **Object gone before the Lambda read it** (replaced or deleted within
   seconds): `NoSuchKey` on read is not an error; the delete event for that key
   removes any preview.
