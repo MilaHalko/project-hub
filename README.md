@@ -598,6 +598,25 @@ to PyPI and `public.ecr.aws`. The default `pytest` run skips it. `host.docker.in
 the compose ports with Docker Desktop, and in CI the service containers through `host-gateway`;
 on a Linux host the compose ports are bound to `127.0.0.1` only, so containers cannot reach them.
 
+## Build the image preview Lambda
+
+```bash
+bash scripts/build_image_preview_lambda.sh            # dist/image-preview-lambda.zip
+bash scripts/build_image_preview_lambda.sh out.zip    # or another path
+docker compose up -d --wait s3
+poetry run pytest -m lambda_package -v
+```
+
+The zip holds `project_hub/image_preview/` and Pillow (version from `poetry.lock`) as a Linux arm64
+wheel for Python 3.13. boto3 comes from the Lambda runtime. The handler is
+`project_hub.image_preview.handler.handler`.
+
+`pytest -m lambda_package` also runs this zip in the AWS Lambda base image
+`public.ecr.aws/lambda/python:3.13` (arm64), against the test S3 emulator reached as
+`host.docker.internal`: an `Object Created` event for a PNG must produce a JPEG preview of at most
+512 px, and an `Object Deleted` event must remove it. The requirements are those of the storage
+usage Lambda above.
+
 ## Checks
 
 ```bash
@@ -632,7 +651,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every
 - Job `package`: `poetry build`, uploads `dist/` as the artifact `project-hub-dist` (kept 14 days),
   then `pytest -m package` on exactly those uploaded files.
 - Job `lambda`: on an arm64 runner, builds `dist/storage-usage-lambda.zip`, uploads it as the artifact
-  `storage-usage-lambda` (kept 14 days), then `pytest -m lambda_package` runs it in the Lambda image.
+  `storage-usage-lambda`, does the same for `dist/image-preview-lambda.zip` (artifact
+  `image-preview-lambda`, both kept 14 days), then `pytest -m lambda_package` runs both in the Lambda image.
 
 Results are on the pull request's Checks tab and in the repository's Actions tab. There is no
 deploy yet (epic 8).
