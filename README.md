@@ -545,6 +545,26 @@ The package tests need network access to PyPI (for `pip` and for building the sd
 test server for the migration tests: `TEST_DATABASE_URL`, or `docker compose up -d --wait db`
 (port 55433). A relative `PACKAGE_DIST_DIR` is resolved from the repository root.
 
+## Build the storage usage Lambda
+
+```bash
+bash scripts/build_storage_usage_lambda.sh            # dist/storage-usage-lambda.zip
+bash scripts/build_storage_usage_lambda.sh out.zip    # or another path
+docker compose up -d --wait db s3
+poetry run pytest -m lambda_package -v
+```
+
+The zip holds `project_hub/storage_usage/` and `psycopg` plus `psycopg-binary` (versions from
+`poetry.lock`) as Linux arm64 wheels for Python 3.13. boto3 comes from the Lambda runtime. The
+handler is `project_hub.storage_usage.handler.handler`.
+
+`pytest -m lambda_package` builds the zip, mounts it read-only into the AWS Lambda base image
+`public.ecr.aws/lambda/python:3.13` (arm64) and invokes the handler with an SQS event, against the
+test Postgres and S3 emulator reached as `host.docker.internal`. It needs Docker and network access
+to PyPI and `public.ecr.aws`. The default `pytest` run skips it. `host.docker.internal` reaches
+the compose ports with Docker Desktop, and in CI the service containers through `host-gateway`;
+on a Linux host the compose ports are bound to `127.0.0.1` only, so containers cannot reach them.
+
 ## Checks
 
 ```bash
@@ -578,6 +598,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every
 - Job `docker`: `poetry run pytest -m docker`, the image and compose smoke tests, in parallel.
 - Job `package`: `poetry build`, uploads `dist/` as the artifact `project-hub-dist` (kept 14 days),
   then `pytest -m package` on exactly those uploaded files.
+- Job `lambda`: on an arm64 runner, builds `dist/storage-usage-lambda.zip`, uploads it as the artifact
+  `storage-usage-lambda` (kept 14 days), then `pytest -m lambda_package` runs it in the Lambda image.
 
 Results are on the pull request's Checks tab and in the repository's Actions tab. There is no
 deploy yet (epic 8).
