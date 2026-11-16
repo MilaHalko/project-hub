@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import {
   clearToken,
   getEndReason,
@@ -6,7 +6,7 @@ import {
   setToken,
 } from "../auth/tokenStore";
 import { mockApi } from "../test/mockApi";
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob } from "./client";
 import { ApiError } from "./errors";
 
 function headersOf(fetchMock: ReturnType<typeof mockApi>) {
@@ -144,4 +144,49 @@ test("sends a form as it is, without a JSON content type", async () => {
   const headers = headersOf(fetchMock);
   expect(headers.has("Content-Type")).toBe(false);
   expect(headers.get("Authorization")).toBe("Bearer t-1");
+});
+
+test("reads a file as bytes with the Bearer header", async () => {
+  setToken("t-1");
+  const fetchMock = mockApi({
+    "GET /api/document/d-1": { status: 200, body: new Blob(["%PDF-1.4"]) },
+  });
+
+  const blob = await apiFetchBlob("/document/d-1");
+
+  expect(await blob.text()).toBe("%PDF-1.4");
+  expect(headersOf(fetchMock).get("Authorization")).toBe("Bearer t-1");
+});
+
+test("a missing file throws the API's error", async () => {
+  mockApi({
+    "GET /api/document/d-1": {
+      status: 404,
+      body: { detail: "Document not found" },
+    },
+  });
+
+  await expect(apiFetchBlob("/document/d-1")).rejects.toEqual(
+    new ApiError(404, "Document not found"),
+  );
+});
+
+test("a 401 while reading a file ends the session", async () => {
+  setToken("t-1");
+  mockApi({ "GET /api/document/d-1": { status: 401 } });
+
+  await expect(apiFetchBlob("/document/d-1")).rejects.toBeInstanceOf(ApiError);
+  expect(getToken()).toBeNull();
+  expect(getEndReason()).toBe("expired");
+});
+
+test("a network failure while reading a file is status 0", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() => Promise.reject(new TypeError("offline"))),
+  );
+
+  await expect(apiFetchBlob("/document/d-1")).rejects.toEqual(
+    new ApiError(0, null),
+  );
 });

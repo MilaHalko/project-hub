@@ -21,10 +21,16 @@ function detailOf(body: unknown): string | FieldError[] | null {
   return null;
 }
 
-export async function apiFetch<T>(
+type ApiRequest = {
+  method?: string;
+  body?: unknown;
+  endsSessionOn401?: boolean;
+};
+
+async function send(
   path: string,
-  init: { method?: string; body?: unknown; endsSessionOn401?: boolean } = {},
-): Promise<T> {
+  init: ApiRequest,
+): Promise<{ status: number; response: Response }> {
   const headers: Record<string, string> = {};
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -32,10 +38,9 @@ export async function apiFetch<T>(
   if (init.body !== undefined && !isForm) {
     headers["Content-Type"] = "application/json";
   }
-  let status: number;
-  let text: string;
+  let response: Response;
   try {
-    const response = await fetch(`/api${path}`, {
+    response = await fetch(`/api${path}`, {
       method: init.method ?? "GET",
       headers,
       body:
@@ -45,20 +50,50 @@ export async function apiFetch<T>(
             ? (init.body as FormData)
             : JSON.stringify(init.body),
     });
-    status = response.status;
-    text = await response.text();
   } catch {
     throw new ApiError(0, null);
   }
   if (
-    status === 401 &&
+    response.status === 401 &&
     init.endsSessionOn401 !== false &&
     token !== null &&
     getToken() === token
   ) {
     clearToken("expired");
   }
-  const body = parse(text);
-  if (status < 200 || status >= 300) throw new ApiError(status, detailOf(body));
+  return { status: response.status, response };
+}
+
+async function readText(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    throw new ApiError(0, null);
+  }
+}
+
+function isSuccess(status: number): boolean {
+  return status >= 200 && status < 300;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  init: ApiRequest = {},
+): Promise<T> {
+  const { status, response } = await send(path, init);
+  const body = parse(await readText(response));
+  if (!isSuccess(status)) throw new ApiError(status, detailOf(body));
   return body as T;
+}
+
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const { status, response } = await send(path, {});
+  if (!isSuccess(status)) {
+    throw new ApiError(status, detailOf(parse(await readText(response))));
+  }
+  try {
+    return await response.blob();
+  } catch {
+    throw new ApiError(0, null);
+  }
 }
