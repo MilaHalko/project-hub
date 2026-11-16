@@ -387,6 +387,13 @@ storage cannot be reached the answer is `503 {"detail": "File storage is unavail
 row is written; when writing the rows fails, the files already stored are deleted again. Two
 documents with the same name in a project are allowed.
 
+A project may hold at most `APP_PROJECT_MAX_BYTES` of documents (`storage_limit_bytes`). An upload
+or replacement that would take the total above it answers
+`413 {"detail": "Project storage limit reached: <used> of <limit> used, this upload needs <size>"}`
+and stores nothing; reaching the limit exactly is fine.
+The project row is locked while the check runs, so two parallel uploads cannot both slip in. A
+replacement that does not make the file bigger, and a delete, are always allowed.
+
 `GET /project/{project_id}/documents` answers `200` with the project's documents, newest first
 (`created_at`, ties broken by `id`), in the same shape as above; a project without documents
 gives `[]`.

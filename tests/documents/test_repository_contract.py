@@ -267,3 +267,21 @@ async def test_storage_keys_for_project_only_that_project(database: Database) ->
         assert sorted(keys) == ["projects/a/documents/1", "projects/a/documents/2"]
         assert await uow.documents.storage_keys_for_project(other.id) == ["projects/b/documents/3"]
         assert await uow.documents.storage_keys_for_project(uuid4()) == []
+
+
+async def test_get_sees_a_replace_committed_by_another_transaction(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        mila = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(mila.id, "Diploma", ""))
+        added = await uow.documents.add(_new(project.id, mila.id))
+        await uow.commit()
+
+    async with database.unit_of_work() as reader:
+        assert await reader.documents.get(added.id) == added
+        async with database.unit_of_work() as writer:
+            replaced = await writer.documents.replace_file(
+                added.id,
+                ReplacedFile("new.pdf", PDF_CONTENT_TYPE, 7, "projects/p/documents/new", mila.id),
+            )
+            await writer.commit()
+        assert await reader.documents.get(added.id) == replaced

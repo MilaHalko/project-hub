@@ -60,7 +60,7 @@ def _type_from_extension(name: str) -> DocumentType | None:
     return None
 
 
-def _size_text(max_bytes: int) -> str:
+def size_text(max_bytes: int) -> str:
     if max_bytes % _MIB == 0:
         return f"{max_bytes // _MIB} MB"
     return f"{max_bytes} bytes"
@@ -73,7 +73,7 @@ async def read_valid_file(upload: UploadFile, max_bytes: int) -> ValidFile:
         raise ValidationFailedError(f"{name}: only pdf and docx documents are allowed")
     data = await upload.read(max_bytes + 1)
     if len(data) > max_bytes:
-        raise PayloadTooLargeError(f"{name}: file is larger than {_size_text(max_bytes)}")
+        raise PayloadTooLargeError(f"{name}: file is larger than {size_text(max_bytes)}")
     if not data:
         raise ValidationFailedError(f"{name}: file is empty")
     if detect_type(data) is not expected:
