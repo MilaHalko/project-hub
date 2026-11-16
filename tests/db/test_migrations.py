@@ -99,7 +99,7 @@ def test_downgrade_then_upgrade_round_trip(fresh_database_url: str) -> None:
 def test_upgrade_twice_is_noop(fresh_database_url: str) -> None:
     upgrade(fresh_database_url)
     upgrade(fresh_database_url)
-    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0005",)]
+    assert _fetchall(fresh_database_url, "select version_num from alembic_version") == [("0006",)]
 
 
 def _users_columns(url: str) -> set[object]:
@@ -159,6 +159,8 @@ def test_upgrade_creates_projects_tables(fresh_database_url: str) -> None:
         ("description", "text", "NO"),
         ("created_at", "timestamp with time zone", "NO"),
         ("updated_at", "timestamp with time zone", "NO"),
+        ("storage_used_bytes", "bigint", "NO"),
+        ("storage_counted_at", "timestamp with time zone", "YES"),
     }
     assert _columns(fresh_database_url, "project_members") == {
         ("project_id", "uuid", "NO"),
@@ -416,6 +418,71 @@ def test_downgrade_to_0004_drops_project_shares(fresh_database_url: str) -> None
     assert _exists(fresh_database_url, "documents")
     upgrade(fresh_database_url)
     assert _exists(fresh_database_url, "project_shares")
+
+
+def test_0006_backfills_storage_used(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url, "0005")
+    with psycopg.connect(fresh_database_url, autocommit=True) as conn:
+        user = conn.execute(
+            "insert into users (login, password_hash) values ('mila', 'h') returning id"
+        ).fetchone()
+        assert user is not None
+        project_ids: dict[str, object] = {}
+        for name in ("Full", "Empty"):
+            row = conn.execute(
+                "insert into projects (owner_id, name) values (%s, %s) returning id",
+                (user[0], name),
+            ).fetchone()
+            assert row is not None
+            project_ids[name] = row[0]
+        full, empty = project_ids["Full"], project_ids["Empty"]
+        for key, size in (("k1", 100), ("k2", 250)):
+            conn.execute(
+                "insert into documents "
+                "(project_id, name, content_type, size, storage_key, uploaded_by) "
+                "values (%s, %s, %s, %s, %s, %s)",
+                (full, f"{key}.pdf", PDF_TYPE, size, key, user[0]),
+            )
+
+    upgrade(fresh_database_url)
+
+    with psycopg.connect(fresh_database_url) as conn:
+        rows = {
+            row[0]: row[1:]
+            for row in conn.execute(
+                "select id, storage_used_bytes, storage_counted_at is not null from projects"
+            ).fetchall()
+        }
+    assert rows[full] == (350, True)
+    assert rows[empty] == (0, True)
+
+
+def test_storage_used_rejects_negative(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+    with psycopg.connect(fresh_database_url, autocommit=True) as conn:
+        user = conn.execute(
+            "insert into users (login, password_hash) values ('mila', 'h') returning id"
+        ).fetchone()
+        assert user is not None
+        with pytest.raises(psycopg.errors.CheckViolation):
+            conn.execute(
+                "insert into projects (owner_id, name, storage_used_bytes) "
+                "values (%s, 'Diploma', -1)",
+                (user[0],),
+            )
+
+
+def test_downgrade_to_0005_drops_storage_columns(fresh_database_url: str) -> None:
+    upgrade(fresh_database_url)
+
+    downgrade(fresh_database_url, "0005")
+
+    names = {row[0] for row in _columns(fresh_database_url, "projects")}
+    assert "storage_used_bytes" not in names
+    assert "storage_counted_at" not in names
+    upgrade(fresh_database_url)
+    names = {row[0] for row in _columns(fresh_database_url, "projects")}
+    assert {"storage_used_bytes", "storage_counted_at"} <= names
 
 
 def test_orm_metadata_matches_migrated_schema(fresh_database_url: str) -> None:

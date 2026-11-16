@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from project_hub.auth.dependencies import CurrentUser
 from project_hub.db.dependencies import get_uow
@@ -23,13 +23,18 @@ router = APIRouter(tags=["projects"])
 
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
-    data: ProjectIn, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
+    request: Request,
+    data: ProjectIn,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ProjectResponse:
-    return ProjectResponse.from_access(await service.create_project(uow, user, data))
+    access = await service.create_project(uow, user, data)
+    return ProjectResponse.from_access(access, request.app.state.settings.project_max_bytes)
 
 
 @router.get("/projects")
 async def list_projects(
+    request: Request,
     user: CurrentUser,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     role: ProjectRole | None = None,
@@ -38,26 +43,34 @@ async def list_projects(
 ) -> list[ProjectListItem]:
     accesses = await service.list_projects(uow, user, role=role, limit=limit, offset=offset)
     documents = await documents_by_project(uow, [access.project.id for access in accesses])
+    limit_bytes = request.app.state.settings.project_max_bytes
     return [
-        ProjectListItem.from_access(access, documents[access.project.id]) for access in accesses
+        ProjectListItem.from_access(access, limit_bytes, documents[access.project.id])
+        for access in accesses
     ]
 
 
 @router.get("/project/{project_id}/info")
 async def read_project(
-    project_id: UUID, user: CurrentUser, uow: Annotated[UnitOfWork, Depends(get_uow)]
+    request: Request,
+    project_id: UUID,
+    user: CurrentUser,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ProjectResponse:
-    return ProjectResponse.from_access(await service.get_project(uow, user, project_id))
+    access = await service.get_project(uow, user, project_id)
+    return ProjectResponse.from_access(access, request.app.state.settings.project_max_bytes)
 
 
 @router.put("/project/{project_id}/info")
 async def update_project(
+    request: Request,
     project_id: UUID,
     data: ProjectIn,
     user: CurrentUser,
     uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> ProjectResponse:
-    return ProjectResponse.from_access(await service.update_project(uow, user, project_id, data))
+    access = await service.update_project(uow, user, project_id, data)
+    return ProjectResponse.from_access(access, request.app.state.settings.project_max_bytes)
 
 
 @router.delete(

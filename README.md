@@ -237,10 +237,15 @@ becomes its owner:
   "owner": {"id": "…", "login": "mila"},
   "my_role": "owner",
   "created_at": "2026-11-14T10:00:00Z",
-  "updated_at": "2026-11-14T10:00:00Z"
+  "updated_at": "2026-11-14T10:00:00Z",
+  "storage_used_bytes": 0,
+  "storage_limit_bytes": 52428800
 }
 ```
 
+- `storage_used_bytes` is the total size of the project's documents; `storage_limit_bytes` is
+  `APP_PROJECT_MAX_BYTES` (default 52428800 = 50 MB, 1-10737418240). Every project response
+  carries both.
 - `name`: leading and trailing whitespace is stripped, then 1-100 characters, with no control
   character anywhere (Unicode category `Cc`: no newline, tab, NUL or U+007F); it is a one-line
   title. Duplicate names are allowed, also for one owner.

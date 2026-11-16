@@ -45,6 +45,7 @@ def _to_entity(model: ProjectModel) -> Project:
         description=model.description,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        storage_used_bytes=model.storage_used_bytes,
     )
 
 
