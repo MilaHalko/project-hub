@@ -73,7 +73,11 @@ export function LoginPage() {
     login: clientErrors.login ?? server.fields.login,
     password: clientErrors.password ?? server.fields.password,
   };
-  const status = reasonText(location.state);
+  const status =
+    reasonText(location.state) ??
+    (safeNext(next) === "/join"
+      ? "Log in or create an account to join the project."
+      : null);
 
   function focusFirstInvalid(found: Errors) {
     if (found.login) loginInput.current?.focus();

@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { InviteForm } from "./InviteForm";
 import styles from "./MembersPanel.module.css";
 import { RemoveMemberDialog } from "./RemoveMemberDialog";
+import { ShareForm } from "./ShareForm";
 
 function MemberRow({
   member,
@@ -133,6 +134,7 @@ export function MembersPanel({ project }: { project: Project }) {
             </p>
           )}
           <InviteForm project={project} />
+          <ShareForm project={project} />
           <RemoveMemberDialog
             project={project}
             member={removing}
