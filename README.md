@@ -122,6 +122,26 @@ CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put
 keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
 missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
 
+## Storage usage Lambda
+
+`project_hub.storage_usage.handler.handler` is a standalone AWS Lambda (it imports only the
+standard library, `boto3` and `psycopg`). S3 sends `Object Created` and `Object Deleted`
+events through EventBridge to an SQS queue, which triggers it in batches. For each project
+named in the batch it lists `projects/<project_id>/documents/` in the bucket, sums the object
+sizes and writes `projects.storage_used_bytes`, unless a newer figure (`storage_counted_at`)
+is already stored. Messages of a project that could not be counted are returned in
+`batchItemFailures` and retried; unknown projects and unrelated keys are ignored.
+Each project counted in a run logs one JSON line, `"message": "storage usage counted"` with
+`project_id` and `bytes`; when no row was written (the project is gone or a newer figure is
+stored) the line says `"storage usage not stored"` and adds a `reason`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_DATABASE_URL` | unset | PostgreSQL URL (a `+driver` part such as `postgresql+psycopg://` is accepted) |
+| `APP_DATABASE_URL_PARAMETER` | unset | SSM parameter holding the URL, read with decryption once per cold start; used when `APP_DATABASE_URL` is unset |
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
 ## Mail
 
 The app sends plain-text mail over SMTP through the small `Mailer` interface
