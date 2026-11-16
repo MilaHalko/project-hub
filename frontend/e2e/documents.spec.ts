@@ -164,3 +164,42 @@ test("downloads a document under its name", async ({ page, request }) => {
   expect(readFileSync(path)).toEqual(samplePdf);
   await expectAccessible(page);
 });
+
+test("replaces a pdf with a docx and keeps its place", async ({
+  page,
+  request,
+}) => {
+  const user = await signIn(page, request);
+  const { id } = await createProjectViaApi(request, user, {
+    name: "Versions",
+  });
+  await uploadViaApi(request, user, id, {
+    name: "Client brief.pdf",
+    mimeType: PDF,
+    buffer: samplePdf,
+  });
+  await uploadViaApi(request, user, id, {
+    name: "Site map.docx",
+    mimeType: DOCX,
+    buffer: sampleDocx,
+  });
+  await page.goto(`/projects/${id}`);
+
+  const replace = page.getByLabel("Replace Client brief.pdf");
+  await replace.focus();
+  await replace.setInputFiles({
+    name: "Client brief v2.docx",
+    mimeType: DOCX,
+    buffer: sampleDocx,
+  });
+
+  await expect(page.getByText("File replaced")).toBeVisible();
+  const rows = page
+    .getByRole("list", { name: /^Documents/ })
+    .getByRole("listitem");
+  await expect(rows.nth(0)).toContainText("Site map.docx");
+  await expect(rows.nth(1)).toContainText("Client brief v2.docx");
+  await expect(rows.nth(1)).toContainText(`Updated just now by ${user.login}`);
+  await expect(page.getByLabel("Replace Client brief v2.docx")).toBeFocused();
+  await expectAccessible(page);
+});
