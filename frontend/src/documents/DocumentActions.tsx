@@ -15,6 +15,7 @@ import {
   DOCUMENT_GONE,
   documentsChanged,
   reloadDocuments,
+  reloadSpace,
 } from "./documentsCache";
 import { checkFile, uploadErrorMessage } from "./fileRules";
 import { saveBlob } from "./saveBlob";
@@ -81,6 +82,9 @@ export function DocumentActions({
       const failed = () => {
         toast.error(uploadErrorMessage(error, file.name));
       };
+      if (error instanceof ApiError && error.status === 413) {
+        reloadSpace(queryClient, document.project_id);
+      }
       if (isGone(error)) {
         await notFound(failed);
         return;
