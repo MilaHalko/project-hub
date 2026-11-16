@@ -1,0 +1,116 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPOSITORY: project-hub-api
+  ECS_CLUSTER: project-hub
+  ECS_SERVICE: project-hub-api
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Log in to ECR
+        id: ecr
+        run: |
+          account=$(aws sts get-caller-identity --query Account --output text)
+          registry="${account}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          echo "repository_uri=${registry}/${ECR_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
+      - name: Look for an image already pushed for this commit
+        id: existing
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          digest=$(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
+          if [ "$digest" = None ]; then digest=""; fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: Build the image
+        if: steps.existing.outputs.digest == ''
+        env:
+          IMAGE: ${{ steps.ecr.outputs.repository_uri }}:${{ github.sha }}
+        run: docker build --platform linux/amd64 --provenance=false --sbom=false -t "$IMAGE" .
+      - name: Push the image to ECR
+        if: steps.existing.outputs.digest == ''
+        env:
+          IMAGE: ${{ steps.ecr.outputs.repository_uri }}:${{ github.sha }}
+        run: docker push "$IMAGE"
+      - name: Read the digest of the pushed image
+        id: image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REPOSITORY_URI: ${{ steps.ecr.outputs.repository_uri }}
+        run: |
+          digest=$(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
+          if [ "$digest" = None ]; then
+            echo "::error::The image ${IMAGE_TAG} is not in ECR"
+            exit 1
+          fi
+          echo "reference=${REPOSITORY_URI}@${digest}" >> "$GITHUB_OUTPUT"
+      - name: Check the ECS service is up
+        id: service
+        if: vars.ECS_DEPLOY_ENABLED == 'true'
+        run: |
+          status=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].status' --output text)
+          if [ "$status" = ACTIVE ]; then
+            echo "up=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::ECS_DEPLOY_ENABLED is true but service ${ECS_SERVICE} is not active (status: ${status}). The deploy is skipped; set ECS_DEPLOY_ENABLED to false while the ephemeral layer is destroyed."
+            echo "up=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Register a task definition with the new image
+        id: taskdef
+        if: steps.service.outputs.up == 'true'
+        env:
+          IMAGE: ${{ steps.image.outputs.reference }}
+          REPOSITORY_URI: ${{ steps.ecr.outputs.repository_uri }}
+        run: |
+          current=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].taskDefinition' --output text)
+          aws ecs describe-task-definition --task-definition "$current" --query taskDefinition \
+            | jq --arg repo "$REPOSITORY_URI" --arg image "$IMAGE" '
+                del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
+                | .containerDefinitions |= map(if (.image | startswith($repo + "@") or startswith($repo + ":")) then .image = $image else . end)' \
+            > "$RUNNER_TEMP/taskdef.json"
+          jq -e --arg image "$IMAGE" '[.containerDefinitions[].image] | index($image) != null' "$RUNNER_TEMP/taskdef.json" > /dev/null
+          arn=$(aws ecs register-task-definition --cli-input-json "file://$RUNNER_TEMP/taskdef.json" --query taskDefinition.taskDefinitionArn --output text)
+          echo "arn=${arn}" >> "$GITHUB_OUTPUT"
+      - name: Roll the service out and wait for it to settle
+        if: steps.service.outputs.up == 'true'
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.taskdef.outputs.arn }}
+        run: |
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition "$TASK_DEFINITION_ARN" > /dev/null
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+          primary=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query "services[0].deployments[?status=='PRIMARY'] | [0].[taskDefinition, rolloutState]" --output text)
+          if [ "$primary" != "$(printf '%s\tCOMPLETED' "$TASK_DEFINITION_ARN")" ]; then
+            echo "::error::The service did not settle on ${TASK_DEFINITION_ARN} (found: ${primary}). ECS probably rolled the deploy back."
+            exit 1
+          fi
