@@ -58,6 +58,7 @@ async def upload_documents(
             )
             for key, file in stored
         ]
+        await uow.projects.refresh_storage_used(project_id)
         await uow.projects.touch(project_id)
         await uow.commit()
     except Exception:
@@ -115,6 +116,7 @@ async def replace_document(
         )
         if replaced is None:
             raise NotFoundError("Document not found")
+        await uow.projects.refresh_storage_used(document.project_id)
         await uow.projects.touch(document.project_id)
         await uow.commit()
     except Exception:
@@ -131,6 +133,7 @@ async def delete_document(
     deleted = await uow.documents.delete(document.id)
     if deleted is None:
         raise NotFoundError("Document not found")
+    await uow.projects.refresh_storage_used(document.project_id)
     await uow.projects.touch(document.project_id)
     await uow.commit()
     _log_event("document deleted", user, document.project_id, document.id)

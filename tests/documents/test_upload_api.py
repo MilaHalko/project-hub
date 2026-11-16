@@ -19,7 +19,7 @@ from tests.support.documents import (
     with_limits,
     zip_bytes,
 )
-from tests.support.projects import add_participant, create_project
+from tests.support.projects import add_participant, create_project, used_space
 from tests.support.storage import bucket_keys
 
 
@@ -420,3 +420,14 @@ def test_unicode_name_round_trips(api_client: TestClient) -> None:
     (document,) = uploaded(api_client, token, project["id"], [("диплом.pdf", pdf_bytes())])
 
     assert document["name"] == "диплом.pdf"
+
+
+def test_upload_adds_sizes_to_project_used_space(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    first, second = pdf_bytes("a"), pdf_bytes("bb")
+
+    uploaded(api_client, token, project["id"], [("a.pdf", first), ("b.pdf", second)])
+
+    total = len(first) + len(second)
+    assert used_space(api_client, token, project["id"]) == (total, total)
