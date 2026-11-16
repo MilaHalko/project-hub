@@ -14,6 +14,8 @@ from project_hub.documents.repository import DocumentRepository
 from project_hub.documents.repository_orm import OrmDocumentRepository
 from project_hub.projects.repository import ProjectRepository
 from project_hub.projects.repository_orm import OrmProjectRepository
+from project_hub.shares.repository import ShareRepository
+from project_hub.shares.repository_orm import OrmShareRepository
 from project_hub.users.repository import UserRepository
 from project_hub.users.repository_orm import OrmUserRepository
 
@@ -24,12 +26,14 @@ class OrmUnitOfWork:
     users: UserRepository
     projects: ProjectRepository
     documents: DocumentRepository
+    shares: ShareRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session = session_factory()
         self.users = OrmUserRepository(self._session)
         self.projects = OrmProjectRepository(self._session)
         self.documents = OrmDocumentRepository(self._session)
+        self.shares = OrmShareRepository(self._session)
 
     async def commit(self) -> None:
         await self._session.commit()

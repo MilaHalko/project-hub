@@ -1,9 +1,12 @@
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import ExitStack
+from typing import Any
 from uuid import uuid4
 
 import argon2
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from mypy_boto3_s3.client import S3Client
 from pydantic import SecretStr
@@ -23,6 +26,7 @@ from tests.support.database import (
     drop_test_database,
     truncate_tables,
 )
+from tests.support.mail import DEFAULT_MAILPIT_URL, DEFAULT_SMTP_PORT, mailpit_unreachable_reason
 from tests.support.storage import (
     DEFAULT_S3_ENDPOINT_URL,
     TEST_S3_REGION,
@@ -62,6 +66,11 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_S3_REGION",
         "APP_DOCUMENT_MAX_BYTES",
         "APP_DOCUMENT_MAX_FILES",
+        "APP_SMTP_HOST",
+        "APP_SMTP_PORT",
+        "APP_MAIL_FROM",
+        "APP_PUBLIC_URL",
+        "APP_WEB_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -102,6 +111,25 @@ def s3_endpoint_url() -> str:
     reason = unreachable_reason(url)
     if reason is not None:
         pytest.fail(unavailable_message(url, reason), pytrace=False)
+    return url
+
+
+@pytest.fixture(scope="session")
+def smtp_port() -> int:
+    return int(os.environ.get("TEST_SMTP_PORT", DEFAULT_SMTP_PORT))
+
+
+@pytest.fixture(scope="session")
+def mailpit_url() -> str:
+    url = os.environ.get("TEST_MAILPIT_URL", DEFAULT_MAILPIT_URL)
+    reason = mailpit_unreachable_reason(url)
+    if reason is not None:
+        pytest.fail(
+            f"Mailpit is not reachable at {url}. "
+            "Start it with: docker compose up -d --wait mail (or set TEST_MAILPIT_URL)\n"
+            f"Reason: {reason}",
+            pytrace=False,
+        )
     return url
 
 
@@ -152,6 +180,15 @@ async def database(
             truncate_tables(migrated_database_url)
 
 
+def _test_app(settings: IsolatedSettings) -> FastAPI:
+    app = create_app(settings)
+    # Cheapest Argon2 parameters keep the tests fast; never use them outside tests.
+    app.state.password_hasher = PasswordHasher(
+        argon2.PasswordHasher.from_parameters(argon2.profiles.CHEAPEST)
+    )
+    return app
+
+
 @pytest.fixture(params=["orm", "sql"], ids=["orm", "sql"])
 def api_client(
     request: pytest.FixtureRequest,
@@ -159,6 +196,7 @@ def api_client(
     s3_endpoint_url: str,
     s3_client: S3Client,
     storage_bucket: str,
+    smtp_port: int,
 ) -> Iterator[TestClient]:
     settings = IsolatedSettings(
         db_backend=request.param,
@@ -167,17 +205,29 @@ def api_client(
         s3_bucket=storage_bucket,
         s3_endpoint_url=s3_endpoint_url,
         s3_region=TEST_S3_REGION,
-    )
-    app = create_app(settings)
-    # Cheapest Argon2 parameters keep the tests fast; never use them outside tests.
-    app.state.password_hasher = PasswordHasher(
-        argon2.PasswordHasher.from_parameters(argon2.profiles.CHEAPEST)
+        smtp_host="localhost",
+        smtp_port=smtp_port,
+        public_url="http://testserver",
     )
     try:
-        with TestClient(app) as c:
+        with TestClient(_test_app(settings)) as c:
             yield c
     finally:
         try:
             truncate_tables(migrated_database_url)
         finally:
             empty_bucket(s3_client, storage_bucket)
+
+
+@pytest.fixture
+def make_api_client(api_client: TestClient) -> Iterator[Callable[..., TestClient]]:
+    app = api_client.app
+    assert isinstance(app, FastAPI)
+    base: IsolatedSettings = app.state.settings
+    with ExitStack() as stack:
+
+        def make(**overrides: Any) -> TestClient:
+            settings = IsolatedSettings(**{**base.model_dump(), **overrides})
+            return stack.enter_context(TestClient(_test_app(settings)))
+
+        yield make
