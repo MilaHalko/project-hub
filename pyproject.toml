@@ -18,6 +18,7 @@ dependencies = [
     "pyjwt (>=2.15,<3)",
     "boto3 (>=1.44,<2)",
     "python-multipart (>=0.0.33,<0.1)",
+    "email-validator (>=2.2,<3)",
 ]
 
 [project.urls]

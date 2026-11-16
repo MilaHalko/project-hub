@@ -46,6 +46,7 @@ exits. The API starts only after both completed successfully and is served at
 | `api` | 8000 | `APP_PORT` |
 | `db` | 55433 | `APP_DB_PORT` |
 | `s3` | 55435 | `APP_S3_PORT` |
+| `mail` | 55436 (SMTP), 8025 (inbox) | `APP_MAIL_PORT`, `APP_MAIL_UI_PORT` |
 | `storage-init` | — | one-shot, exits 0 |
 
 The database uses 55433 so it does not clash with local Postgres servers on 5432 or 5433. Set the variables
@@ -53,10 +54,10 @@ in `.env` (see `.env.example`) or in the shell, for example `APP_PORT=8010 docke
 The `POSTGRES_*` values are local development credentials only; they take effect only when
 the database volume is first created (run `docker compose down -v` to reset it).
 
-The tests expect the `db` and `s3` services to be running:
+The tests expect the `db`, `s3` and `mail` services to be running:
 
 ```bash
-docker compose up -d --wait db s3
+docker compose up -d --wait db s3 mail
 ```
 
 Stop everything with `docker compose down` (add `-v` to delete the database volume).
@@ -99,6 +100,7 @@ Then fill in `upgrade()` and `downgrade()` in the new file under
 | `0002` | adds `users.token_version` (`integer NOT NULL DEFAULT 0`; existing rows get `0`) |
 | `0003` | creates `projects` (`owner_id` → `users`, `RESTRICT`) and `project_members` (participants), indexes on `owner_id` and `user_id` |
 | `0004` | creates `documents` (`project_id` → `projects`, `CASCADE`; `uploaded_by` → `users`, `SET NULL`; unique `storage_key`; checks on name length, content type and size), index on `project_id` |
+| `0005` | creates `project_shares` (email share links: `project_id` → `projects`, `CASCADE`; unique `(project_id, email)` and `token_hash`; checks on email length and the hash format) |
 
 ## File storage
 
@@ -119,6 +121,25 @@ chain (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` locally, the task role in AWS
 CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put real AWS
 keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
 missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
+
+## Mail
+
+The app sends plain-text mail over SMTP through the small `Mailer` interface
+(`mail/mailer.py`: `OutgoingMail`, `SmtpMailer`, `MailDeliveryError`). Locally and in CI the
+mail is caught by [Mailpit](https://mailpit.axllent.org) (`axllent/mailpit`), so nothing is
+really sent: start it with `docker compose up -d --wait mail` and read the mail in the inbox at
+`http://localhost:8025`. Compose points the `api` at it (`mail:1025`).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_SMTP_HOST` | unset | SMTP server; when unset the app starts without mail |
+| `APP_SMTP_PORT` | `25` | SMTP port (1-65535) |
+| `APP_MAIL_FROM` | `noreply@project-hub.test` | Sender address |
+| `APP_PUBLIC_URL` | unset | Public base URL of the API (`http`/`https`, no query, trailing `/` dropped), used for the link in share mail; when unset sharing answers `503`. Compose sets `http://localhost:${APP_PORT}` |
+| `APP_WEB_URL` | unset | Base URL of the web app (same rules as `APP_PUBLIC_URL`); when set, `GET /join` sends a browser without a sign-in there (see "Share by email"). Compose passes it on, empty by default |
+
+A blank `APP_SMTP_HOST`, `APP_PUBLIC_URL` or `APP_WEB_URL` counts as unset. When the server
+cannot be reached or refuses the mail, sending raises `MailDeliveryError`.
 
 ## Auth
 
@@ -178,7 +199,8 @@ succeeded`, `login failed`, `logout`, `password changed`) with the login and use
 hashes and tokens never appear in the log. An unknown login in `login failed` is masked to its
 first two characters (`my***`), since it may be a password typed into the login field. The app
 writes `project_hub.*` records at INFO and above to stderr (also under `uvicorn`); a missing
-`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`).
+`APP_JWT_SECRET` logs one startup warning (`APP_JWT_SECRET is not set; login is disabled`). The
+`uvicorn` access log shows a join link's `?token=` value as `token=***`.
 
 Later routes that need a logged-in user take the `CurrentUser` dependency
 (`from project_hub.auth.dependencies import CurrentUser`) as a parameter.
@@ -403,6 +425,70 @@ Every uploaded, replaced or deleted document is logged at INFO by `project_hub.d
 as `document uploaded`, `document replaced` or `document deleted` with the login, user id, project id and document id;
 the file name is not logged.
 
+## Share by email
+
+`GET /project/{project_id}/share?with=<email>` mails a join link for the project to an address
+and answers `200` with `{"email": "<address in lower case>", "expires_at": "<UTC time>"}`. The
+link is `<APP_PUBLIC_URL>/join?token=<token>`: it works once and lasts 7 days. Only the SHA-256
+hash of the token is stored (table `project_shares`); the token is never in the answer, the
+database or the log. The checks, in order (the first that fails decides):
+
+- no valid JWT → `401` (with `WWW-Authenticate: Bearer`), whatever the parameters;
+- `APP_SMTP_HOST` or `APP_PUBLIC_URL` unset → `503 {"detail": "Email sharing is not configured"}`,
+  also checked before the parameters;
+- `project_id` not a UUID, `with` missing or not a valid address (at most 254 characters, no
+  surrounding spaces) → `422`;
+- an outsider or an unknown project → `404 {"detail": "Project not found"}`;
+- a participant → `403 {"detail": "Only the project owner can share the project"}`;
+- the project already has 10 pending (unused, unexpired) links to other addresses →
+  `429 {"detail": "Too many pending share links for this project"}`;
+- the SMTP server cannot take the mail → `503 {"detail": "Email could not be sent"}`, nothing is
+  stored, and a WARNING `share mail could not be sent` is logged with the failure type in
+  `reason` (never the link).
+
+The address is compared and stored in lower case. Sharing again with the same address replaces
+the link: the old one stops working. Expired links are deleted on the next share of that project.
+The project's `updated_at` does not change.
+
+`GET /join?token=<token>` lets a signed-in user join with the mailed link. Every answer of this
+route carries `Cache-Control: no-store`, errors included, so a shared computer keeps no copy. The
+checks, in order:
+
+- `token` missing, empty or longer than 128 characters → `422`;
+- no `Authorization` header, `APP_WEB_URL` set and `Accept` contains `text/html` (a browser that
+  opened the mailed link) → `303` to `<APP_WEB_URL>/join?token=<token>` (token percent-encoded);
+  the link stays pending and the web page then calls `/join` with the Bearer header;
+- no `Authorization` header otherwise, a broken or expired JWT, or a header that is not `Bearer` (such as
+  `Basic …`) → `401` (with `WWW-Authenticate: Bearer`); the link stays pending;
+- no pending link with this token (unknown, expired, already used, replaced by a newer share, or
+  its project deleted) → `404 {"detail": "Invite link is invalid or expired"}`, the same answer in
+  every case;
+- the caller already has access (owner or participant) → `200` with `already_member: true`; the
+  link is **not** used up and stays for the real recipient;
+- otherwise the link is used up and the caller becomes a participant → `200` with
+  `already_member: false`.
+
+The answer is `{"login": "<caller>", "already_member": <bool>, "project": {…}}`, where `project`
+is the same object as `GET /project/{project_id}/info` (with `my_role`). `login` shows who joined,
+for a shared computer. The link has no recipient check: whoever uses it first while signed in
+joins. Two people using it at once: only one joins, the other gets the `404`. The project's
+`updated_at` does not change.
+
+A successful share is logged at INFO by `project_hub.shares.service` as `project shared` with the
+login, user id, project id and the recipient's address. A successful join is logged as
+`project joined` with the new participant's login and user id, the project id and the address the
+link was sent to. Refused shares and joins, and joins with `already_member: true`, are not logged.
+The token and its hash are never logged.
+
+Demo: `docker compose up -d --build`, then in Swagger (`http://localhost:8000/docs`):
+
+1. Register and log in as `mila`, authorize with the token, create a project and call the share
+   route with an address such as `anna@example.com`.
+2. Open the Mailpit inbox at `http://localhost:8025` and copy the token from the link in the mail.
+3. Register and log in as `anna`, authorize with her token, and call `GET /join` with the copied
+   token: `200`, `already_member: false`. `GET /project/{project_id}/info` now works for her.
+4. Call `GET /join` with the same token again (as `anna` or anyone else): `404`.
+
 ## Cloud
 
 The API runs on AWS (ECS Fargate, RDS PostgreSQL behind an HTTPS load balancer), described in Terraform under `infra/`.
@@ -433,7 +519,7 @@ test server for the migration tests: `TEST_DATABASE_URL`, or `docker compose up 
 poetry run ruff check
 poetry run ruff format --check
 poetry run pyright
-docker compose up -d --wait db s3   # tests need Postgres and the S3 emulator
+docker compose up -d --wait db s3 mail   # tests need Postgres, the S3 emulator and Mailpit
 poetry run pytest
 ```
 

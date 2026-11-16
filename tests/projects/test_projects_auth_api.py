@@ -17,6 +17,7 @@ from tests.support.auth import bearer
         pytest.param("GET", f"/project/{uuid4()}/members", id="members"),
         pytest.param("POST", f"/project/{uuid4()}/invite?user=anna", id="invite"),
         pytest.param("DELETE", f"/project/{uuid4()}/members/{uuid4()}", id="remove-member"),
+        pytest.param("GET", f"/project/{uuid4()}/share?with=a@example.com", id="share"),
     ],
 )
 @pytest.mark.parametrize(

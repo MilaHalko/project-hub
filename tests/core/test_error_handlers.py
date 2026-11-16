@@ -12,6 +12,7 @@ from project_hub.core.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    TooManyRequestsError,
     ValidationFailedError,
 )
 from project_hub.main import create_app
@@ -40,6 +41,7 @@ def error_client() -> TestClient:
             "auth": AuthenticationError("nope"),
             "subclass": ProjectNotFound("missing"),
             "validation": ValidationFailedError("nope"),
+            "too_many": TooManyRequestsError("nope"),
             "plain": DomainError("bad"),
             "storage": StorageUnavailableError(),
             "unhandled": RuntimeError("secret-internal-detail"),
@@ -69,6 +71,7 @@ def error_client() -> TestClient:
         ("conflict", 409),
         ("auth", 401),
         ("validation", 422),
+        ("too_many", 429),
     ],
 )
 def test_domain_error_maps_to_status(error_client: TestClient, kind: str, status: int) -> None:

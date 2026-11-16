@@ -26,6 +26,17 @@ services:
       timeout: 3s
       retries: 15
 
+  mail:
+    image: axllent/mailpit:v1.33.0
+    ports:
+      - "127.0.0.1:${APP_MAIL_PORT:-55436}:1025"
+      - "127.0.0.1:${APP_MAIL_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
   storage-init:
     build: .
     command: ["python", "-m", "project_hub.storage.create_bucket"]
@@ -55,6 +66,10 @@ services:
       APP_DB_BACKEND: ${APP_DB_BACKEND:-orm}
       APP_JWT_SECRET: ${APP_JWT_SECRET:-}
       APP_DATABASE_URL: postgresql://${POSTGRES_USER:-project_hub}:${POSTGRES_PASSWORD:-project_hub}@db:5432/${POSTGRES_DB:-project_hub}
+      APP_SMTP_HOST: mail
+      APP_SMTP_PORT: "1025"
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL:-http://localhost:${APP_PORT:-8000}}
+      APP_WEB_URL: ${APP_WEB_URL:-}
       <<: *s3-env
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
@@ -65,6 +80,8 @@ services:
         condition: service_completed_successfully
       storage-init:
         condition: service_completed_successfully
+      mail:
+        condition: service_healthy
 
 volumes:
   pgdata:
