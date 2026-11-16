@@ -12,7 +12,12 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Protocol
 
+import psycopg
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+
+from tests.support.database import DEFAULT_ADMIN_URL, create_test_database, drop_test_database
 
 pytestmark = pytest.mark.package
 
@@ -194,3 +199,27 @@ def test_installed_app_serves_health(venv_python: Path, workdir: Path) -> None:
     output = _tail(log_path.read_text(encoding="utf-8", errors="replace"))
     assert status == 200, f"{body}\n--- uvicorn output ---\n{output}"
     assert json.loads(body) == {"status": "ok"}
+
+
+def _source_head() -> str:
+    config = Config()
+    config.set_main_option("script_location", "project_hub.db:migrations")
+    heads = ScriptDirectory.from_config(config).get_heads()
+    assert len(heads) == 1, heads
+    return heads[0]
+
+
+def test_installed_migrate_applies_all_migrations(run_installed: RunInstalled) -> None:
+    admin_url = os.environ.get("TEST_DATABASE_URL", DEFAULT_ADMIN_URL)
+    database_url = create_test_database(admin_url)
+    try:
+        run_installed("-m", "project_hub.db.migrate", env={"APP_DATABASE_URL": database_url})
+
+        with psycopg.connect(database_url) as conn:
+            versions = conn.execute("select version_num from alembic_version").fetchall()
+            users = conn.execute("select to_regclass('public.users') is not null").fetchone()
+    finally:
+        drop_test_database(admin_url, database_url)
+
+    assert versions == [(_source_head(),)]
+    assert users == (True,)
