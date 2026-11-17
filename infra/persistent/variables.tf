@@ -23,3 +23,13 @@ variable "alert_email" {
     error_message = "alert_email must be a valid email address."
   }
 }
+
+variable "mail_sender" {
+  type        = string
+  description = "Address the share email is sent from; SES verifies it (a personal address, never a corporate one)"
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.mail_sender))
+    error_message = "mail_sender must be a valid email address."
+  }
+}

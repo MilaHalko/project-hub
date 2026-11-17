@@ -59,10 +59,14 @@ resource "aws_ecs_task_definition" "api" {
         { name = "APP_JWT_SECRET", valueFrom = "${local.ssm_arn_prefix}/jwt-secret" },
         { name = "APP_DB_BACKEND", valueFrom = "${local.ssm_arn_prefix}/db-backend" },
         { name = "APP_S3_BUCKET", valueFrom = "${local.ssm_arn_prefix}/s3-bucket" },
+        { name = "APP_MAIL_FROM", valueFrom = "${local.ssm_arn_prefix}/mail-from" },
       ]
       environment = [
         { name = "APP_S3_REGION", value = data.aws_region.current.region },
         { name = "APP_WEB_URL", value = "https://${aws_lb.api.dns_name}" },
+        { name = "APP_PUBLIC_URL", value = "https://${aws_lb.api.dns_name}" },
+        { name = "APP_MAIL_BACKEND", value = "ses" },
+        { name = "APP_SES_REGION", value = data.aws_region.current.region },
       ]
       logConfiguration = merge(local.log_configuration, {
         options = merge(local.log_configuration.options, { awslogs-stream-prefix = "api" })

@@ -24,7 +24,7 @@ from project_hub.shares.schemas import JoinResponse, ShareEmail, ShareResponse
 router = APIRouter(tags=["shares"])
 
 
-@router.get("/project/{project_id}/share")
+@router.get("/project/{project_id}/share", response_model_exclude_none=True)
 async def share_project(
     project_id: UUID,
     user: CurrentUser,
@@ -33,10 +33,10 @@ async def share_project(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     email: Annotated[ShareEmail, Query(alias="with")],
 ) -> ShareResponse:
-    link = await service.share(
+    result = await service.share(
         uow, mailer, public_url, user, project_id, email, now=datetime.now(UTC)
     )
-    return ShareResponse.from_link(link)
+    return ShareResponse.from_result(result)
 
 
 @router.get("/join", response_model=JoinResponse)
