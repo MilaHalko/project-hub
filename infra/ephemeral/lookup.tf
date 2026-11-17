@@ -73,3 +73,12 @@ data "aws_ecr_image" "api" {
 data "aws_cloudwatch_log_group" "api" {
   name = "/ecs/project-hub-api"
 }
+
+data "aws_ecr_repository" "web" {
+  name = "project-hub-web"
+}
+
+data "aws_ecr_image" "web" {
+  repository_name = "project-hub-web"
+  most_recent     = true
+}

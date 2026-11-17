@@ -1,5 +1,6 @@
 locals {
-  image = "${data.aws_ecr_repository.api.repository_url}@${data.aws_ecr_image.api.image_digest}"
+  image     = "${data.aws_ecr_repository.api.repository_url}@${data.aws_ecr_image.api.image_digest}"
+  web_image = "${data.aws_ecr_repository.web.repository_url}@${data.aws_ecr_image.web.image_digest}"
 
   log_configuration = {
     logDriver = "awslogs"
@@ -61,9 +62,25 @@ resource "aws_ecs_task_definition" "api" {
       ]
       environment = [
         { name = "APP_S3_REGION", value = data.aws_region.current.region },
+        { name = "APP_WEB_URL", value = "https://${aws_lb.api.dns_name}" },
       ]
       logConfiguration = merge(local.log_configuration, {
         options = merge(local.log_configuration.options, { awslogs-stream-prefix = "api" })
+      })
+    },
+    {
+      name      = "web"
+      image     = local.web_image
+      essential = true
+      dependsOn = [{ containerName = "api", condition = "START" }]
+      portMappings = [
+        { containerPort = 8080, protocol = "tcp" },
+      ]
+      environment = [
+        { name = "API_UPSTREAM", value = "127.0.0.1:8000" },
+      ]
+      logConfiguration = merge(local.log_configuration, {
+        options = merge(local.log_configuration.options, { awslogs-stream-prefix = "web" })
       })
     },
   ])
@@ -86,9 +103,9 @@ resource "aws_ecs_service" "api" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.api.arn
-    container_name   = "api"
-    container_port   = 8000
+    target_group_arn = aws_lb_target_group.web.arn
+    container_name   = "web"
+    container_port   = 8080
   }
 
   deployment_circuit_breaker {
