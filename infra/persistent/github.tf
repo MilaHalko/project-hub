@@ -46,7 +46,7 @@ resource "aws_iam_role_policy" "github_deploy" {
           "ecr:PutImage",
           "ecr:BatchGetImage",
         ]
-        Resource = aws_ecr_repository.api.arn
+        Resource = [aws_ecr_repository.api.arn, aws_ecr_repository.web.arn]
       },
       {
         Effect   = "Allow"
