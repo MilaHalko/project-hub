@@ -90,3 +90,12 @@ data "aws_cloudwatch_log_group" "storage_usage" {
 data "aws_ssm_parameter" "s3_bucket" {
   name = "/project-hub/s3-bucket"
 }
+
+data "aws_ecr_repository" "web" {
+  name = "project-hub-web"
+}
+
+data "aws_ecr_image" "web" {
+  repository_name = "project-hub-web"
+  most_recent     = true
+}

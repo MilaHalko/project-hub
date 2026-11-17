@@ -11,7 +11,9 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.30.6-alpine
 
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+ENV API_UPSTREAM=api:8000
+COPY nginx/default.conf /etc/nginx/templates/default.conf.template
+RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /web/dist /usr/share/nginx/html
 
