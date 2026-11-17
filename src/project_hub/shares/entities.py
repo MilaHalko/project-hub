@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from project_hub.mail.mailer import MailResult
 from project_hub.projects.entities import ProjectAccess
 
 
@@ -17,3 +18,9 @@ class ShareLink:
 class JoinResult:
     access: ProjectAccess
     already_member: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ShareResult:
+    link: ShareLink
+    mail: MailResult

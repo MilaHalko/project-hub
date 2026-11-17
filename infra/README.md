@@ -11,7 +11,7 @@ The ephemeral layer finds persistent resources by name and tag, so the two layer
 
 1. `export PATH="$HOME/.local/bin:$PATH"` (terraform, tflint and checkov are installed in `~/.local/bin`)
 2. Sign in to the AWS CLI yourself. Never paste keys into chat or files. Terraform uses the same AWS credentials as the CLI; if you use a named profile, run `export AWS_PROFILE=<profile>` before the terraform commands.
-3. `cp infra/persistent/terraform.tfvars.example infra/persistent/terraform.tfvars` and put your own address in `alert_email`. The file is git-ignored.
+3. `cp infra/persistent/terraform.tfvars.example infra/persistent/terraform.tfvars` and put your own address in `alert_email`, and the address the share email is sent from in `mail_sender` (see section 6). The file is git-ignored.
 4. `terraform -chdir=infra/persistent init && terraform -chdir=infra/persistent apply`
 5. In the Billing console, open Budgets and check that both budgets list your address.
 
@@ -94,7 +94,39 @@ The service waits for a healthy task, so a broken task makes `apply` wait and th
 
 If uploads over 1 MB fail because the root filesystem is read-only, set `readonlyRootFilesystem = false` on the `api` container in `infra/ephemeral/service.tf` and apply again.
 
-## 6. Switch the data layer at the demo
+## 6. Share by email (Amazon SES)
+
+In AWS the API sends the share email through the SES API with the task role: no SMTP password and no keys anywhere. Locally and in CI it still goes over SMTP to Mailpit (`APP_MAIL_BACKEND` defaults to `smtp`).
+
+AWS denied production access, so the account stays in the SES **sandbox**: SES delivers only to addresses it has verified. The app handles that itself, only in SES mode.
+
+**Once, after the persistent `apply`:** AWS emails a verification link to `mail_sender`. Open it (check spam) and click it. Until you do, nothing can be sent. Check with `aws ses list-identities --region eu-west-1`. Apply the persistent layer before the ephemeral one: the task reads `mail-from` at start.
+
+**What the app does when the owner shares to an address:**
+
+1. It asks SES whether the address is a verified identity (`GetEmailIdentity`).
+2. Verified: the invitation is sent right away, as locally.
+3. Not known to SES: the app asks SES to verify it (`CreateEmailIdentity`), and AWS sends that person a verification email. The share link is created and stored, but no invitation is mailed yet. The API answer has a `message` field and the web app shows it: the recipient must first click the AWS email, then the owner shares again. A repeated share replaces the old link, so the second one is mailed.
+4. Known but not yet clicked: the same message, no new AWS email.
+
+**At the demo:**
+
+1. Open the web app (`terraform -chdir=infra/ephemeral output -raw url`), a project, the members panel, "Send a link by email".
+2. For a new address, the web app says to ask the person to click the AWS email. Once they have, share again: the invitation arrives, and the link opens the join page of the deployed web app.
+3. To avoid waiting on stage, share to the demo addresses and let them click the AWS email beforehand.
+4. Without the web app: `curl -k -H "Authorization: Bearer $TOKEN" "$URL/api/project/<id>/share?with=friend@example.com"` with a token from `POST /api/login`.
+5. Swagger (`$URL/api/docs`) opens behind the load balancer, but its page fetches `/openapi.json` from the site root, where the web app answers instead of the API, so "Try it out" is not usable there.
+
+**Permissions of the task role:** `ses:SendEmail` / `ses:SendRawEmail` only with the sender as From address (condition `ses:FromAddress`), plus `ses:GetEmailIdentity` and `ses:CreateEmailIdentity`. SES identity permissions can only be limited to "any identity in this account and region", because the recipients are not known in advance. The role can neither delete nor change identities.
+
+**Limits and leftovers:**
+
+- Identities created by the app stay in SES (and are free). They are not in Terraform: remove them in the SES console, Identities, if you want a clean account.
+- A verification link is valid for 24 hours. If a recipient let it expire, delete their identity in the SES console and share again.
+- Any signed-in project owner can make AWS send a verification email to any address (a project holds at most 10 pending links). Accepted for the demo; a public product would need a stricter limit.
+- When an address is not verified, the API log group `/ecs/project-hub-api` has no error: that is a normal answer. A real SES failure logs `share mail could not be sent` with the reason (`ClientError`).
+
+## 7. Switch the data layer at the demo
 
 ```bash
 aws ssm put-parameter --region eu-west-1 --name /project-hub/db-backend --value sql --overwrite
@@ -105,16 +137,16 @@ Use `orm` as the value to switch back.
 
 To rotate the JWT secret, raise `value_wo_version` in `infra/persistent/ssm.tf`, apply the persistent layer and force a new deployment as above. Every issued token becomes invalid.
 
-## 7. Cost
+## 8. Cost
 
 - Ephemeral layer: about $0.08 an hour while it is up, nothing after `destroy`.
 - Persistent layer: a few cents a month.
 - Budget alerts go to your email at $20 a month and $1 a day.
 
-## 8. Leftovers
+## 9. Leftovers
 
 If you are unsure whether something is still running, open Resource Groups, then Tag Editor, and search by tag `Project = project-hub`. After a `destroy`, search `Layer = ephemeral`: the result should be empty apart from INACTIVE ECS task definition revisions: they keep the tag, are free and can be ignored.
 
-## 9. State
+## 10. State
 
 Terraform state lives in `infra/*/terraform.tfstate` on this laptop only. Keep a backup and never commit it.

@@ -29,3 +29,10 @@ resource "aws_ssm_parameter" "s3_bucket" {
   type  = "String"
   value = aws_s3_bucket.documents.bucket
 }
+
+resource "aws_ssm_parameter" "mail_from" {
+  #checkov:skip=CKV2_AWS_34:Holds a non-secret setting, not a secret; it is the sender address the recipients see
+  name  = "/project-hub/mail-from"
+  type  = "String"
+  value = aws_ses_email_identity.sender.email
+}
