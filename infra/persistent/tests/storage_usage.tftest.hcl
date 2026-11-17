@@ -2,6 +2,7 @@ mock_provider "aws" {}
 
 variables {
   alert_email = "alerts@example.com"
+  mail_sender = "sender@example.com"
 }
 
 run "storage_usage_reaches_only_the_database_and_the_vpc_endpoints" {
