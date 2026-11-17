@@ -94,3 +94,30 @@ test("compresses the bundles", async ({ request }) => {
   });
   expect(response.headers()["content-encoding"]).toBe("gzip");
 });
+
+test("serves the API schema at /openapi.json", async ({ request }) => {
+  const response = await request.get("/openapi.json");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("application/json");
+  const schema = (await response.json()) as {
+    paths: Record<string, unknown>;
+    servers: { url: string }[];
+  };
+  expect(schema.servers).toEqual([{ url: "/api" }]);
+  expect(Object.keys(schema.paths)).toContain("/health");
+});
+
+test("serves Swagger at /docs with a policy that lets it load", async ({
+  request,
+}) => {
+  const response = await request.get("/docs");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/html");
+  expect(await response.text()).toContain("swagger-ui");
+  const policy = response.headers()["content-security-policy"];
+  expect(policy).toContain(
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+  );
+  expect(policy).toContain("frame-ancestors 'none'");
+  expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+});
