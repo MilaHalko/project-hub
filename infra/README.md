@@ -11,7 +11,7 @@ The ephemeral layer finds persistent resources by name and tag, so the two layer
 
 1. `export PATH="$HOME/.local/bin:$PATH"` (terraform, tflint and checkov are installed in `~/.local/bin`)
 2. Sign in to the AWS CLI yourself. Never paste keys into chat or files. Terraform uses the same AWS credentials as the CLI; if you use a named profile, run `export AWS_PROFILE=<profile>` before the terraform commands.
-3. `cp infra/persistent/terraform.tfvars.example infra/persistent/terraform.tfvars` and put your own address in `alert_email`. The file is git-ignored.
+3. `cp infra/persistent/terraform.tfvars.example infra/persistent/terraform.tfvars` and put your own address in `alert_email`, the sender in `mail_sender` and the people you will demo the share email to in `mail_recipients` (see section 6). The file is git-ignored.
 4. `terraform -chdir=infra/persistent init && terraform -chdir=infra/persistent apply`
 5. In the Billing console, open Budgets and check that both budgets list your address.
 
@@ -93,7 +93,27 @@ The service waits for a healthy task, so a broken task makes `apply` wait and th
 
 If uploads over 1 MB fail because the root filesystem is read-only, set `readonlyRootFilesystem = false` on the `api` container in `infra/ephemeral/service.tf` and apply again.
 
-## 6. Switch the data layer at the demo
+## 6. Share by email (Amazon SES)
+
+In AWS the API sends the share email through the SES API with the task role: no SMTP password and no keys anywhere. Locally and in CI it still goes over SMTP to Mailpit (`APP_MAIL_BACKEND` defaults to `smtp`).
+
+**Once, after the persistent `apply`:**
+
+1. AWS emails a verification link to `mail_sender` and to every address in `mail_recipients`. Open each inbox (check spam) and click the link. The identity stays "pending" until you do; check with `aws ses list-identities --region eu-west-1`.
+2. A new SES account is in the **sandbox**: it sends only to verified addresses, so every person who must get a mail has to be in `mail_recipients` and must have clicked the link. To mail anyone, request production access in the SES console (Account dashboard, Request production access); AWS answers in about a day. Not needed for the demo.
+3. To add a recipient later, add the address to `mail_recipients`, run the persistent `apply`, click the new link.
+
+The persistent layer holds the identities (so verification survives `destroy` of the ephemeral layer), the `/project-hub/mail-from` parameter and the permission `ses:SendEmail` for the sender only. The ephemeral layer sets `APP_MAIL_BACKEND=ses`, `APP_MAIL_FROM` and `APP_PUBLIC_URL` / `APP_WEB_URL` (the load balancer URL), so the link in the mail opens the join page of the deployed web app. Apply the persistent layer before the ephemeral one: the task reads `mail-from` at start.
+
+**At the demo**, share to a verified address:
+
+- In the web app (`terraform -chdir=infra/ephemeral output -raw url`), open a project, go to the members panel and use "Send a link by email". Open the mail, click the link, sign in as that user and join.
+- Or call the API with a token from `POST /api/login`: `curl -k -H "Authorization: Bearer $TOKEN" "$URL/api/project/<id>/share?with=friend@example.com"`.
+- Swagger (`$URL/api/docs`) opens behind the load balancer, but its page fetches `/openapi.json` from the site root, where the web app answers instead of the API, so "Try it out" is not usable there. Use the web app or curl.
+
+A recipient that is not verified gets no mail; the API log group `/ecs/project-hub-api` then has the line `share mail could not be sent` with the reason (`ClientError`).
+
+## 7. Switch the data layer at the demo
 
 ```bash
 aws ssm put-parameter --region eu-west-1 --name /project-hub/db-backend --value sql --overwrite
@@ -104,16 +124,16 @@ Use `orm` as the value to switch back.
 
 To rotate the JWT secret, raise `value_wo_version` in `infra/persistent/ssm.tf`, apply the persistent layer and force a new deployment as above. Every issued token becomes invalid.
 
-## 7. Cost
+## 8. Cost
 
 - Ephemeral layer: about $0.08 an hour while it is up, nothing after `destroy`.
 - Persistent layer: a few cents a month.
 - Budget alerts go to your email at $20 a month and $1 a day.
 
-## 8. Leftovers
+## 9. Leftovers
 
 If you are unsure whether something is still running, open Resource Groups, then Tag Editor, and search by tag `Project = project-hub`. After a `destroy`, search `Layer = ephemeral`: the result should be empty apart from INACTIVE ECS task definition revisions: they keep the tag, are free and can be ignored.
 
-## 9. State
+## 10. State
 
 Terraform state lives in `infra/*/terraform.tfstate` on this laptop only. Keep a backup and never commit it.

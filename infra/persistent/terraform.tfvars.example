@@ -1,1 +1,3 @@
 alert_email = "you@example.com"
+mail_sender     = "you@example.com"
+mail_recipients = ["friend@example.com"]

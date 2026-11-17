@@ -22,3 +22,24 @@ variable "alert_email" {
     error_message = "alert_email must be a valid email address."
   }
 }
+
+variable "mail_sender" {
+  type        = string
+  description = "Address the share email is sent from; SES verifies it (a personal address, never a corporate one)"
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.mail_sender))
+    error_message = "mail_sender must be a valid email address."
+  }
+}
+
+variable "mail_recipients" {
+  type        = list(string)
+  default     = []
+  description = "Addresses the demo may share to; the SES sandbox delivers only to verified addresses"
+
+  validation {
+    condition     = alltrue([for address in var.mail_recipients : can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", address))])
+    error_message = "Every mail_recipients entry must be a valid email address."
+  }
+}
