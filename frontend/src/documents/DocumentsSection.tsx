@@ -7,6 +7,8 @@ import { DocumentActions } from "./DocumentActions";
 import { DocumentRow } from "./DocumentRow";
 import { documentsQueryKey } from "./documentsCache";
 import styles from "./DocumentsSection.module.css";
+import { isFull, type Space } from "./space";
+import { SpaceUsed } from "./SpaceUsed";
 import { UploadZone } from "./UploadZone";
 
 function DocumentsSkeleton() {
@@ -28,7 +30,13 @@ function DocumentsSkeleton() {
   );
 }
 
-export function DocumentsSection({ projectId }: { projectId: string }) {
+export function DocumentsSection({
+  projectId,
+  space = null,
+}: {
+  projectId: string;
+  space?: Space | null;
+}) {
   const headingId = useId();
   const section = useRef<HTMLElement>(null);
   const focusAfterRemoval = useRef<number | null>(null);
@@ -105,13 +113,16 @@ export function DocumentsSection({ projectId }: { projectId: string }) {
       className={styles.section}
       aria-labelledby={headingId}
     >
-      <h2 id={headingId} className={styles.heading}>
-        Documents{" "}
-        {documents.data !== undefined && (
-          <span className={styles.count}>{documents.data.length}</span>
-        )}
-      </h2>
-      <UploadZone projectId={projectId} />
+      <div className={styles.head}>
+        <h2 id={headingId} className={styles.heading}>
+          Documents{" "}
+          {documents.data !== undefined && (
+            <span className={styles.count}>{documents.data.length}</span>
+          )}
+        </h2>
+        {space !== null && <SpaceUsed space={space} />}
+      </div>
+      <UploadZone projectId={projectId} full={isFull(space)} />
       {body}
     </section>
   );
