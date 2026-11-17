@@ -172,6 +172,18 @@ def test_mail_settings_default() -> None:
     assert s.smtp_host is None
     assert s.smtp_port == 25
     assert s.mail_from == "noreply@project-hub.test"
+    assert s.mail_backend == "smtp"
+    assert s.ses_region == "eu-west-1"
+
+
+def test_mail_backend_accepts_ses_and_rejects_unknown_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_MAIL_BACKEND", "ses")
+    assert IsolatedSettings().mail_backend == "ses"
+    monkeypatch.setenv("APP_MAIL_BACKEND", "pigeon")
+    with pytest.raises(ValidationError):
+        IsolatedSettings()
 
 
 def test_blank_smtp_host_is_unset(monkeypatch: pytest.MonkeyPatch) -> None:

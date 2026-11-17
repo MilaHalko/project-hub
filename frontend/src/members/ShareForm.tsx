@@ -63,6 +63,10 @@ export function ShareForm({ project }: { project: Project }) {
       setTyped("");
       setChecked(false);
       field.current?.focus();
+      if (link.message) {
+        toast.error(link.message);
+        return;
+      }
       toast.success(
         `Link sent to ${link.email}. It works until ${formatDateTime(link.expires_at)}.`,
       );

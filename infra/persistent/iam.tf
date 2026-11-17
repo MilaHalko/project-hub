@@ -35,7 +35,7 @@ resource "aws_iam_role_policy" "ecs_execution" {
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
         ]
-        Resource = aws_ecr_repository.api.arn
+        Resource = [aws_ecr_repository.api.arn, aws_ecr_repository.web.arn]
       },
       {
         Effect   = "Allow"
@@ -73,10 +73,29 @@ resource "aws_iam_role_policy" "api_task" {
   role = aws_iam_role.api_task.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
-      Resource = "${aws_s3_bucket.documents.arn}/projects/*"
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.documents.arn}/projects/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ses:SendEmail", "ses:SendRawEmail"]
+        Resource = local.ses_identities_arn
+        Condition = {
+          StringEquals = { "ses:FromAddress" = var.mail_sender }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ses:GetEmailIdentity", "ses:CreateEmailIdentity"]
+        Resource = local.ses_identities_arn
+      },
+    ]
   })
+}
+
+locals {
+  ses_identities_arn = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/*"
 }

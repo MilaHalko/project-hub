@@ -71,6 +71,8 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "APP_SMTP_HOST",
         "APP_SMTP_PORT",
         "APP_MAIL_FROM",
+        "APP_MAIL_BACKEND",
+        "APP_SES_REGION",
         "APP_PUBLIC_URL",
         "APP_WEB_URL",
     ):
