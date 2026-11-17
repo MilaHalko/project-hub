@@ -82,8 +82,20 @@ resource "aws_iam_role_policy" "api_task" {
       {
         Effect   = "Allow"
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
-        Resource = concat([aws_ses_email_identity.sender.arn], [for identity in aws_ses_email_identity.recipient : identity.arn])
+        Resource = local.ses_identities_arn
+        Condition = {
+          StringEquals = { "ses:FromAddress" = var.mail_sender }
+        }
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["ses:GetEmailIdentity", "ses:CreateEmailIdentity"]
+        Resource = local.ses_identities_arn
       },
     ]
   })
+}
+
+locals {
+  ses_identities_arn = "arn:aws:ses:${var.region}:${data.aws_caller_identity.current.account_id}:identity/*"
 }
