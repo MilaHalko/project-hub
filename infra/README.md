@@ -58,6 +58,7 @@ Terraform and the deploy:
 - The ephemeral layer does not know about revisions registered by CI. On a normal checkpoint (`apply`, demo, `destroy`) there is no conflict: `apply` takes the newest ECR image and builds a fresh task definition.
 - If you run `apply` on a layer that is already up, the plan shows the service's `task_definition` changing, because the service runs a CI revision. That is expected and safe: Terraform registers a revision with the newest ECR image, which is the one CI deployed.
 - `ignore_changes` on the service was not added: it would stop Terraform from rolling out its own task definition changes.
+- If the service was started before the `web` container existed, the first deploy-on-merge run fails at the task definition step (it expects both images). Run the ephemeral `apply` once, then the next merge deploys normally.
 - CI cannot tag or deregister task definitions (no permission, and the role was left as it is). Its revisions have no tags, stay `ACTIVE` after `destroy`, and cost nothing.
 - Merges that follow each other quickly: GitHub keeps only the newest waiting run, so an in-between commit may not get its own image.
 
