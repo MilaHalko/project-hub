@@ -21,6 +21,19 @@ def assert_no_store(r: httpx2.Response) -> None:
     assert r.headers["cache-control"] == "no-store", r.headers
 
 
+def test_join_project_has_storage_fields(api_client: TestClient, mailpit_url: str) -> None:
+    _, mila = signed_in(api_client)
+    _, anna = signed_in(api_client, "anna")
+    created = create_project(api_client, mila)
+    token = shared_token(api_client, mailpit_url, mila, created["id"], random_address())
+
+    r = join(api_client, token, anna)
+
+    assert r.status_code == 200, r.text
+    assert r.json()["project"]["storage_used_bytes"] == 0
+    assert r.json()["project"]["storage_limit_bytes"] == 52_428_800
+
+
 def test_anna_joins_as_participant_through_the_mailed_link(
     api_client: TestClient, mailpit_url: str
 ) -> None:

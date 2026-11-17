@@ -23,3 +23,10 @@ def add_participant(database_url: str, project_id: str, user_id: str) -> None:
             "INSERT INTO project_members (project_id, user_id) VALUES (%s, %s)",
             (project_id, user_id),
         )
+
+
+def used_space(client: TestClient, token: str, project_id: str) -> tuple[int, int]:
+    info = client.get(f"/project/{project_id}/info", headers=bearer(token))
+    listed = client.get("/projects", headers=bearer(token))
+    item = next(p for p in listed.json() if p["id"] == project_id)
+    return info.json()["storage_used_bytes"], item["storage_used_bytes"]

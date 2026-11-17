@@ -6,10 +6,14 @@ resource "aws_s3_bucket" "documents" {
   #checkov:skip=CKV_AWS_145:SSE-S3 (AES256) is free; a customer KMS key costs money
   #checkov:skip=CKV_AWS_21:Versioning is a design decision left out; documents are replaced, not restored
   #checkov:skip=CKV_AWS_18:Access logging is billed storage; left out by design
-  #checkov:skip=CKV2_AWS_62:Event notifications are added by epics 7a/7b
   #checkov:skip=CKV_AWS_144:Cross-region replication is billed; single-region demo by design
   bucket        = "project-hub-documents-${random_id.bucket_suffix.hex}"
   force_destroy = true
+}
+
+resource "aws_s3_bucket_notification" "documents" {
+  bucket      = aws_s3_bucket.documents.id
+  eventbridge = true
 }
 
 resource "aws_s3_bucket_public_access_block" "documents" {

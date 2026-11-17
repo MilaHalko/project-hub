@@ -8,7 +8,7 @@ from mypy_boto3_s3.client import S3Client
 
 from tests.support.auth import bearer, signed_in
 from tests.support.documents import app_of, broken_storage, pdf_bytes, uploaded
-from tests.support.projects import add_participant, create_project
+from tests.support.projects import add_participant, create_project, used_space
 from tests.support.storage import bucket_keys
 
 STORAGE_LOGGER = "project_hub.storage.files"
@@ -117,3 +117,15 @@ def test_delete_moves_project_to_top(api_client: TestClient) -> None:
     assert r.status_code == 204
     listed = api_client.get("/projects", headers=bearer(token)).json()
     assert [item["id"] for item in listed] == [older["id"], newer["id"]]
+
+
+def test_delete_drops_project_used_space(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    first, second = pdf_bytes("a"), pdf_bytes("bb")
+    doc, _ = uploaded(api_client, token, project["id"], [("a.pdf", first), ("b.pdf", second)])
+
+    r = api_client.delete(f"/document/{doc['id']}", headers=bearer(token))
+
+    assert r.status_code == 204
+    assert used_space(api_client, token, project["id"]) == (len(second), len(second))

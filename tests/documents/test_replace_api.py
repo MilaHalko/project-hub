@@ -18,7 +18,7 @@ from tests.support.documents import (
     with_limits,
     zip_bytes,
 )
-from tests.support.projects import add_participant, create_project
+from tests.support.projects import add_participant, create_project, used_space
 from tests.support.storage import bucket_keys
 
 
@@ -220,3 +220,17 @@ def test_replace_moves_project_to_top(api_client: TestClient) -> None:
     assert r.status_code == 200, r.text
     listed = api_client.get("/projects", headers=bearer(token)).json()
     assert [item["id"] for item in listed] == [older["id"], newer["id"]]
+
+
+def test_replace_updates_project_used_space(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+    project = create_project(api_client, token)
+    small, other = pdf_bytes("a"), pdf_bytes("b")
+    bigger = pdf_bytes("c" * 100)
+    first, _ = uploaded(api_client, token, project["id"], [("a.pdf", small), ("b.pdf", other)])
+
+    r = replace(api_client, token, first["id"], [("a.pdf", bigger)])
+
+    assert r.status_code == 200, r.text
+    total = len(bigger) + len(other)
+    assert used_space(api_client, token, project["id"]) == (total, total)
