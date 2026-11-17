@@ -141,22 +141,19 @@ Notes:
 - Destroy rather than stop: a stopped RDS instance restarts by itself after 7
   days, and an idle load balancer is still billed.
 
-Email share in AWS (from [epic 10](../superpowers/specs/2026-11-16-share-join-design.md#for-the-aws-epics-8a-8b);
-nothing is built for it yet):
+Email share in AWS (from [epic 10](../superpowers/specs/2026-11-16-share-join-design.md#for-the-aws-epics-8a-8b)),
+decided and built differently from the SMTP idea in that note:
 
-- SES SMTP needs STARTTLS on port 587 and SMTP credentials. Add settings
-  `APP_SMTP_STARTTLS`, `APP_SMTP_USERNAME`, `APP_SMTP_PASSWORD` (`SecretStr`, from SSM) and use
-  them in `SmtpMailer`.
-- A verified SES identity for `APP_MAIL_FROM`: the personal address or an own domain, never a
-  corporate one.
-- An SES account in the sandbox can only send to verified addresses. Every demo recipient must be
-  verified, or production access requested.
-- The app security group needs egress to SES SMTP (587).
-- SSM: the SMTP password; `APP_PUBLIC_URL` = the ALB's HTTPS URL; `APP_WEB_URL` once the frontend
-  is hosted.
+- The API sends through the SES API with the ECS task role (`APP_MAIL_BACKEND=ses`, boto3): no SMTP
+  credentials, no STARTTLS settings, no egress rule for port 587.
+- SES identities for the sender and the demo recipients are in the persistent layer; the addresses
+  come from the git-ignored `terraform.tfvars`. An SES account in the sandbox can only send to
+  verified addresses; production access is an AWS request that takes about a day.
+- `APP_PUBLIC_URL` and `APP_WEB_URL` are the load balancer URL. Steps for Mila: `infra/README.md`,
+  section 6.
 - When nginx (frontend) is hosted, its access log must hide `token` too (a note for F5).
 - The share keeps its database transaction open while the SMTP send runs (timeout 10 s), so a slow
-  SES SMTP holds a pooled connection that long. Keep the timeout short and watch the send latency.
+  mail server (SMTP or the SES API) holds a pooled connection that long. Keep the timeout short.
 
 ## AWS account rules
 

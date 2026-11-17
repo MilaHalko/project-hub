@@ -2,6 +2,7 @@ mock_provider "aws" {}
 
 variables {
   alert_email = "alerts@example.com"
+  mail_sender = "sender@example.com"
 }
 
 run "database_accepts_only_the_app" {
