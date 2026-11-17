@@ -146,9 +146,10 @@ decided and built differently from the SMTP idea in that note:
 
 - The API sends through the SES API with the ECS task role (`APP_MAIL_BACKEND=ses`, boto3): no SMTP
   credentials, no STARTTLS settings, no egress rule for port 587.
-- SES identities for the sender and the demo recipients are in the persistent layer; the addresses
-  come from the git-ignored `terraform.tfvars`. An SES account in the sandbox can only send to
-  verified addresses; production access is an AWS request that takes about a day.
+- SES stays in the sandbox (production access was denied, case 179491654800301): only verified
+  addresses receive mail. The sender identity is in the persistent layer. When the owner shares to
+  an unverified address, the app asks SES to verify it (AWS emails that person), stores the link,
+  and the answer tells the owner to share again after the recipient clicked.
 - `APP_PUBLIC_URL` and `APP_WEB_URL` are the load balancer URL. Steps for Mila: `infra/README.md`,
   section 6.
 - When nginx (frontend) is hosted, its access log must hide `token` too (a note for F5).

@@ -1,31 +1,34 @@
 mock_provider "aws" {}
 
 variables {
-  alert_email     = "alerts@example.com"
-  mail_sender     = "sender@example.com"
-  mail_recipients = ["sender@example.com", "friend@example.com"]
+  alert_email = "alerts@example.com"
+  mail_sender = "sender@example.com"
 }
 
-run "sender_and_each_recipient_are_verified_once" {
+run "sender_is_a_verified_identity" {
   command = apply
   assert {
     condition     = aws_ses_email_identity.sender.email == "sender@example.com"
     error_message = "The sender address must be a verified SES identity."
   }
-  assert {
-    condition     = keys(aws_ses_email_identity.recipient) == ["friend@example.com"]
-    error_message = "Each recipient, except the sender, must be a verified SES identity."
-  }
 }
 
-run "api_may_send_mail_only_between_verified_identities" {
+run "api_sends_mail_only_from_the_sender_address" {
   command = apply
   assert {
     condition     = length([for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s if contains(s.Action, "ses:SendEmail")]) == 1
-    error_message = "The API task role must have exactly one statement for SES."
+    error_message = "The API task role must have exactly one statement for sending mail."
   }
   assert {
-    condition     = [for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s.Resource if contains(s.Action, "ses:SendEmail")][0] == concat([aws_ses_email_identity.sender.arn], [for identity in aws_ses_email_identity.recipient : identity.arn])
-    error_message = "The API task role may send mail only for the sender and the verified recipients (the SES sandbox checks both)."
+    condition     = [for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s.Condition.StringEquals["ses:FromAddress"] if contains(s.Action, "ses:SendEmail")][0] == "sender@example.com"
+    error_message = "The API task role may send mail only from the sender address."
+  }
+}
+
+run "api_may_only_look_up_and_create_ses_identities" {
+  command = apply
+  assert {
+    condition     = contains([for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s.Action], ["ses:GetEmailIdentity", "ses:CreateEmailIdentity"])
+    error_message = "The API task role may only look up and create SES identities, not delete or change them."
   }
 }
