@@ -18,14 +18,14 @@ run "sender_and_each_recipient_are_verified_once" {
   }
 }
 
-run "api_may_send_mail_only_as_the_sender" {
+run "api_may_send_mail_only_between_verified_identities" {
   command = apply
   assert {
     condition     = length([for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s if contains(s.Action, "ses:SendEmail")]) == 1
     error_message = "The API task role must have exactly one statement for SES."
   }
   assert {
-    condition     = [for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s.Resource if contains(s.Action, "ses:SendEmail")][0] == aws_ses_email_identity.sender.arn
-    error_message = "The API task role may send mail only as the sender identity."
+    condition     = [for s in jsondecode(aws_iam_role_policy.api_task.policy).Statement : s.Resource if contains(s.Action, "ses:SendEmail")][0] == concat([aws_ses_email_identity.sender.arn], [for identity in aws_ses_email_identity.recipient : identity.arn])
+    error_message = "The API task role may send mail only for the sender and the verified recipients (the SES sandbox checks both)."
   }
 }

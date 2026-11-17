@@ -82,7 +82,7 @@ resource "aws_iam_role_policy" "api_task" {
       {
         Effect   = "Allow"
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
-        Resource = aws_ses_email_identity.sender.arn
+        Resource = concat([aws_ses_email_identity.sender.arn], [for identity in aws_ses_email_identity.recipient : identity.arn])
       },
     ]
   })

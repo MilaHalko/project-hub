@@ -103,7 +103,7 @@ In AWS the API sends the share email through the SES API with the task role: no 
 2. A new SES account is in the **sandbox**: it sends only to verified addresses, so every person who must get a mail has to be in `mail_recipients` and must have clicked the link. To mail anyone, request production access in the SES console (Account dashboard, Request production access); AWS answers in about a day. Not needed for the demo.
 3. To add a recipient later, add the address to `mail_recipients`, run the persistent `apply`, click the new link.
 
-The persistent layer holds the identities (so verification survives `destroy` of the ephemeral layer), the `/project-hub/mail-from` parameter and the permission `ses:SendEmail` for the sender only. The ephemeral layer sets `APP_MAIL_BACKEND=ses`, `APP_MAIL_FROM` and `APP_PUBLIC_URL` / `APP_WEB_URL` (the load balancer URL), so the link in the mail opens the join page of the deployed web app. Apply the persistent layer before the ephemeral one: the task reads `mail-from` at start.
+The persistent layer holds the identities (so verification survives `destroy` of the ephemeral layer), the `/project-hub/mail-from` parameter and the permission `ses:SendEmail` only for the sender and the verified recipients. The ephemeral layer sets `APP_MAIL_BACKEND=ses`, `APP_MAIL_FROM` and `APP_PUBLIC_URL` / `APP_WEB_URL` (the load balancer URL), so the link in the mail opens the join page of the deployed web app. Apply the persistent layer before the ephemeral one: the task reads `mail-from` at start.
 
 **At the demo**, share to a verified address:
 
