@@ -13,7 +13,7 @@ from project_hub.db.uow import UnitOfWork
 from project_hub.mail.mailer import MailDeliveryError, Mailer, OutgoingMail
 from project_hub.projects.entities import ProjectAccess, ProjectRole
 from project_hub.projects.service import get_project
-from project_hub.shares.entities import JoinResult, ShareLink
+from project_hub.shares.entities import JoinResult, ShareLink, ShareResult
 from project_hub.shares.tokens import hash_token, new_token
 from project_hub.users.entities import User
 
@@ -64,7 +64,7 @@ async def share(
     email: str,
     *,
     now: datetime,
-) -> ShareLink:
+) -> ShareResult:
     access = await get_project(uow, user, project_id)
     if access.role is ProjectRole.PARTICIPANT:
         raise PermissionDeniedError("Only the project owner can share the project")
@@ -81,7 +81,7 @@ async def share(
         user.login, access.project.name, f"{public_url}/join?token={token}", expires_at
     )
     try:
-        await mailer.send(OutgoingMail(to=email, subject=SUBJECT, text=text))
+        mail = await mailer.send(OutgoingMail(to=email, subject=SUBJECT, text=text))
     except MailDeliveryError as err:
         reason = type(err.__cause__).__name__
         logger.warning(
@@ -93,7 +93,7 @@ async def share(
         raise ServiceUnavailableError("Email could not be sent") from err
     await uow.commit()
     _log_event("project shared", user, project_id, email)
-    return link
+    return ShareResult(link, mail)
 
 
 async def _access(uow: UnitOfWork, project_id: UUID, user: User) -> ProjectAccess:

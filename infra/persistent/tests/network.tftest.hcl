@@ -4,6 +4,7 @@ mock_provider "aws" {
 
 variables {
   alert_email       = "alerts@example.com"
+  mail_sender       = "sender@example.com"
   image_preview_zip = "tests/fixtures/image-preview-lambda.zip"
 }
 
@@ -26,15 +27,19 @@ run "database_accepts_only_the_app" {
 run "app_accepts_only_the_load_balancer" {
   command = apply
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.app_from_alb.referenced_security_group_id == aws_security_group.alb.id
-    error_message = "The API must accept connections only from the load balancer."
+    condition     = aws_vpc_security_group_ingress_rule.app_web_from_alb.referenced_security_group_id == aws_security_group.alb.id
+    error_message = "The web container must accept connections only from the load balancer."
   }
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.app_from_alb.from_port == 8000 && aws_vpc_security_group_ingress_rule.app_from_alb.to_port == 8000
-    error_message = "The API rule must open port 8000 only."
+    condition     = aws_vpc_security_group_ingress_rule.app_web_from_alb.from_port == 8080 && aws_vpc_security_group_ingress_rule.app_web_from_alb.to_port == 8080
+    error_message = "The web rule must open port 8080 only."
   }
   assert {
-    condition     = aws_vpc_security_group_ingress_rule.app_from_alb.cidr_ipv4 == null && aws_vpc_security_group_ingress_rule.app_from_alb.cidr_ipv6 == null
-    error_message = "The API rule must not admit any CIDR."
+    condition     = aws_vpc_security_group_ingress_rule.app_web_from_alb.cidr_ipv4 == null && aws_vpc_security_group_ingress_rule.app_web_from_alb.cidr_ipv6 == null
+    error_message = "The web rule must not admit any CIDR."
+  }
+  assert {
+    condition     = aws_vpc_security_group_egress_rule.alb_to_web.referenced_security_group_id == aws_security_group.app.id && aws_vpc_security_group_egress_rule.alb_to_web.from_port == 8080 && aws_vpc_security_group_egress_rule.alb_to_web.to_port == 8080
+    error_message = "The load balancer may reach only the app security group, on port 8080."
   }
 }

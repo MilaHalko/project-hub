@@ -4,6 +4,7 @@ mock_provider "aws" {
 
 variables {
   alert_email       = "alerts@example.com"
+  mail_sender       = "sender@example.com"
   image_preview_zip = "tests/fixtures/image-preview-lambda.zip"
 }
 

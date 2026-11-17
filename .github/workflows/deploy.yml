@@ -19,6 +19,7 @@ defaults:
 env:
   AWS_REGION: eu-west-1
   ECR_REPOSITORY: project-hub-api
+  ECR_WEB_REPOSITORY: project-hub-web
   ECS_CLUSTER: project-hub
   ECS_SERVICE: project-hub-api
 
@@ -44,6 +45,7 @@ jobs:
           account=$(aws sts get-caller-identity --query Account --output text)
           registry="${account}.dkr.ecr.${AWS_REGION}.amazonaws.com"
           echo "repository_uri=${registry}/${ECR_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "web_repository_uri=${registry}/${ECR_WEB_REPOSITORY}" >> "$GITHUB_OUTPUT"
           aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$registry"
       - name: Look for an image already pushed for this commit
         id: existing
@@ -53,6 +55,9 @@ jobs:
           digest=$(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
           if [ "$digest" = None ]; then digest=""; fi
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          web_digest=$(aws ecr batch-get-image --repository-name "$ECR_WEB_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
+          if [ "$web_digest" = None ]; then web_digest=""; fi
+          echo "web_digest=${web_digest}" >> "$GITHUB_OUTPUT"
       - name: Build the image
         if: steps.existing.outputs.digest == ''
         env:
@@ -63,6 +68,16 @@ jobs:
         env:
           IMAGE: ${{ steps.ecr.outputs.repository_uri }}:${{ github.sha }}
         run: docker push "$IMAGE"
+      - name: Build the web image
+        if: steps.existing.outputs.web_digest == ''
+        env:
+          IMAGE: ${{ steps.ecr.outputs.web_repository_uri }}:${{ github.sha }}
+        run: docker build --platform linux/amd64 --provenance=false --sbom=false -t "$IMAGE" frontend
+      - name: Push the web image to ECR
+        if: steps.existing.outputs.web_digest == ''
+        env:
+          IMAGE: ${{ steps.ecr.outputs.web_repository_uri }}:${{ github.sha }}
+        run: docker push "$IMAGE"
       - name: Read the digest of the pushed image
         id: image
         env:
@@ -72,6 +87,18 @@ jobs:
           digest=$(aws ecr batch-get-image --repository-name "$ECR_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
           if [ "$digest" = None ]; then
             echo "::error::The image ${IMAGE_TAG} is not in ECR"
+            exit 1
+          fi
+          echo "reference=${REPOSITORY_URI}@${digest}" >> "$GITHUB_OUTPUT"
+      - name: Read the digest of the pushed web image
+        id: web_image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REPOSITORY_URI: ${{ steps.ecr.outputs.web_repository_uri }}
+        run: |
+          digest=$(aws ecr batch-get-image --repository-name "$ECR_WEB_REPOSITORY" --image-ids "imageTag=${IMAGE_TAG}" --query 'images[0].imageId.imageDigest' --output text)
+          if [ "$digest" = None ]; then
+            echo "::error::The web image ${IMAGE_TAG} is not in ECR"
             exit 1
           fi
           echo "reference=${REPOSITORY_URI}@${digest}" >> "$GITHUB_OUTPUT"
@@ -92,14 +119,19 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.reference }}
           REPOSITORY_URI: ${{ steps.ecr.outputs.repository_uri }}
+          WEB_IMAGE: ${{ steps.web_image.outputs.reference }}
+          WEB_REPOSITORY_URI: ${{ steps.ecr.outputs.web_repository_uri }}
         run: |
           current=$(aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" --query 'services[0].taskDefinition' --output text)
           aws ecs describe-task-definition --task-definition "$current" --query taskDefinition \
-            | jq --arg repo "$REPOSITORY_URI" --arg image "$IMAGE" '
+            | jq --arg repo "$REPOSITORY_URI" --arg image "$IMAGE" --arg web_repo "$WEB_REPOSITORY_URI" --arg web_image "$WEB_IMAGE" '
                 del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
-                | .containerDefinitions |= map(if (.image | startswith($repo + "@") or startswith($repo + ":")) then .image = $image else . end)' \
+                | .containerDefinitions |= map(
+                    if (.image | startswith($repo + "@") or startswith($repo + ":")) then .image = $image
+                    elif (.image | startswith($web_repo + "@") or startswith($web_repo + ":")) then .image = $web_image
+                    else . end)' \
             > "$RUNNER_TEMP/taskdef.json"
-          jq -e --arg image "$IMAGE" '[.containerDefinitions[].image] | index($image) != null' "$RUNNER_TEMP/taskdef.json" > /dev/null
+          jq -e --arg image "$IMAGE" --arg web_image "$WEB_IMAGE" '[.containerDefinitions[].image] | (index($image) != null) and (index($web_image) != null)' "$RUNNER_TEMP/taskdef.json" > /dev/null
           arn=$(aws ecs register-task-definition --cli-input-json "file://$RUNNER_TEMP/taskdef.json" --query taskDefinition.taskDefinitionArn --output text)
           echo "arn=${arn}" >> "$GITHUB_OUTPUT"
       - name: Roll the service out and wait for it to settle

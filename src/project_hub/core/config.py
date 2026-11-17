@@ -5,6 +5,7 @@ from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DbBackend = Literal["orm", "sql"]
+MailBackend = Literal["smtp", "ses"]
 
 
 class Settings(BaseSettings):
@@ -23,6 +24,8 @@ class Settings(BaseSettings):
     s3_bucket: str | None = None
     s3_endpoint_url: str | None = None
     s3_region: str = "eu-west-1"
+    mail_backend: MailBackend = "smtp"
+    ses_region: str = "eu-west-1"
     smtp_host: str | None = None
     smtp_port: int = Field(default=25, ge=1, le=65535)
     mail_from: Annotated[str, Field(pattern=r"^[^@\s]+@[^@\s]+$")] = "noreply@project-hub.test"
