@@ -6,8 +6,10 @@ from uuid import uuid4
 
 import psycopg
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from project_hub.mail.mailer import MailResult, OutgoingMail
 from project_hub.shares.tokens import hash_token
 from tests.support.auth import bearer, signed_in
 from tests.support.mail import messages_to, random_address
@@ -282,3 +284,39 @@ def test_share_does_not_change_updated_at(api_client: TestClient, mailpit_url: s
 
     info = api_client.get(f"/project/{created['id']}/info", headers=bearer(mila))
     assert info.json()["updated_at"] == created["updated_at"]
+
+
+class _UnverifiedRecipientMailer:
+    async def send(self, mail: OutgoingMail) -> MailResult:
+        return MailResult.RECIPIENT_NOT_VERIFIED
+
+
+def test_unverified_recipient_is_told_to_verify_and_a_second_share_sends_the_mail(
+    api_client: TestClient, mailpit_url: str, migrated_database_url: str
+) -> None:
+    _, mila = signed_in(api_client)
+    created = create_project(api_client, mila, name="Diploma")
+    address = random_address()
+    app = api_client.app
+    assert isinstance(app, FastAPI)
+    working_mailer = app.state.mailer
+    app.state.mailer = _UnverifiedRecipientMailer()
+
+    first = share(api_client, mila, created["id"], address)
+
+    assert first.status_code == 200, first.text
+    assert first.json()["email"] == address
+    assert address in first.json()["message"]
+    assert "verification" in first.json()["message"]
+    assert no_mail(mailpit_url, address)
+    (stored,) = stored_shares(migrated_database_url, address)
+
+    app.state.mailer = working_mailer
+    second = share(api_client, mila, created["id"], address)
+
+    assert second.status_code == 200, second.text
+    assert "message" not in second.json()
+    (message,) = messages_to(mailpit_url, address)
+    (replaced,) = stored_shares(migrated_database_url, address)
+    assert replaced != stored
+    assert hash_token(mailed_token(message)) == replaced[0]
