@@ -1,7 +1,11 @@
 import { apiFetch } from "./client";
 import type { Project } from "./projects";
 
-export type ShareLink = { email: string; expires_at: string };
+export type ShareLink = {
+  email: string;
+  expires_at: string;
+  message?: string;
+};
 
 export type JoinResult = {
   login: string;

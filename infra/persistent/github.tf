@@ -16,7 +16,7 @@ resource "aws_iam_role" "github_deploy" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub" = "${var.github_oidc_subject_prefix}:ref:refs/heads/main"
         }
       }
     }]
@@ -46,7 +46,7 @@ resource "aws_iam_role_policy" "github_deploy" {
           "ecr:PutImage",
           "ecr:BatchGetImage",
         ]
-        Resource = aws_ecr_repository.api.arn
+        Resource = [aws_ecr_repository.api.arn, aws_ecr_repository.web.arn]
       },
       {
         Effect   = "Allow"
