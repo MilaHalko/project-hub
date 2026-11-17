@@ -83,6 +83,24 @@ test("sends a link, clears the field, keeps focus and says until when it works",
   expect(sharesSent(fetchMock)).toBe(1);
 });
 
+test("tells the owner to share again when the recipient must verify first", async () => {
+  const user = userEvent.setup();
+  const message =
+    "No mail was sent yet. anna@example.com must first click the verification email from AWS. Then share again.";
+  const { field } = await openOwnerPage({
+    [shareKey("anna@example.com")]: {
+      status: 200,
+      body: { email: "anna@example.com", expires_at: EXPIRES, message },
+    },
+  });
+
+  await user.type(field, "anna@example.com");
+  await user.click(sendButton());
+
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(screen.queryByText(/^Link sent to/)).not.toBeInTheDocument();
+});
+
 test.each([
   ["", "Enter an email address."],
   ["   ", "Enter an email address."],
