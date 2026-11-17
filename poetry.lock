@@ -173,6 +173,7 @@ files = [
 botocore-stubs = "*"
 mypy-boto3-s3 = {version = ">=1.44.0,<1.45.0", optional = true, markers = "extra == \"s3\""}
 mypy-boto3-ses = {version = ">=1.44.0,<1.45.0", optional = true, markers = "extra == \"ses\""}
+mypy-boto3-sesv2 = {version = ">=1.44.0,<1.45.0", optional = true, markers = "extra == \"sesv2\""}
 types-s3transfer = "*"
 
 [package.extras]
@@ -1709,6 +1710,18 @@ files = [
 ]
 
 [[package]]
+name = "mypy-boto3-sesv2"
+version = "1.44.0"
+description = "Type annotations for boto3 SESV2 1.44.0 service generated with mypy-boto3-builder 8.12.0"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy_boto3_sesv2-1.44.0-py3-none-any.whl", hash = "sha256:12d245656d546abdaca3051997a36777b59800383b3edf8c113340495c11e165"},
+    {file = "mypy_boto3_sesv2-1.44.0.tar.gz", hash = "sha256:60c2056909702c5761a74893cdb365e6d8781b7624d0caf86064a49e691888fd"},
+]
+
+[[package]]
 name = "nodeenv"
 version = "1.12.0"
 description = "Node.js virtual environment builder"
@@ -2956,4 +2969,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "f7789deb969ce0edb25f40c7576bca3480de80203ab3a3de37e7e51b3bee1dcd"
+content-hash = "03df945fcff500dd20b89f70230b0940567e5d91dc6f9d1e734917fd4ead7007"
