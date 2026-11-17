@@ -38,24 +38,6 @@ resource "aws_vpc_security_group_ingress_rule" "alb_https" {
   cidr_ipv4         = "0.0.0.0/0"
 }
 
-resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
-  description                  = "To the API tasks"
-  security_group_id            = aws_security_group.alb.id
-  ip_protocol                  = "tcp"
-  from_port                    = 8000
-  to_port                      = 8000
-  referenced_security_group_id = aws_security_group.app.id
-}
-
-resource "aws_vpc_security_group_ingress_rule" "app_from_alb" {
-  description                  = "From the load balancer"
-  security_group_id            = aws_security_group.app.id
-  ip_protocol                  = "tcp"
-  from_port                    = 8000
-  to_port                      = 8000
-  referenced_security_group_id = aws_security_group.alb.id
-}
-
 resource "aws_vpc_security_group_egress_rule" "app_https" {
   description       = "AWS APIs and ECR over the internet gateway"
   security_group_id = aws_security_group.app.id
@@ -81,4 +63,22 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_app" {
   from_port                    = 5432
   to_port                      = 5432
   referenced_security_group_id = aws_security_group.app.id
+}
+
+resource "aws_vpc_security_group_egress_rule" "alb_to_web" {
+  description                  = "To the web container of the app tasks"
+  security_group_id            = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = aws_security_group.app.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "app_web_from_alb" {
+  description                  = "Web container, from the load balancer"
+  security_group_id            = aws_security_group.app.id
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = aws_security_group.alb.id
 }
