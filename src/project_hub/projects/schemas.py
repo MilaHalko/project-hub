@@ -49,9 +49,11 @@ class ProjectResponse(BaseModel):
     my_role: ProjectRole
     created_at: datetime
     updated_at: datetime
+    storage_used_bytes: int
+    storage_limit_bytes: int
 
     @classmethod
-    def from_access(cls, access: ProjectAccess) -> Self:
+    def from_access(cls, access: ProjectAccess, storage_limit_bytes: int) -> Self:
         project = access.project
         return cls(
             id=project.id,
@@ -61,6 +63,8 @@ class ProjectResponse(BaseModel):
             my_role=access.role,
             created_at=project.created_at,
             updated_at=project.updated_at,
+            storage_used_bytes=project.storage_used_bytes,
+            storage_limit_bytes=storage_limit_bytes,
         )
 
 
@@ -68,7 +72,12 @@ class ProjectListItem(ProjectResponse):
     documents: list[DocumentResponse] = []
 
     @classmethod
-    def from_access(cls, access: ProjectAccess, documents: Sequence[Document] = ()) -> Self:
+    def from_access(
+        cls,
+        access: ProjectAccess,
+        storage_limit_bytes: int,
+        documents: Sequence[Document] = (),
+    ) -> Self:
         project = access.project
         return cls(
             id=project.id,
@@ -78,6 +87,8 @@ class ProjectListItem(ProjectResponse):
             my_role=access.role,
             created_at=project.created_at,
             updated_at=project.updated_at,
+            storage_used_bytes=project.storage_used_bytes,
+            storage_limit_bytes=storage_limit_bytes,
             documents=[DocumentResponse.from_document(document) for document in documents],
         )
 

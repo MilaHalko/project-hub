@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from project_hub.core.exceptions import ConflictError, NotFoundError
+from project_hub.documents.models import DocumentModel
 from project_hub.projects.entities import (
     NewProject,
     Project,
@@ -45,6 +46,7 @@ def _to_entity(model: ProjectModel) -> Project:
         description=model.description,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        storage_used_bytes=model.storage_used_bytes,
     )
 
 
@@ -131,6 +133,38 @@ class OrmProjectRepository:
             .execution_options(populate_existing=True)
         )
         await self._session.execute(statement)
+
+    async def refresh_storage_used(self, project_id: UUID) -> int:
+        total = (
+            select(func.coalesce(func.sum(DocumentModel.size), 0))
+            .where(DocumentModel.project_id == project_id)
+            .scalar_subquery()
+        )
+        statement = (
+            update(ProjectModel)
+            .where(ProjectModel.id == project_id)
+            .values(storage_used_bytes=total, storage_counted_at=func.clock_timestamp())
+            .returning(ProjectModel.storage_used_bytes)
+            .execution_options(populate_existing=True)
+        )
+        return (await self._session.execute(statement)).scalar_one_or_none() or 0
+
+    async def lock_storage_used(
+        self, project_id: UUID, *, except_document: UUID | None = None
+    ) -> int | None:
+        locked = await self._session.execute(
+            select(ProjectModel.id)
+            .where(ProjectModel.id == project_id)
+            .with_for_update(key_share=True)
+        )
+        if locked.scalar_one_or_none() is None:
+            return None
+        total = select(func.coalesce(func.sum(DocumentModel.size), 0)).where(
+            DocumentModel.project_id == project_id
+        )
+        if except_document is not None:
+            total = total.where(DocumentModel.id != except_document)
+        return int((await self._session.execute(total)).scalar_one())
 
     async def delete(self, project_id: UUID) -> bool:
         statement = (

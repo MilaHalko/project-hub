@@ -29,6 +29,7 @@ _ACCESS_CONDITION: dict[ProjectRole | None, LiteralString] = {
 }
 _SELECT_ACCESS = (
     "SELECT p.id, p.owner_id, p.name, p.description, p.created_at, p.updated_at, "
+    "p.storage_used_bytes, "
     "u.login AS owner_login "
     "FROM projects p JOIN users u ON u.id = p.owner_id "
 )
@@ -53,7 +54,8 @@ class SqlProjectRepository:
             async with self._conn.cursor(row_factory=class_row(Project)) as cur:
                 await cur.execute(
                     "INSERT INTO projects (owner_id, name, description) VALUES (%s, %s, %s) "
-                    "RETURNING id, owner_id, name, description, created_at, updated_at",
+                    "RETURNING id, owner_id, name, description, created_at, updated_at, "
+                    "storage_used_bytes",
                     (project.owner_id, project.name, project.description),
                 )
                 row = await cur.fetchone()
@@ -93,7 +95,8 @@ class SqlProjectRepository:
             await cur.execute(
                 "UPDATE projects SET name = %s, description = %s, updated_at = now() "
                 "WHERE id = %s "
-                "RETURNING id, owner_id, name, description, created_at, updated_at",
+                "RETURNING id, owner_id, name, description, created_at, updated_at, "
+                "storage_used_bytes",
                 (name, description, project_id),
             )
             return await cur.fetchone()
@@ -102,6 +105,35 @@ class SqlProjectRepository:
         await self._conn.execute(
             "UPDATE projects SET updated_at = now() WHERE id = %s", (project_id,)
         )
+
+    async def refresh_storage_used(self, project_id: UUID) -> int:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE projects SET storage_used_bytes = "
+                "(SELECT COALESCE(SUM(size), 0) FROM documents WHERE project_id = %(id)s), "
+                "storage_counted_at = clock_timestamp() "
+                "WHERE id = %(id)s RETURNING storage_used_bytes",
+                {"id": project_id},
+            )
+            row = await cur.fetchone()
+        return 0 if row is None else int(row[0])
+
+    async def lock_storage_used(
+        self, project_id: UUID, *, except_document: UUID | None = None
+    ) -> int | None:
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id FROM projects WHERE id = %s FOR NO KEY UPDATE", (project_id,)
+            )
+            if await cur.fetchone() is None:
+                return None
+            await cur.execute(
+                "SELECT COALESCE(SUM(size), 0) FROM documents "
+                "WHERE project_id = %(id)s AND id IS DISTINCT FROM %(skip)s",
+                {"id": project_id, "skip": except_document},
+            )
+            row = await cur.fetchone()
+        return 0 if row is None else int(row[0])
 
     async def delete(self, project_id: UUID) -> bool:
         async with self._conn.cursor() as cur:

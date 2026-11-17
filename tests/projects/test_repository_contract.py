@@ -1,3 +1,4 @@
+import asyncio
 from uuid import UUID, uuid4
 
 import psycopg
@@ -5,6 +6,7 @@ import pytest
 
 from project_hub.core.exceptions import ConflictError, NotFoundError
 from project_hub.db.database import Database
+from project_hub.documents.entities import PDF_CONTENT_TYPE, NewDocument
 from project_hub.projects.entities import (
     NewProject,
     Project,
@@ -29,6 +31,25 @@ async def test_add_returns_project_with_generated_fields(database: Database) -> 
     assert project.owner_id == owner.id
     assert project.name == "Diploma"
     assert project.description == "Final project"
+
+
+async def test_new_project_has_no_storage_used(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+        listed = await uow.projects.list_for_user(owner.id, role=None, limit=50, offset=0)
+        updated = await uow.projects.update(project.id, "Thesis", "New")
+
+    assert project.storage_used_bytes == 0
+    assert access is not None
+    assert access.project.storage_used_bytes == 0
+    assert [item.project.storage_used_bytes for item in listed] == [0]
+    assert updated is not None
+    assert updated.storage_used_bytes == 0
 
 
 async def test_get_for_user_owner_sees_role_owner(database: Database) -> None:
@@ -547,3 +568,153 @@ async def test_touch_needs_commit(database: Database) -> None:
         access = await uow.projects.get_for_user(project.id, owner.id)
     assert access is not None
     assert access.project == project
+
+
+def _document(project_id: UUID, uploaded_by: UUID, size: int) -> NewDocument:
+    return NewDocument(
+        project_id=project_id,
+        name="a.pdf",
+        content_type=PDF_CONTENT_TYPE,
+        size=size,
+        storage_key=f"projects/{project_id}/documents/{uuid4()}",
+        uploaded_by=uploaded_by,
+    )
+
+
+async def test_refresh_storage_used_sums_documents(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        first = await uow.documents.add(_document(project.id, owner.id, 10))
+        await uow.documents.add(_document(project.id, owner.id, 20))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        before = await uow.projects.get_for_user(project.id, owner.id)
+        total = await uow.projects.refresh_storage_used(project.id)
+        after = await uow.projects.get_for_user(project.id, owner.id)
+        listed = await uow.projects.list_for_user(owner.id, role=None, limit=50, offset=0)
+        await uow.commit()
+
+    assert before is not None
+    assert before.project.storage_used_bytes == 0
+    assert total == 30
+    assert after is not None
+    assert after.project.storage_used_bytes == 30
+    assert [item.project.storage_used_bytes for item in listed] == [30]
+
+    async with database.unit_of_work() as uow:
+        await uow.documents.delete(first.id)
+        assert await uow.projects.refresh_storage_used(project.id) == 20
+        again = await uow.projects.get_for_user(project.id, owner.id)
+        await uow.commit()
+    assert again is not None
+    assert again.project.storage_used_bytes == 20
+
+
+async def test_refresh_storage_used_unknown_project_is_zero(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.refresh_storage_used(uuid4()) == 0
+
+
+async def test_refresh_storage_used_needs_commit(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.documents.add(_document(project.id, owner.id, 10))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.refresh_storage_used(project.id)
+
+    async with database.unit_of_work() as uow:
+        access = await uow.projects.get_for_user(project.id, owner.id)
+    assert access is not None
+    assert access.project.storage_used_bytes == 0
+
+
+async def test_refresh_storage_used_stamps_write_time_not_transaction_start(
+    database: Database, migrated_database_url: str
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        await uow.projects.touch(project.id)
+        await asyncio.sleep(0.2)
+        await uow.projects.refresh_storage_used(project.id)
+        await uow.commit()
+
+    with psycopg.connect(migrated_database_url) as conn:
+        row = conn.execute(
+            "SELECT storage_counted_at - updated_at FROM projects WHERE id = %s", (project.id,)
+        ).fetchone()
+    assert row is not None
+    assert row[0].total_seconds() >= 0.2
+
+
+async def test_lock_storage_used_excludes_document(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        first = await uow.documents.add(_document(project.id, owner.id, 10))
+        await uow.documents.add(_document(project.id, owner.id, 20))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(project.id) == 30
+        assert await uow.projects.lock_storage_used(project.id, except_document=first.id) == 20
+        assert await uow.projects.lock_storage_used(project.id, except_document=uuid4()) == 30
+
+
+async def test_lock_storage_used_empty_project_is_zero(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(project.id) == 0
+
+
+async def test_lock_storage_used_unknown_project_is_none(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.lock_storage_used(uuid4()) is None
+
+
+async def test_second_lock_waits_for_first_transaction(database: Database) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as first:
+        await first.projects.lock_storage_used(project.id)
+        async with database.unit_of_work() as second:
+            waiting = asyncio.create_task(second.projects.lock_storage_used(project.id))
+            done, _ = await asyncio.wait({waiting}, timeout=0.5)
+            assert not done
+            await first.commit()
+            assert await asyncio.wait_for(waiting, timeout=2) == 0
+
+
+async def test_lock_storage_used_lets_another_transaction_add_a_member(
+    database: Database,
+) -> None:
+    async with database.unit_of_work() as uow:
+        owner = await uow.users.add(NewUser("mila", "hash"))
+        anna = await uow.users.add(NewUser("anna", "hash"))
+        project = await uow.projects.add(NewProject(owner.id, "Diploma", ""))
+        await uow.commit()
+
+    async with database.unit_of_work() as locking:
+        await locking.projects.lock_storage_used(project.id)
+        async with database.unit_of_work() as joining:
+            await asyncio.wait_for(joining.projects.add_member(project.id, anna.id), timeout=2)
+            await joining.commit()
+        await locking.commit()
+
+    async with database.unit_of_work() as uow:
+        assert await uow.projects.get_for_user(project.id, anna.id) is not None

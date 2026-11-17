@@ -64,6 +64,12 @@ Terraform and the deploy:
 
 ## 4. Checkpoint
 
+The ephemeral layer also deploys the storage usage Lambda (`project-hub-storage-usage`), which keeps each project's total file size up to date from S3 events (S3, EventBridge, SQS, Lambda). Before the first apply, and after every change in `src/project_hub/storage_usage/`:
+
+1. Build the zip: `scripts/build_storage_usage_lambda.sh` (writes `dist/storage-usage-lambda.zip`; Terraform reads it from `../../dist/` by default, override with `-var storage_usage_zip=<path>`).
+2. Apply the persistent layer first (it adds the bucket notification, the S3 gateway endpoint, the Lambda's role, security group and log group): `terraform -chdir=infra/persistent apply`.
+3. Then the ephemeral layer, as below.
+
 ```bash
 terraform -chdir=infra/ephemeral init
 terraform -chdir=infra/ephemeral apply
@@ -77,6 +83,16 @@ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "http://$(terraform -c
 ```
 
 The first must print `200`, the second `301` with an `https://` address. The same address serves the site (`/`), the API (`/api/...`) and Swagger (`/docs`); Swagger sends its requests through `/api`. The certificate is self-signed, so a browser shows a warning once; `curl -k` skips it.
+
+To check the Lambda, upload or delete a file in a project, wait a few seconds, then:
+
+```bash
+aws logs tail /aws/lambda/project-hub-storage-usage --region eu-west-1 --since 15m
+aws sqs get-queue-attributes --region eu-west-1 --attribute-names ApproximateNumberOfMessages \
+  --queue-url "$(aws sqs get-queue-url --region eu-west-1 --queue-name project-hub-storage-usage-dlq --query QueueUrl --output text)"
+```
+
+The log group shows one run per batch of events, with a `storage usage counted` line for each project and its new total. A `storage usage not stored` line means the row was not written (the project was deleted, or a newer count was already stored); it is not an error. The dead-letter queue `project-hub-storage-usage-dlq` must stay at `0`: a message there is an event that failed five times (read it in the SQS console, then fix the cause). The ephemeral layer adds an SSM interface endpoint (about $0.01 an hour per subnet) for the Lambda; `destroy` removes it. Its private DNS sends every SSM call in the VPC through it, so it also admits the API tasks, which read their secrets from SSM when they start.
 
 When the checkpoint is done, stop the billing:
 

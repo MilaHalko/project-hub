@@ -122,6 +122,26 @@ CI and the tests use the dummy keys `test`/`test`, which moto accepts. Never put
 keys in `.env`, compose or CI. When the storage cannot be reached, or a bucket or file is
 missing, the API answers `503 {"detail": "File storage is unavailable"}` and logs the cause.
 
+## Storage usage Lambda
+
+`project_hub.storage_usage.handler.handler` is a standalone AWS Lambda (it imports only the
+standard library, `boto3` and `psycopg`). S3 sends `Object Created` and `Object Deleted`
+events through EventBridge to an SQS queue, which triggers it in batches. For each project
+named in the batch it lists `projects/<project_id>/documents/` in the bucket, sums the object
+sizes and writes `projects.storage_used_bytes`, unless a newer figure (`storage_counted_at`)
+is already stored. Messages of a project that could not be counted are returned in
+`batchItemFailures` and retried; unknown projects and unrelated keys are ignored.
+Each project counted in a run logs one JSON line, `"message": "storage usage counted"` with
+`project_id` and `bytes`; when no row was written (the project is gone or a newer figure is
+stored) the line says `"storage usage not stored"` and adds a `reason`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_DATABASE_URL` | unset | PostgreSQL URL (a `+driver` part such as `postgresql+psycopg://` is accepted) |
+| `APP_DATABASE_URL_PARAMETER` | unset | SSM parameter holding the URL, read with decryption once per cold start; used when `APP_DATABASE_URL` is unset |
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
 ## Mail
 
 The app sends plain-text mail over SMTP through the small `Mailer` interface
@@ -237,10 +257,15 @@ becomes its owner:
   "owner": {"id": "…", "login": "mila"},
   "my_role": "owner",
   "created_at": "2026-11-14T10:00:00Z",
-  "updated_at": "2026-11-14T10:00:00Z"
+  "updated_at": "2026-11-14T10:00:00Z",
+  "storage_used_bytes": 0,
+  "storage_limit_bytes": 52428800
 }
 ```
 
+- `storage_used_bytes` is the total size of the project's documents; `storage_limit_bytes` is
+  `APP_PROJECT_MAX_BYTES` (default 52428800 = 50 MB, 1-10737418240). Every project response
+  carries both.
 - `name`: leading and trailing whitespace is stripped, then 1-100 characters, with no control
   character anywhere (Unicode category `Cc`: no newline, tab, NUL or U+007F); it is a one-line
   title. Duplicate names are allowed, also for one owner.
@@ -382,6 +407,13 @@ storage cannot be reached the answer is `503 {"detail": "File storage is unavail
 row is written; when writing the rows fails, the files already stored are deleted again. Two
 documents with the same name in a project are allowed.
 
+A project may hold at most `APP_PROJECT_MAX_BYTES` of documents (`storage_limit_bytes`). An upload
+or replacement that would take the total above it answers
+`413 {"detail": "Project storage limit reached: <used> of <limit> used, this upload needs <size>"}`
+and stores nothing; reaching the limit exactly is fine.
+The project row is locked while the check runs, so two parallel uploads cannot both slip in. A
+replacement that does not make the file bigger, and a delete, are always allowed.
+
 `GET /project/{project_id}/documents` answers `200` with the project's documents, newest first
 (`created_at`, ties broken by `id`), in the same shape as above; a project without documents
 gives `[]`.
@@ -513,6 +545,26 @@ The package tests need network access to PyPI (for `pip` and for building the sd
 test server for the migration tests: `TEST_DATABASE_URL`, or `docker compose up -d --wait db`
 (port 55433). A relative `PACKAGE_DIST_DIR` is resolved from the repository root.
 
+## Build the storage usage Lambda
+
+```bash
+bash scripts/build_storage_usage_lambda.sh            # dist/storage-usage-lambda.zip
+bash scripts/build_storage_usage_lambda.sh out.zip    # or another path
+docker compose up -d --wait db s3
+poetry run pytest -m lambda_package -v
+```
+
+The zip holds `project_hub/storage_usage/` and `psycopg` plus `psycopg-binary` (versions from
+`poetry.lock`) as Linux arm64 wheels for Python 3.13. boto3 comes from the Lambda runtime. The
+handler is `project_hub.storage_usage.handler.handler`.
+
+`pytest -m lambda_package` builds the zip, mounts it read-only into the AWS Lambda base image
+`public.ecr.aws/lambda/python:3.13` (arm64) and invokes the handler with an SQS event, against the
+test Postgres and S3 emulator reached as `host.docker.internal`. It needs Docker and network access
+to PyPI and `public.ecr.aws`. The default `pytest` run skips it. `host.docker.internal` reaches
+the compose ports with Docker Desktop, and in CI the service containers through `host-gateway`;
+on a Linux host the compose ports are bound to `127.0.0.1` only, so containers cannot reach them.
+
 ## Checks
 
 ```bash
@@ -546,6 +598,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every
 - Job `docker`: `poetry run pytest -m docker`, the image and compose smoke tests, in parallel.
 - Job `package`: `poetry build`, uploads `dist/` as the artifact `project-hub-dist` (kept 14 days),
   then `pytest -m package` on exactly those uploaded files.
+- Job `lambda`: on an arm64 runner, builds `dist/storage-usage-lambda.zip`, uploads it as the artifact
+  `storage-usage-lambda` (kept 14 days), then `pytest -m lambda_package` runs it in the Lambda image.
 
 Results are on the pull request's Checks tab and in the repository's Actions tab. There is no
 deploy yet (epic 8).

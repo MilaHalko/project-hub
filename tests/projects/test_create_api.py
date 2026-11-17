@@ -40,7 +40,18 @@ def test_create_returns_project_owned_by_caller(api_client: TestClient) -> None:
         "my_role",
         "created_at",
         "updated_at",
+        "storage_used_bytes",
+        "storage_limit_bytes",
     }
+
+
+def test_create_shows_storage_fields(api_client: TestClient) -> None:
+    _, token = signed_in(api_client)
+
+    created = create_project(api_client, token)
+
+    assert created["storage_used_bytes"] == 0
+    assert created["storage_limit_bytes"] == 52_428_800
 
 
 def test_create_without_description_defaults_to_empty(api_client: TestClient) -> None:

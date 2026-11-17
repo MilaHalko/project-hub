@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -21,6 +22,7 @@ class ProjectModel(Base):
     __table_args__ = (
         CheckConstraint("char_length(name) BETWEEN 1 AND 100", name="ck_projects_name_length"),
         CheckConstraint("char_length(description) <= 2000", name="ck_projects_description_length"),
+        CheckConstraint("storage_used_bytes >= 0", name="ck_projects_storage_used_non_negative"),
         Index("ix_projects_owner_id", "owner_id"),
     )
     __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012
@@ -40,6 +42,12 @@ class ProjectModel(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    storage_used_bytes: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+    storage_counted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
 

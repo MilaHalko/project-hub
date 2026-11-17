@@ -117,5 +117,9 @@ resource "aws_ecs_service" "api" {
     rollback = true
   }
 
-  depends_on = [aws_lb_listener.https, aws_ssm_parameter.database_url]
+  depends_on = [
+    aws_lb_listener.https,
+    aws_ssm_parameter.database_url,
+    aws_vpc_security_group_ingress_rule.ssm_endpoint_from_app,
+  ]
 }

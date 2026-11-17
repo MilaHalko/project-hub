@@ -56,4 +56,6 @@ async def join_project(
         raise AuthenticationError("Not authenticated")
     user = await get_current_user(credentials, uow, tokens)
     result = await service.join(uow, user, token, now=datetime.now(UTC))
-    return JoinResponse.from_result(user.login, result)
+    return JoinResponse.from_result(
+        user.login, result, request.app.state.settings.project_max_bytes
+    )

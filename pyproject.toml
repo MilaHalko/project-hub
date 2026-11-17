@@ -51,10 +51,11 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = '-ra --strict-markers -m "not docker and not package"'
+addopts = '-ra --strict-markers -m "not docker and not package and not lambda_package"'
 markers = [
     "docker: builds and runs Docker images; opt-in with pytest -m docker",
     "package: builds the wheel and runs it from a clean venv; opt-in with pytest -m package",
+    "lambda_package: builds the storage usage Lambda zip and runs it in the Lambda base image; opt-in with pytest -m lambda_package",
 ]
 
 [dependency-groups]

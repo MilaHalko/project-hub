@@ -74,6 +74,23 @@ data "aws_cloudwatch_log_group" "api" {
   name = "/ecs/project-hub-api"
 }
 
+data "aws_security_group" "storage_usage" {
+  name   = "project-hub-storage-usage"
+  vpc_id = data.aws_vpc.main.id
+}
+
+data "aws_iam_role" "storage_usage" {
+  name = "project-hub-storage-usage"
+}
+
+data "aws_cloudwatch_log_group" "storage_usage" {
+  name = "/aws/lambda/project-hub-storage-usage"
+}
+
+data "aws_ssm_parameter" "s3_bucket" {
+  name = "/project-hub/s3-bucket"
+}
+
 data "aws_ecr_repository" "web" {
   name = "project-hub-web"
 }

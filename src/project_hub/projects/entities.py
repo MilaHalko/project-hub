@@ -28,6 +28,7 @@ class Project:
     description: str
     created_at: datetime
     updated_at: datetime
+    storage_used_bytes: int
 
 
 @dataclass(frozen=True, slots=True)
