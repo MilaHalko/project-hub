@@ -11,7 +11,7 @@ run "deploy_role_trusts_only_main" {
     error_message = "The deploy role must have exactly one trust statement."
   }
   assert {
-    condition     = jsondecode(aws_iam_role.github_deploy.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:MilaHalko/project-hub:ref:refs/heads/main"
+    condition     = jsondecode(aws_iam_role.github_deploy.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:MilaHalko@73230089/project-hub@1453204523:ref:refs/heads/main"
     error_message = "Only the main branch of MilaHalko/project-hub may assume the deploy role."
   }
   assert {
