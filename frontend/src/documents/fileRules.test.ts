@@ -84,3 +84,48 @@ test("falls back to a plain message without a detail", () => {
     "a.pdf: couldn't upload. Try again.",
   );
 });
+
+test.each([
+  [
+    "Project storage limit reached: 49 MB of 50 MB used, this upload needs 3 MB",
+    "Report.pdf: not enough space. 49 of 50 MB used, this file needs 3 MB. Delete documents to make room.",
+  ],
+  [
+    "Project storage limit reached: 2097370 bytes of 3 MB used, this upload needs 1572864 bytes",
+    "Report.pdf: not enough space. 2 of 3 MB used, this file needs 1.5 MB. Delete documents to make room.",
+  ],
+  [
+    "Project storage limit reached: 218 bytes of 3 MB used, this upload needs 3 MB",
+    "Report.pdf: not enough space. Less than 0.1 MB of 3 MB used, this file needs 3 MB. Delete documents to make room.",
+  ],
+  [
+    "Project storage limit reached: 52376371 bytes of 50 MB used, this upload needs 3 MB",
+    "Report.pdf: not enough space. 49.9 of 50 MB used, this file needs 3 MB. Delete documents to make room.",
+  ],
+  [
+    "Project storage limit reached: somewhere around half",
+    "Report.pdf: not enough space. Delete documents to make room.",
+  ],
+])("says why %j did not fit", (detail, message) => {
+  expect(uploadErrorMessage(new ApiError(413, detail), "Report.pdf")).toBe(
+    message,
+  );
+});
+
+test("keeps a 413 detail that only starts like the limit message", () => {
+  expect(
+    uploadErrorMessage(
+      new ApiError(413, "Project storage limit reached"),
+      "Report.pdf",
+    ),
+  ).toBe("Project storage limit reached");
+});
+
+test("keeps the API's message for a file over 10 MB", () => {
+  expect(
+    uploadErrorMessage(
+      new ApiError(413, "Scan.pdf: file is larger than 10 MB"),
+      "Scan.pdf",
+    ),
+  ).toBe("Scan.pdf: file is larger than 10 MB");
+});

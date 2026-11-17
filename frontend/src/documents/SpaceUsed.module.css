@@ -1,0 +1,42 @@
+.space {
+  display: grid;
+  gap: 5px;
+  width: 220px;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  text-align: right;
+}
+
+.reached {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--color-line);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--color-violet);
+}
+
+.some {
+  min-width: 4px;
+}
+
+.warn .fill {
+  background: var(--color-warn);
+}
+
+@container (max-width: 560px) {
+  .space {
+    width: 100%;
+    text-align: left;
+  }
+}

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { uploadDocument } from "../api/documents";
 import { ApiError } from "../api/errors";
 import { useToast } from "../ui/toast/useToast";
-import { documentsChanged } from "./documentsCache";
+import { documentsChanged, reloadSpace } from "./documentsCache";
 import { checkFile, uploadErrorMessage } from "./fileRules";
 
 export type UploadItem = {
@@ -74,6 +74,9 @@ export function useUploadQueue(projectId: string) {
           waiting.current = [];
           setItems((current) => current.filter(({ key }) => !dropped.has(key)));
           break;
+        }
+        if (error instanceof ApiError && error.status === 413) {
+          reloadSpace(queryClient, projectId);
         }
         fail(item.key, uploadErrorMessage(error, item.file.name));
       }
