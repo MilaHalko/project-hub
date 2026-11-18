@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Hub — used-space bar mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#111; --muted:#6b6b73; --line:#e7e7ea; --soft:#fafafa; --violet:#5b4ce0; --violet-bg:#efedff; --violet-ink:#3a2fa8; --mint:#0f9d76; --warn:#e0821b; --danger:#b42318;
+    --holo: linear-gradient(115deg, #ffc9a8 0%, #ffe9a8 20%, #c4f0dc 40%, #bfe2ff 60%, #ddcbff 80%, #ffc6d8 100%); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; font-size: 14px; background: #e9e9ec; color: var(--ink); padding: 32px 24px 64px; }
+  .label { max-width: 1180px; margin: 40px auto 12px; font-size: 15px; color: #444; line-height: 1.5; }
+  .label b { font-size: 18px; color: #111; margin-right: 8px; }
+  .frame { max-width: 1180px; margin: 0 auto; border-radius: 16px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
+  .pair { max-width: 1180px; margin: 0 auto; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .phone { width: 375px; flex: none; border-radius: 22px; overflow: hidden; background: #fff; border: 1px solid #ddd; }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 520px; }
+  aside { border-right: 1px solid var(--line); padding: 20px 14px; background: var(--soft); }
+  .logo { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; margin-bottom: 22px; }
+  .logo i { width: 24px; height: 24px; border-radius: 7px; background: var(--holo); border: 1px solid #111; }
+  .nav a { display: flex; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; color: inherit; text-decoration: none; }
+  .nav a.on { background: var(--violet-bg); color: var(--violet-ink); font-weight: 600; }
+  main { padding: 24px 28px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--soft); }
+  .phone main { padding: 16px; }
+  .btn2 { background: #fff; color: var(--ink); border: 1px solid #d9d9de; border-radius: 8px; padding: 9px 14px; font: 500 13px Inter, sans-serif; white-space: nowrap; }
+  .btn2.sm { padding: 6px 10px; font-size: 12px; }
+  .btn2.danger { color: var(--danger); border-color: #f3c3bd; }
+  .link { background: none; border: 0; padding: 0; color: var(--violet-ink); font: 600 13px Inter, sans-serif; text-decoration: underline; text-underline-offset: 2px; }
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 12px; } .crumbs a { color: var(--violet); text-decoration: none; font-weight: 500; }
+  .banner { border-radius: 14px; padding: 22px 26px; background: var(--holo); margin-bottom: 18px; }
+  .banner h1 { margin: 6px 0 4px; font-family: 'Space Mono', monospace; font-size: 28px; letter-spacing: -1px; line-height: 1.15; }
+  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; display: inline-block; background: #fff; color: var(--violet-ink); }
+  .body { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 18px; align-items: start; }
+  .details { border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: repeat(3, 1fr); margin: 0 0 22px; }
+  .details div { padding: 14px 16px; border-right: 1px solid var(--line); } .details div:last-child { border-right: 0; }
+  .details dt { color: var(--muted); font-size: 12px; margin-bottom: 4px; } .details dd { margin: 0; font-weight: 500; }
+  .side { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); font-size: 13px; }
+  .side h2 { font-size: 15px; color: var(--ink); margin: 0 0 10px; }
+
+  .sechead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 16px; margin: 0 0 12px; }
+  h2.sec { font-size: 17px; margin: 0; display: flex; align-items: center; gap: 8px; }
+  h2.sec .count { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+  .space { width: 220px; display: grid; gap: 5px; font-size: 12px; color: var(--muted); text-align: right; }
+  .space b { color: var(--ink); font-weight: 600; }
+  .bar { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: var(--violet); }
+  .bar.warn i { background: var(--warn); }
+  .phone .space { width: 100%; text-align: left; }
+
+  .drop { border: 1.5px dashed #c9c3ff; background: #f8f7ff; border-radius: 10px; padding: 16px; text-align: center; color: var(--violet-ink); margin-bottom: 12px; }
+  .drop p { margin: 0; font-size: 13px; } .drop small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .ups { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+  .up { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f1f1f3; font-size: 13px; }
+  .up:last-child { border-bottom: 0; }
+  .up b { overflow-wrap: anywhere; }
+  .up .st { color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .up .err { color: var(--danger); font-size: 12px; margin-top: 2px; }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #d6d2ff; border-top-color: var(--violet); display: inline-block; }
+  .docs { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+  .doc { display: grid; grid-template-columns: 34px minmax(0,1fr) 64px auto; gap: 12px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #f1f1f3; font-size: 13px; }
+  .doc:last-child { border-bottom: 0; }
+  .doc b { overflow-wrap: anywhere; font-weight: 600; }
+  .doc small { display: block; color: var(--muted); margin-top: 2px; font-size: 12px; }
+  .doc .size { color: var(--muted); text-align: right; white-space: nowrap; }
+  .doc .acts { display: flex; gap: 6px; }
+  .phone .doc { grid-template-columns: 34px minmax(0,1fr) auto; }
+  .phone .doc .acts { grid-column: 2 / -1; }
+  .phone .doc .acts button { flex: 1; padding: 9px 8px; min-height: 40px; }
+  .ft { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+  .pdf { background: #ffe9e4; color: #a3341c; } .docx { background: #e6efff; color: #2353b8; }
+
+  table.states { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.states th, table.states td { text-align: left; vertical-align: top; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  table.states th { width: 200px; color: var(--muted); font-weight: 500; }
+  table.states tr:last-child th, table.states tr:last-child td { border-bottom: 0; }
+  .cell { max-width: 560px; }
+  .toast { display: inline-flex; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; gap: 8px; align-items: flex-start; box-shadow: 0 8px 24px rgba(17,17,17,.1); font-size: 13px; max-width: 420px; }
+  .toast i { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--danger); display: inline-block; margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div class="label"><b>1. Project page, 18 of 50 MB used</b> The block sits on the right of the Documents heading, above the upload zone, so people see it before they choose files. Text first, the 6 px bar under it. Owner and participant see the same. For screen readers the bar is a meter named "Space used" whose value text is the same sentence.</div>
+<div class="frame">
+  <div class="app">
+    <aside><div class="logo"><i></i>Project Hub</div><nav class="nav"><a class="on" href="#">Projects</a><a href="#">Profile</a><a href="#">Log out</a></nav></aside>
+    <main>
+      <div class="crumbs"><a href="#">Projects</a> / Website redesign</div>
+      <div class="banner"><span class="pill">Owner</span><h1>Website redesign</h1></div>
+      <div class="body">
+        <div>
+          <dl class="details"><div><dt>Owner</dt><dd>alex (you)</dd></div><div><dt>Created</dt><dd>Nov 3, 2026</dd></div><div><dt>Updated</dt><dd>2 minutes ago</dd></div></dl>
+          <section>
+            <div class="sechead">
+              <h2 class="sec">Documents <span class="count">3</span></h2>
+              <div class="space"><span>18 of 50 MB used</span><span class="bar"><i style="width:36%"></i></span></div>
+            </div>
+            <div class="drop"><p>Drop PDF or DOCX files here or <button class="link">Choose files</button></p><small>PDF or DOCX, up to 10 MB each</small></div>
+            <ul class="docs">
+              <li class="doc"><span class="ft pdf">PDF</span><div><b>Client brief.pdf</b><small>Updated yesterday by alex</small></div><span class="size">2.4 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+              <li class="doc"><span class="ft docx">DOCX</span><div><b>Site map.docx</b><small>Added Nov 12 by sam</small></div><span class="size">820 KB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+              <li class="doc"><span class="ft pdf">PDF</span><div><b>Mockups v2.pdf</b><small>Added Nov 10 by alex</small></div><span class="size">9.8 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+            </ul>
+          </section>
+        </div>
+        <div class="side"><h2>Members</h2>Members panel (F3, unchanged).</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="label"><b>2. States</b> The bar turns <code>warn</code> from 80 %. At or over the limit the text adds "Limit reached" and the zone's hint changes, because no upload can fit. If the limit was lowered, the real number shows with a full bar.</div>
+<div class="frame">
+  <table class="states">
+    <tr><th>Fields missing (older API)</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">3</span></h2></div><div class="drop"><p>Drop PDF or DOCX files here or <button class="link">Choose files</button></p><small>PDF or DOCX, up to 10 MB each</small></div></div></td></tr>
+    <tr><th>Empty project</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">0</span></h2><div class="space"><span>0 of 50 MB used</span><span class="bar"><i style="width:0"></i></span></div></div></div></td></tr>
+    <tr><th>Under 80 %</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">3</span></h2><div class="space"><span>18 of 50 MB used</span><span class="bar"><i style="width:36%"></i></span></div></div></div></td></tr>
+    <tr><th>Tiny files only</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">1</span></h2><div class="space"><span>Less than 0.1 MB of 50 MB used</span><span class="bar"><i style="width:0.4%;min-width:4px"></i></span></div></div></div></td></tr>
+    <tr><th>80 % to under 100 %</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">7</span></h2><div class="space"><span>43 of 50 MB used</span><span class="bar warn"><i style="width:86%"></i></span></div></div></div></td></tr>
+    <tr><th>At the limit</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">9</span></h2><div class="space"><span>50 of 50 MB used · <b>Limit reached</b></span><span class="bar warn"><i style="width:100%"></i></span></div></div><div class="drop"><p>Drop PDF or DOCX files here or <button class="link">Choose files</button></p><small>Delete documents to make room.</small></div></div></td></tr>
+    <tr><th>Over the limit (limit lowered)</th><td><div class="cell"><div class="sechead"><h2 class="sec">Documents <span class="count">11</span></h2><div class="space"><span>60 of 50 MB used · <b>Limit reached</b></span><span class="bar warn"><i style="width:100%"></i></span></div></div></div></td></tr>
+    <tr><th>Upload refused (413, limit)</th><td><div class="cell"><div class="ups"><div class="up"><span class="ft pdf">PDF</span><div><b>Report.pdf</b><div class="err">Report.pdf: not enough space. 49 of 50 MB used, this file needs 3 MB. Delete documents to make room.</div></div><button class="btn2 sm">Dismiss</button></div><div class="up"><span class="ft docx">DOCX</span><div><b>Notes.docx</b><small style="display:block;color:var(--muted);font-size:12px">64 KB</small></div><span class="st"><span class="spin"></span>Uploading…</span></div></div></div></td></tr>
+    <tr><th>Replace refused (413, limit)</th><td><div class="toast"><i></i><span>brief v2.pdf: not enough space. 49 of 50 MB used, this file needs 3 MB. Delete documents to make room.</span></div></td></tr>
+    <tr><th>Upload refused (file over 10 MB)</th><td><div class="cell"><div class="ups"><div class="up"><span class="ft pdf">PDF</span><div><b>Scan.pdf</b><div class="err">Scan.pdf: file is larger than 10 MB</div></div><button class="btn2 sm">Dismiss</button></div></div></div></td></tr>
+  </table>
+</div>
+
+<div class="label"><b>3. Phone, 375 px</b> The block drops under the heading and takes the full width, text on the left.</div>
+<div class="pair">
+  <div class="phone">
+    <div class="topbar"><div class="logo" style="margin:0"><i></i>Project Hub</div><button class="btn2 sm">Menu</button></div>
+    <main>
+      <div class="sechead"><h2 class="sec">Documents <span class="count">2</span></h2><div class="space"><span>43 of 50 MB used</span><span class="bar warn"><i style="width:86%"></i></span></div></div>
+      <div class="drop"><p><button class="link">Choose files</button></p><small>PDF or DOCX, up to 10 MB each</small></div>
+      <ul class="docs">
+        <li class="doc"><span class="ft pdf">PDF</span><div><b>Client brief.pdf</b><small>Updated yesterday by alex</small></div><span class="size">2.4 MB</span><div class="acts"><button class="btn2 sm">Download</button><button class="btn2 sm">Replace</button><button class="btn2 sm danger">Delete</button></div></li>
+      </ul>
+    </main>
+  </div>
+  <div class="phone">
+    <main>
+      <div class="sechead"><h2 class="sec">Documents <span class="count">9</span></h2><div class="space"><span>50 of 50 MB used · <b>Limit reached</b></span><span class="bar warn"><i style="width:100%"></i></span></div></div>
+      <div class="drop"><p><button class="link">Choose files</button></p><small>Delete documents to make room.</small></div>
+      <div class="ups"><div class="up"><span class="ft pdf">PDF</span><div><b>Report.pdf</b><div class="err">Report.pdf: not enough space. 50 of 50 MB used, this file needs 3 MB. Delete documents to make room.</div></div><button class="btn2 sm">Dismiss</button></div></div>
+    </main>
+  </div>
+</div>
+
+</body>
+</html>
