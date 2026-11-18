@@ -50,7 +50,7 @@ resource "aws_ecs_task_definition" "api" {
       portMappings = [
         { containerPort = 8000, protocol = "tcp" },
       ]
-      readonlyRootFilesystem = true
+      readonlyRootFilesystem = false
       mountPoints = [
         { sourceVolume = "tmp", containerPath = "/tmp" },
       ]
