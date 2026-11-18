@@ -92,7 +92,7 @@ test("uploads a docx dropped on the zone", async ({ page, request }) => {
     })()`,
   );
   await page
-    .getByText("Drop PDF or DOCX files here")
+    .getByText("Drop PDF, DOCX, JPG or PNG files here")
     .dispatchEvent("dragenter", { dataTransfer });
   const target = page.getByText("Drop to upload");
   await expect(target).toBeVisible();

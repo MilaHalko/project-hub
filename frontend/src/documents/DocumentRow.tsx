@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Document } from "../api/documents";
 import { formatDateTime, formatUpdated } from "../projects/time";
 import styles from "./DocumentsSection.module.css";
-import { FileTile } from "./FileTile";
+import { DocumentThumbnail } from "./DocumentThumbnail";
 import { formatSize } from "./fileRules";
 
 function Meta({ document }: { document: Document }) {
@@ -31,7 +31,7 @@ export function DocumentRow({
 }) {
   return (
     <li className={styles.row}>
-      <FileTile name={document.name} />
+      <DocumentThumbnail document={document} />
       <span className={styles.name}>
         <span className={styles.fileName}>{document.name}</span>
         <Meta document={document} />

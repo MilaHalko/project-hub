@@ -238,3 +238,10 @@
     min-height: 40px;
   }
 }
+
+.thumbnail {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-control);
+  object-fit: cover;
+}

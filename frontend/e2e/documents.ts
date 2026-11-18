@@ -5,12 +5,16 @@ import { apiToken, type TestUser } from "./auth";
 export const PDF = "application/pdf";
 export const DOCX =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const PNG = "image/png";
 
 export const samplePdf = readFileSync(
   new URL("files/sample.pdf", import.meta.url),
 );
 export const sampleDocx = readFileSync(
   new URL("files/sample.docx", import.meta.url),
+);
+export const samplePng = readFileSync(
+  new URL("files/sample.png", import.meta.url),
 );
 
 export type UploadFile = { name: string; mimeType: string; buffer: Buffer };
