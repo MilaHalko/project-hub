@@ -18,6 +18,10 @@ export function documentsChanged(
   void queryClient.invalidateQueries({ queryKey: ["projects"] });
 }
 
+export function reloadSpace(queryClient: QueryClient, projectId: string): void {
+  void queryClient.invalidateQueries({ queryKey: ["project", projectId] });
+}
+
 export const DOCUMENT_GONE =
   "This document no longer exists. Someone may have deleted it.";
 
