@@ -70,7 +70,7 @@ async function openPage(routes: Parameters<typeof mockApi>[0]) {
 }
 
 function zone(): HTMLElement {
-  return screen.getByText(/Drop PDF or DOCX files here/);
+  return screen.getByText(/Drop PDF, DOCX, JPG or PNG files here/);
 }
 
 function fileDrag(files: File[]) {
@@ -117,7 +117,7 @@ test("sends good files one by one and keeps a bad one in the browser", async () 
   const pending = screen.getByRole("list", { name: "Uploads" });
   expect(
     within(pending).getByText(
-      "notes.txt: only pdf and docx documents are allowed",
+      "notes.txt: only pdf, docx, jpg and png documents are allowed",
     ),
   ).toBeInTheDocument();
   await user.click(

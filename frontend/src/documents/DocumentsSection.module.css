@@ -72,6 +72,16 @@
   color: #2353b8;
 }
 
+.jpg {
+  background: #e3f4e8;
+  color: #1e6b3a;
+}
+
+.png {
+  background: #f1e8fb;
+  color: #6a35a8;
+}
+
 .other {
   background: var(--color-soft);
   color: var(--color-muted);
@@ -227,4 +237,11 @@
     flex: 1;
     min-height: 40px;
   }
+}
+
+.thumbnail {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-control);
+  object-fit: cover;
 }

@@ -56,3 +56,18 @@ export function projectLostAfterFirstLoad(): () => {
       : { status: 404, body: { detail: "Project not found" } };
   };
 }
+
+export const photo: Document = {
+  id: "20000000-0000-4000-8000-000000000003",
+  project_id: PROJECT_ID,
+  name: "Mood board.png",
+  content_type: "image/png",
+  size: 204_800,
+  uploaded_by: { id: "00000000-0000-4000-8000-000000000001", login: "mila" },
+  created_at: "2026-11-13T08:00:00Z",
+  updated_at: "2026-11-13T08:00:00Z",
+};
+
+export function previewRoute(id: string): string {
+  return `GET /api/document/${id}/preview`;
+}

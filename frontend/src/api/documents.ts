@@ -48,3 +48,7 @@ export function deleteDocument(id: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+export function previewDocument(id: string): Promise<Blob> {
+  return apiFetchBlob(`/document/${encodeURIComponent(id)}/preview`);
+}

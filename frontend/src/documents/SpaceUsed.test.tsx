@@ -28,7 +28,9 @@ test("shows how much of the project's space is used", async () => {
   expect(meter).toHaveAttribute("aria-valuetext", "18 of 50 MB used");
   expect(meter.className).not.toMatch(/warn/);
   expect(screen.queryByText(/Limit reached/)).not.toBeInTheDocument();
-  expect(screen.getByText("PDF or DOCX, up to 10 MB each")).toBeInTheDocument();
+  expect(
+    screen.getByText("PDF, DOCX, JPG or PNG, up to 10 MB each"),
+  ).toBeInTheDocument();
 });
 
 test("shows the same space to a participant", async () => {
@@ -81,7 +83,7 @@ test("says the limit is reached and how to make room", async () => {
     screen.getByText("Delete documents to make room."),
   ).toBeInTheDocument();
   expect(
-    screen.queryByText("PDF or DOCX, up to 10 MB each"),
+    screen.queryByText("PDF, DOCX, JPG or PNG, up to 10 MB each"),
   ).not.toBeInTheDocument();
 });
 

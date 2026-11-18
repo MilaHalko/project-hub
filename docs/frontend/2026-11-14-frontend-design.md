@@ -221,7 +221,7 @@ Component tests sit next to the component (`*.test.tsx`).
     deep links such as `/projects/<id>` survive a reload and a new deploy is
     picked up at once.
 - Every response from nginx carries the security headers:
-  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`;
+  - `Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`;
   - `Referrer-Policy: no-referrer` (the join page carries a token in its URL);
   - `X-Content-Type-Options: nosniff`.
 

@@ -30,6 +30,12 @@ test.each([
   ["pdf", null],
   ["archive.pdf.zip", null],
   ["old.doc", null],
+  ["photo.jpg", "jpg"],
+  ["Photo.JPEG", "jpg"],
+  ["scan.png", "png"],
+  ["scan.PNG", "png"],
+  ["photo.jpg.exe", null],
+  ["image.gif", null],
 ])("knows the kind of %s", (name, kind) => {
   expect(fileKind(name)).toBe(kind);
 });
@@ -41,16 +47,23 @@ function fileOf(name: string, size: number): File {
 }
 
 test.each([
-  ["notes.txt", 10, "notes.txt: only pdf and docx documents are allowed"],
+  [
+    "notes.txt",
+    10,
+    "notes.txt: only pdf, docx, jpg and png documents are allowed",
+  ],
   ["a.pdf", 0, "a.pdf: file is empty"],
   ["a.pdf", MAX_FILE_BYTES + 1, "a.pdf: file is larger than 10 MB"],
   [
     "big.txt",
     MAX_FILE_BYTES + 1,
-    "big.txt: only pdf and docx documents are allowed",
+    "big.txt: only pdf, docx, jpg and png documents are allowed",
   ],
   ["a.pdf", MAX_FILE_BYTES, null],
   ["b.DOCX", 1, null],
+  ["c.jpeg", 1, null],
+  ["d.png", MAX_FILE_BYTES, null],
+  ["e.jpg", MAX_FILE_BYTES + 1, "e.jpg: file is larger than 10 MB"],
 ])("checks %s of %i bytes before sending", (name, size, message) => {
   expect(checkFile(fileOf(name, size))).toBe(message);
 });
