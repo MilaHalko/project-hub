@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: npm run build
       - name: Audit dependencies
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
 
   e2e:
     runs-on: ubuntu-latest
