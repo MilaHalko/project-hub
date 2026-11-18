@@ -1,7 +1,9 @@
 import { ApiError } from "../api/errors";
 import { formatMegabytes, usedText } from "./space";
 
-export type FileKind = "pdf" | "docx";
+export type FileKind = "pdf" | "docx" | "jpg" | "png";
+
+export const ACCEPTED_FILES = ".pdf,.docx,.jpg,.jpeg,.png";
 
 const KB = 1024;
 const MB = 1024 * KB;
@@ -20,6 +22,8 @@ export function fileKind(name: string): FileKind | null {
   const lowered = name.toLowerCase();
   if (lowered.endsWith(".pdf")) return "pdf";
   if (lowered.endsWith(".docx")) return "docx";
+  if (lowered.endsWith(".jpg") || lowered.endsWith(".jpeg")) return "jpg";
+  if (lowered.endsWith(".png")) return "png";
   return null;
 }
 
@@ -27,7 +31,7 @@ export const MAX_FILE_BYTES = 10 * MB;
 
 export function checkFile(file: File): string | null {
   if (fileKind(file.name) === null) {
-    return `${file.name}: only pdf and docx documents are allowed`;
+    return `${file.name}: only pdf, docx, jpg and png documents are allowed`;
   }
   if (file.size > MAX_FILE_BYTES) {
     return `${file.name}: file is larger than 10 MB`;

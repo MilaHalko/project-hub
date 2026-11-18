@@ -17,7 +17,7 @@ import {
   reloadDocuments,
   reloadSpace,
 } from "./documentsCache";
-import { checkFile, uploadErrorMessage } from "./fileRules";
+import { ACCEPTED_FILES, checkFile, uploadErrorMessage } from "./fileRules";
 import { saveBlob } from "./saveBlob";
 import { useWhatIsGone } from "./useWhatIsGone";
 
@@ -128,7 +128,7 @@ export function DocumentActions({
         id={inputId}
         className={styles.input}
         type="file"
-        accept=".pdf,.docx"
+        accept={ACCEPTED_FILES}
         aria-label={`Replace ${document.name}`}
         onChange={(event) => {
           choose(event.target.files?.[0]);

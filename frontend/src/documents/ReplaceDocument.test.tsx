@@ -96,7 +96,7 @@ test("refuses a file that is not pdf or docx without a request", async () => {
 
   expect(
     await screen.findByText(
-      "notes.txt: only pdf and docx documents are allowed",
+      "notes.txt: only pdf, docx, jpg and png documents are allowed",
     ),
   ).toBeInTheDocument();
   expect(replaces(fetchMock)).toHaveLength(0);

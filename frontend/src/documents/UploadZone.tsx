@@ -2,7 +2,7 @@ import { LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState, type DragEvent } from "react";
 import { Button } from "../ui/Button";
 import { FileTile } from "./FileTile";
-import { formatSize } from "./fileRules";
+import { ACCEPTED_FILES, formatSize } from "./fileRules";
 import styles from "./UploadZone.module.css";
 import { useUploadQueue, type UploadItem } from "./useUploadQueue";
 
@@ -135,7 +135,7 @@ export function UploadZone({
           className={styles.input}
           type="file"
           multiple
-          accept=".pdf,.docx"
+          accept={ACCEPTED_FILES}
           onChange={(event) => {
             add(Array.from(event.target.files ?? []));
             event.target.value = "";
@@ -145,7 +145,7 @@ export function UploadZone({
         <div className={dragDepth > 0 ? styles.visuallyHidden : undefined}>
           <p>
             <span className={styles.dragText}>
-              Drop PDF or DOCX files here or{" "}
+              Drop PDF, DOCX, JPG or PNG files here or{" "}
             </span>
             <label htmlFor={inputId} className={styles.choose}>
               Choose files
@@ -154,7 +154,7 @@ export function UploadZone({
           <p className={styles.hint}>
             {full
               ? "Delete documents to make room."
-              : "PDF or DOCX, up to 10 MB each"}
+              : "PDF, DOCX, JPG or PNG, up to 10 MB each"}
           </p>
         </div>
       </div>
