@@ -55,7 +55,7 @@ addopts = '-ra --strict-markers -m "not docker and not package and not lambda_pa
 markers = [
     "docker: builds and runs Docker images; opt-in with pytest -m docker",
     "package: builds the wheel and runs it from a clean venv; opt-in with pytest -m package",
-    "lambda_package: builds the storage usage Lambda zip and runs it in the Lambda base image; opt-in with pytest -m lambda_package",
+    "lambda_package: builds the storage usage and image preview Lambda zips and runs them in the Lambda base image; opt-in with pytest -m lambda_package",
 ]
 
 [dependency-groups]
@@ -66,4 +66,5 @@ dev = [
     "ruff>=0.17.4",
     "boto3-stubs[s3,ses,sesv2] (>=1.44,<2)",
     "moto[ses] (>=5.1,<6)",
+    "pillow (>=13.0.0,<14.0.0)",
 ]

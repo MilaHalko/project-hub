@@ -107,6 +107,19 @@ async def download_document(document: AccessibleDocument, storage: Storage) -> R
     )
 
 
+@router.get("/document/{document_id}/preview")
+async def preview_document(document: AccessibleDocument, storage: Storage) -> Response:
+    data = await service.preview_document(storage, document)
+    return Response(
+        content=data,
+        media_type="image/jpeg",
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, max-age=300",
+        },
+    )
+
+
 @router.put("/document/{document_id}", openapi_extra=_FILE_BODY)
 async def replace_document(
     document_id: UUID,

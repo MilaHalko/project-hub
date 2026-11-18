@@ -694,10 +694,18 @@ async def test_second_lock_waits_for_first_transaction(database: Database) -> No
         await first.projects.lock_storage_used(project.id)
         async with database.unit_of_work() as second:
             waiting = asyncio.create_task(second.projects.lock_storage_used(project.id))
-            done, _ = await asyncio.wait({waiting}, timeout=0.5)
-            assert not done
-            await first.commit()
-            assert await asyncio.wait_for(waiting, timeout=2) == 0
+            try:
+                done, _ = await asyncio.wait({waiting}, timeout=0.5)
+                assert not done
+                await first.commit()
+                assert await asyncio.wait_for(waiting, timeout=2) == 0
+            finally:
+                if not waiting.done():
+                    # Leaving second rolls back on a connection the pending lock query holds; that
+                    # query waits for first's row lock, so first must let go before second exits.
+                    await first.rollback()
+                    await asyncio.wait({waiting}, timeout=5)
+                    waiting.cancel()
 
 
 async def test_lock_storage_used_lets_another_transaction_add_a_member(

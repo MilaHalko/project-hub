@@ -12,10 +12,31 @@ The ephemeral layer finds persistent resources by name and tag, so the two layer
 1. `export PATH="$HOME/.local/bin:$PATH"` (terraform, tflint and checkov are installed in `~/.local/bin`)
 2. Sign in to the AWS CLI yourself. Never paste keys into chat or files. Terraform uses the same AWS credentials as the CLI; if you use a named profile, run `export AWS_PROFILE=<profile>` before the terraform commands.
 3. `cp infra/persistent/terraform.tfvars.example infra/persistent/terraform.tfvars` and put your own address in `alert_email`, and the address the share email is sent from in `mail_sender` (see section 6). The file is git-ignored.
-4. `terraform -chdir=infra/persistent init && terraform -chdir=infra/persistent apply`
-5. In the Billing console, open Budgets and check that both budgets list your address.
+4. Build the image preview Lambda zip: `scripts/build_image_preview_lambda.sh` (writes `dist/image-preview-lambda.zip`). Every persistent `plan` and `apply` reads it from `../../dist/` (override with `-var image_preview_zip=<path>`) and fails if it is missing.
+5. `terraform -chdir=infra/persistent init && terraform -chdir=infra/persistent apply`
+6. In the Billing console, open Budgets and check that both budgets list your address.
 
 An AWS account can have only one OIDC provider for `token.actions.githubusercontent.com`. If one already exists, the apply fails. Then import it with `terraform -chdir=infra/persistent import aws_iam_openid_connect_provider.github <its ARN>`, or delete the unused one (preferred). After an import the persistent layer owns the provider: a persistent `destroy` deletes it and `apply` resets its `client_id_list`.
+
+### Image previews
+
+The persistent layer also deploys the image preview Lambda (`project-hub-image-preview`). For every jpg or png document it writes a small JPEG under `projects/<id>/previews/`, and it removes that preview when the document is replaced or deleted (S3, EventBridge, Lambda; no VPC, no database, nothing billed while idle). Its EventBridge rule matches only keys `projects/*/documents/*`, so the previews it writes never start it again; the storage usage rule in the ephemeral layer matches the same keys, so previews do not count towards a project's size.
+
+Before the first apply with it, and after every change in `src/project_hub/image_preview/`:
+
+1. Build both zips: `scripts/build_storage_usage_lambda.sh` and `scripts/build_image_preview_lambda.sh`.
+2. `terraform -chdir=infra/persistent apply` (adds the function, its role and log group, the rule and the dead-letter queue, and gives the API task role `s3:ListBucket` on the bucket so a preview not made yet is a `404`, not a `503`).
+3. If the ephemeral layer is up, apply it too, so the storage usage rule stops matching previews.
+
+To check it, upload a png to a project, wait a few seconds, call `GET /document/<id>/preview`, then:
+
+```bash
+aws logs tail /aws/lambda/project-hub-image-preview --region eu-west-1 --since 15m
+aws sqs get-queue-attributes --region eu-west-1 --attribute-names ApproximateNumberOfMessages \
+  --queue-url "$(aws sqs get-queue-url --region eu-west-1 --queue-name project-hub-image-preview-dlq --query QueueUrl --output text)"
+```
+
+The log group shows `image preview stored` for each image. An `image preview skipped` line (a file Pillow cannot open, or one too large to decode) is not an error and is not retried. The dead-letter queue `project-hub-image-preview-dlq` must stay at `0`: a message there is an event the function still raised on after Lambda retried it up to 2 times within an hour (up to 3 invocations; S3 refused the read or write), or one EventBridge could not deliver to the function (read it in the SQS console, then fix the cause).
 
 ## 2. First image (only before the first deploy-on-merge run)
 
@@ -66,7 +87,7 @@ Terraform and the deploy:
 
 The ephemeral layer also deploys the storage usage Lambda (`project-hub-storage-usage`), which keeps each project's total file size up to date from S3 events (S3, EventBridge, SQS, Lambda). Before the first apply, and after every change in `src/project_hub/storage_usage/`:
 
-1. Build the zip: `scripts/build_storage_usage_lambda.sh` (writes `dist/storage-usage-lambda.zip`; Terraform reads it from `../../dist/` by default, override with `-var storage_usage_zip=<path>`).
+1. Build the zip: `scripts/build_storage_usage_lambda.sh` (writes `dist/storage-usage-lambda.zip`; Terraform reads it from `../../dist/` by default, override with `-var storage_usage_zip=<path>`). The persistent apply below also needs `dist/image-preview-lambda.zip` (`scripts/build_image_preview_lambda.sh`).
 2. Apply the persistent layer first (it adds the bucket notification, the S3 gateway endpoint, the Lambda's role, security group and log group): `terraform -chdir=infra/persistent apply`.
 3. Then the ephemeral layer, as below.
 

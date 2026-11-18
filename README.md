@@ -142,6 +142,28 @@ stored) the line says `"storage usage not stored"` and adds a `reason`.
 | `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
 | `APP_S3_REGION` | `eu-west-1` | Bucket region |
 
+## Image preview Lambda
+
+`project_hub.image_preview.handler.handler` is a standalone AWS Lambda (it imports only the
+standard library, `boto3` and Pillow, and never touches the database). S3 sends `Object Created`
+and `Object Deleted` events for `projects/<project_id>/documents/<name>` through EventBridge
+straight to it. For a created object it reads the bytes, and when they are a JPEG or PNG (by
+signature) it writes a JPEG preview to `projects/<project_id>/previews/<name>.jpg`: at most
+512 x 512 px, aspect ratio kept, never enlarged, EXIF orientation applied, transparency flattened
+onto white, quality 80, `Content-Type: image/jpeg`. For a deleted object it deletes that preview.
+Other keys are ignored. Files that are not images, cannot be read, exceed Pillow's
+`MAX_IMAGE_PIXELS` guard or no longer exist get no preview and are not retried (the line
+`image preview skipped` carries the key and the reason). S3 errors are raised, so Lambda's
+asynchronous invoke retries the event up to 2 times within an hour (up to 3 invocations) and
+then sends it to the function's dead-letter queue; EventBridge's own retries cover only a
+failed delivery to the function. The other lines are `image preview stored` and
+`image preview deleted`. Pillow is a dev dependency only: the API never imports it.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `APP_S3_ENDPOINT_URL` | unset | S3 endpoint; set for moto, unset for real AWS |
+| `APP_S3_REGION` | `eu-west-1` | Bucket region |
+
 ## Mail
 
 The app sends plain-text mail over SMTP through the small `Mailer` interface
@@ -353,7 +375,7 @@ user, for the participant events); the project name is not logged. Refused reque
 
 ## Documents
 
-A project keeps its documents (pdf and docx). The files live in S3 (see `## File storage`);
+A project keeps its documents (pdf, docx, jpg and png). The files live in S3 (see `## File storage`);
 Postgres keeps what is known about them. Every document route needs
 `Authorization: Bearer <access_token>` (`401` with `WWW-Authenticate: Bearer` otherwise). The
 owner and the participants of the project have the same rights; anybody else gets
@@ -389,16 +411,19 @@ of them before anything is stored:
   stripped (`../../etc/x.pdf` becomes `x.pdf`). Missing → `422 File name is missing`; longer
   than 255 characters or with a control character → `422`. The name is stored as cleaned (path
   part dropped, whitespace stripped) and never decides where the file goes in S3.
-- Extension: `.pdf` or `.docx`, in any case → else `422 <name>: only pdf and docx documents are
-  allowed`.
+- Extension: `.pdf`, `.docx`, `.jpg`, `.jpeg` or `.png`, in any case → else `422 <name>: only pdf,
+  docx, jpg and png documents are allowed`.
 - Size: at most `APP_DOCUMENT_MAX_BYTES` (default 10485760 = 10 MB, 1-104857600) → else
   `413 <name>: file is larger than 10 MB`; an empty file → `422 <name>: file is empty`.
 - Content: a pdf starts with `%PDF-`; a docx is a zip that lists `[Content_Types].xml` and
   `word/document.xml` (only the list of members is read, nothing is unpacked). It must match the
-  extension → else `422 <name>: content is not a valid pdf` (or `docx`). The stored
-  `content_type` is `application/pdf` or
-  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, whatever the
-  client sent.
+  extension → else `422 <name>: content is not a valid pdf` (or `docx`, `jpeg`, `png`). A jpeg
+  starts with `FF D8 FF`, a png with the 8-byte PNG signature (only the start is read). The
+  stored `content_type` is `application/pdf`,
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `image/jpeg` or
+  `image/png`, whatever the client sent.
+  Migration `0007` allows the two image types; its downgrade fails while any jpg or png document
+  exists (delete those documents first).
 
 A request is all or nothing: one bad file and none of its files is stored. Each file goes to
 S3 under a new key `projects/<project_id>/documents/<random>`, then the rows are written and
@@ -427,10 +452,18 @@ both give `404 {"detail": "Document not found"}`; a file missing from storage gi
 The route needs the Bearer header, so the frontend downloads with `fetch` and the Bearer header
 and saves the response as a blob, not with a plain link.
 
+`GET /document/{document_id}/preview` answers `200` with the JPEG preview (at most 512 px on the
+long side) that the image preview Lambda writes for a jpg or png document, as `Content-Type:
+image/jpeg` shown inline (no `Content-Disposition`), with `X-Content-Type-Options: nosniff` and
+`Cache-Control: private, max-age=300`. A pdf or docx gives `404 {"detail": "This document has no
+preview"}`; an image whose preview does not exist yet gives `404 {"detail": "The preview is not
+ready yet. Try again in a few seconds."}`. The access rules and the `404 Document not found` are
+those of the download; the route needs the Bearer header too.
+
 `PUT /document/{document_id}` replaces the file of one document with exactly one new file in
 the multipart field `file` (zero or several files → `422 Exactly one file is required`). The
 id and `created_at` stay; `name`, `size`, `content_type`, `uploaded_by` (the caller) and
-`updated_at` change, and a pdf may become a docx and the other way round. The new file is
+`updated_at` change, and a document may change type (a pdf may become a docx or a png, and so on). The new file is
 checked like an upload, stored under a new key, and only then is the row switched and the old
 file deleted; an invalid file, an unavailable storage (`503`) or a database failure leaves the
 document and its old file as they were. The project's `updated_at` is set. The access rules
@@ -565,6 +598,25 @@ to PyPI and `public.ecr.aws`. The default `pytest` run skips it. `host.docker.in
 the compose ports with Docker Desktop, and in CI the service containers through `host-gateway`;
 on a Linux host the compose ports are bound to `127.0.0.1` only, so containers cannot reach them.
 
+## Build the image preview Lambda
+
+```bash
+bash scripts/build_image_preview_lambda.sh            # dist/image-preview-lambda.zip
+bash scripts/build_image_preview_lambda.sh out.zip    # or another path
+docker compose up -d --wait s3
+poetry run pytest -m lambda_package -v
+```
+
+The zip holds `project_hub/image_preview/` and Pillow (version from `poetry.lock`) as a Linux arm64
+wheel for Python 3.13. boto3 comes from the Lambda runtime. The handler is
+`project_hub.image_preview.handler.handler`.
+
+`pytest -m lambda_package` also runs this zip in the AWS Lambda base image
+`public.ecr.aws/lambda/python:3.13` (arm64), against the test S3 emulator reached as
+`host.docker.internal`: an `Object Created` event for a PNG must produce a JPEG preview of at most
+512 px, and an `Object Deleted` event must remove it. The requirements are those of the storage
+usage Lambda above.
+
 ## Checks
 
 ```bash
@@ -599,7 +651,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every pull request and every
 - Job `package`: `poetry build`, uploads `dist/` as the artifact `project-hub-dist` (kept 14 days),
   then `pytest -m package` on exactly those uploaded files.
 - Job `lambda`: on an arm64 runner, builds `dist/storage-usage-lambda.zip`, uploads it as the artifact
-  `storage-usage-lambda` (kept 14 days), then `pytest -m lambda_package` runs it in the Lambda image.
+  `storage-usage-lambda`, does the same for `dist/image-preview-lambda.zip` (artifact
+  `image-preview-lambda`, both kept 14 days), then `pytest -m lambda_package` runs both in the Lambda image.
 
 Results are on the pull request's Checks tab and in the repository's Actions tab. There is no
 deploy yet (epic 8).

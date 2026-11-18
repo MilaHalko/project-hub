@@ -24,6 +24,11 @@ variable "alert_email" {
   }
 }
 
+variable "image_preview_zip" {
+  type    = string
+  default = "../../dist/image-preview-lambda.zip"
+}
+
 variable "mail_sender" {
   type        = string
   description = "Address the share email is sent from; SES verifies it (a personal address, never a corporate one)"

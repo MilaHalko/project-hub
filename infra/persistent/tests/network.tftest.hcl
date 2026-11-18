@@ -1,8 +1,11 @@
-mock_provider "aws" {}
+mock_provider "aws" {
+  source = "./tests/mocks"
+}
 
 variables {
-  alert_email = "alerts@example.com"
-  mail_sender = "sender@example.com"
+  alert_email       = "alerts@example.com"
+  mail_sender       = "sender@example.com"
+  image_preview_zip = "tests/fixtures/image-preview-lambda.zip"
 }
 
 run "database_accepts_only_the_app" {

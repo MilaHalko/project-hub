@@ -81,6 +81,11 @@ resource "aws_iam_role_policy" "api_task" {
       },
       {
         Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.documents.arn
+      },
+      {
+        Effect   = "Allow"
         Action   = ["ses:SendEmail", "ses:SendRawEmail"]
         Resource = local.ses_identities_arn
         Condition = {

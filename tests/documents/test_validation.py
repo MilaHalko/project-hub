@@ -11,7 +11,7 @@ from project_hub.documents.validation import (
     detect_type,
     read_valid_file,
 )
-from tests.support.documents import PNG_BYTES, docx_bytes, pdf_bytes, zip_bytes
+from tests.support.documents import JPEG_BYTES, PNG_BYTES, docx_bytes, pdf_bytes, zip_bytes
 
 pytestmark = pytest.mark.anyio
 
@@ -82,7 +82,8 @@ def test_clean_file_name_does_not_echo_a_name_that_is_too_long() -> None:
     [
         pytest.param(pdf_bytes(), DocumentType.PDF, id="pdf"),
         pytest.param(docx_bytes(), DocumentType.DOCX, id="docx"),
-        pytest.param(PNG_BYTES, None, id="png"),
+        pytest.param(PNG_BYTES, DocumentType.PNG, id="png"),
+        pytest.param(b"GIF89a", None, id="gif"),
         pytest.param(b"PK\x03\x04garbage", None, id="broken-zip"),
         pytest.param(zip_bytes(**{"[Content_Types].xml": "<Types/>"}), None, id="zip-no-word"),
         pytest.param(zip_bytes(**{"word/document.xml": "<d/>"}), None, id="zip-no-types"),
@@ -122,8 +123,8 @@ async def test_read_valid_docx_upper_case_extension_keeps_name() -> None:
 
 async def test_read_valid_file_rejects_other_extension() -> None:
     with pytest.raises(ValidationFailedError) as exc_info:
-        await read_valid_file(_upload("photo.png", PNG_BYTES), TEN_MB)
-    assert exc_info.value.message == "photo.png: only pdf and docx documents are allowed"
+        await read_valid_file(_upload("photo.gif", PNG_BYTES), TEN_MB)
+    assert exc_info.value.message == "photo.gif: only pdf, docx, jpg and png documents are allowed"
 
 
 @pytest.mark.parametrize(
@@ -187,3 +188,56 @@ async def test_read_valid_file_checks_name_first() -> None:
     with pytest.raises(ValidationFailedError) as exc_info:
         await read_valid_file(_upload(None, b""), TEN_MB)
     assert exc_info.value.message == "File name is missing"
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param(JPEG_BYTES, DocumentType.JPEG, id="jpeg"),
+        pytest.param(PNG_BYTES, DocumentType.PNG, id="png"),
+        pytest.param(b"\xff\xd8\x00", None, id="short-jpeg-signature"),
+        pytest.param(b"\x89PNG\r\n", None, id="short-png-signature"),
+    ],
+)
+def test_detect_type_images(data: bytes, expected: DocumentType | None) -> None:
+    assert detect_type(data) is expected
+
+
+@pytest.mark.parametrize(
+    ("name", "data", "content_type"),
+    [
+        pytest.param("a.jpg", JPEG_BYTES, "image/jpeg", id="jpg"),
+        pytest.param("a.jpeg", JPEG_BYTES, "image/jpeg", id="jpeg-alias"),
+        pytest.param("A.JPG", JPEG_BYTES, "image/jpeg", id="upper-jpg"),
+        pytest.param("a.png", PNG_BYTES, "image/png", id="png"),
+        pytest.param("A.PNG", PNG_BYTES, "image/png", id="upper-png"),
+    ],
+)
+async def test_read_valid_image(name: str, data: bytes, content_type: str) -> None:
+    valid = await read_valid_file(_upload(name, data, "application/octet-stream"), TEN_MB)
+
+    assert valid == ValidFile(name=name, content_type=content_type, data=data)
+
+
+@pytest.mark.parametrize(
+    ("name", "data", "message"),
+    [
+        pytest.param("a.png", JPEG_BYTES, "a.png: content is not a valid png", id="jpeg-as-png"),
+        pytest.param("a.png", pdf_bytes(), "a.png: content is not a valid png", id="pdf-as-png"),
+        pytest.param("a.jpg", PNG_BYTES, "a.jpg: content is not a valid jpeg", id="png-as-jpg"),
+        pytest.param(
+            "a.jpeg", pdf_bytes(), "a.jpeg: content is not a valid jpeg", id="pdf-as-jpeg"
+        ),
+        pytest.param("a.pdf", JPEG_BYTES, "a.pdf: content is not a valid pdf", id="jpeg-as-pdf"),
+    ],
+)
+async def test_read_valid_image_rejects_wrong_content(name: str, data: bytes, message: str) -> None:
+    with pytest.raises(ValidationFailedError) as exc_info:
+        await read_valid_file(_upload(name, data), TEN_MB)
+    assert exc_info.value.message == message
+
+
+async def test_read_valid_file_rejects_gif_with_new_message() -> None:
+    with pytest.raises(ValidationFailedError) as exc_info:
+        await read_valid_file(_upload("a.gif", b"GIF89a"), TEN_MB)
+    assert exc_info.value.message == "a.gif: only pdf, docx, jpg and png documents are allowed"

@@ -180,6 +180,15 @@ jobs:
           path: dist/storage-usage-lambda.zip
           if-no-files-found: error
           retention-days: 14
+      - name: Build the image preview Lambda zip
+        run: bash scripts/build_image_preview_lambda.sh
+      - name: Upload the image preview Lambda zip
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-preview-lambda
+          path: dist/image-preview-lambda.zip
+          if-no-files-found: error
+          retention-days: 14
       - name: Lambda smoke test
         run: poetry run pytest -m lambda_package -v
 
