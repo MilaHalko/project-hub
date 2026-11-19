@@ -1099,14 +1099,14 @@ idna = ">=2.0.0"
 
 [[package]]
 name = "fastapi"
-version = "0.162.4"
+version = "0.165.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "fastapi-0.162.4-py3-none-any.whl", hash = "sha256:f093bc306d3958278d30ffd14f3834ca3d9b144fbb898ab5c9b652cf6e75f869"},
-    {file = "fastapi-0.162.4.tar.gz", hash = "sha256:4abdb1ef367090678d8bc664631df432ae7a1bfe7709c37547d3606e667650e3"},
+    {file = "fastapi-0.165.0-py3-none-any.whl", hash = "sha256:896f48462042bb4f162147eb8fac7e858753dc1f486765709baf105d70e4fc5b"},
+    {file = "fastapi-0.165.0.tar.gz", hash = "sha256:dd94d4128319c1e1d50535ab023ab698f850a4d2822f0e181747b46f4ff3c0ab"},
 ]
 
 [package.dependencies]
@@ -1114,7 +1114,7 @@ annotated-doc = ">=0.0.2"
 anyio = ">=4.1.0"
 opentelemetry-api = ">=1.44.0"
 pydantic = ">=2.9.0"
-starlette = ">=0.46.0"
+starlette = ">=1.6.0"
 typing-extensions = ">=4.8.0"
 typing-inspection = ">=0.4.2"
 
@@ -3070,4 +3070,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13"
-content-hash = "95d10760ec1c49634fae93e6d4e8721e8bdcf1447d08720ca11e7502905b1202"
+content-hash = "f83ce53262cec252134041d750d5b7e7235f12ccc8a3e0bcb2ad76064fb76d44"
