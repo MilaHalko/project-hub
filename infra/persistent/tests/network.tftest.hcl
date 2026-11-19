@@ -43,3 +43,19 @@ run "app_accepts_only_the_load_balancer" {
     error_message = "The load balancer may reach only the app security group, on port 8080."
   }
 }
+
+run "load_balancer_accepts_only_cloudfront" {
+  command = apply
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.alb_from_cloudfront.prefix_list_id == data.aws_ec2_managed_prefix_list.cloudfront.id
+    error_message = "The load balancer must accept connections only from the CloudFront prefix list."
+  }
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.alb_from_cloudfront.from_port == 80 && aws_vpc_security_group_ingress_rule.alb_from_cloudfront.to_port == 80
+    error_message = "The CloudFront rule must open port 80 only."
+  }
+  assert {
+    condition     = aws_vpc_security_group_ingress_rule.alb_from_cloudfront.cidr_ipv4 == null && aws_vpc_security_group_ingress_rule.alb_from_cloudfront.cidr_ipv6 == null
+    error_message = "The load balancer must not admit any CIDR."
+  }
+}
