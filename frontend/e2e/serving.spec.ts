@@ -72,6 +72,46 @@ test("proxies the API under /api/ with the prefix stripped", async ({
   expectSecurityHeaders(response);
 });
 
+const MB = 1_048_576;
+
+function multipartOf(bytes: number) {
+  return {
+    files: {
+      name: "big.bin",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.alloc(bytes),
+    },
+  };
+}
+
+test("answers an upload above the request limit with a JSON 413", async ({
+  request,
+}) => {
+  const response = await request.post("/api/project/1/documents", {
+    multipart: multipartOf(60 * MB),
+  });
+  expect(response.status()).toBe(413);
+  expect(response.headers()["content-type"]).toContain("application/json");
+  expect(await response.json()).toEqual({
+    detail: "The request is larger than the server accepts",
+  });
+  expectSecurityHeaders(response);
+});
+
+test("passes a multi-file upload above 11 MB on to the API", async ({
+  request,
+}) => {
+  const response = await request.post("/api/project/1/documents", {
+    multipart: {
+      first: multipartOf(5 * MB).files,
+      second: multipartOf(5 * MB).files,
+      third: multipartOf(5 * MB).files,
+    },
+  });
+  expect(response.status()).toBe(401);
+  expect(response.headers()["content-type"]).toContain("application/json");
+});
+
 test("names no nginx version", async ({ request }) => {
   const response = await request.get("/");
   expect(response.headers().server).toBe("nginx");
