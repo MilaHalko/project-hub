@@ -24,13 +24,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
-RUN useradd --create-home --uid 1000 app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 app
 
 WORKDIR /app
 
 # Same paths as in the build stage: the editable install points at /app/src.
 COPY --from=build /app/.venv /app/.venv
 COPY --from=build /app/src /app/src
+
+RUN /usr/local/bin/python -m pip uninstall -y pip \
+    && /app/.venv/bin/python -m pip uninstall -y pip
 
 USER app
 
