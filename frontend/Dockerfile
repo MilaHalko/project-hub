@@ -9,7 +9,7 @@ COPY . ./
 RUN npm run build
 
 
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 
 ENV API_UPSTREAM=api:8000
 COPY nginx/default.conf /etc/nginx/templates/default.conf.template
