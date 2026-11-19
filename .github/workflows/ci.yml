@@ -102,6 +102,10 @@ jobs:
         run: |
           pipx install poetry==2.5.1
           pipx inject poetry poetry-plugin-export==1.10.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: .python-version
+          cache: poetry
       - name: Export the locked dependencies
         run: poetry export --with dev --format requirements.txt --output requirements-audit.txt
       - name: pip-audit
