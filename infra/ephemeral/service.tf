@@ -1,4 +1,6 @@
 locals {
+  public_url = "https://${aws_cloudfront_distribution.site.domain_name}"
+
   image     = "${data.aws_ecr_repository.api.repository_url}@${data.aws_ecr_image.api.image_digest}"
   web_image = "${data.aws_ecr_repository.web.repository_url}@${data.aws_ecr_image.web.image_digest}"
 
@@ -63,8 +65,8 @@ resource "aws_ecs_task_definition" "api" {
       ]
       environment = [
         { name = "APP_S3_REGION", value = data.aws_region.current.region },
-        { name = "APP_WEB_URL", value = "https://${aws_lb.api.dns_name}" },
-        { name = "APP_PUBLIC_URL", value = "https://${aws_lb.api.dns_name}" },
+        { name = "APP_WEB_URL", value = local.public_url },
+        { name = "APP_PUBLIC_URL", value = local.public_url },
         { name = "APP_MAIL_BACKEND", value = "ses" },
         { name = "APP_SES_REGION", value = data.aws_region.current.region },
       ]
@@ -118,7 +120,7 @@ resource "aws_ecs_service" "api" {
   }
 
   depends_on = [
-    aws_lb_listener.https,
+    aws_lb_listener_rule.from_cloudfront,
     aws_ssm_parameter.database_url,
     aws_vpc_security_group_ingress_rule.ssm_endpoint_from_app,
   ]

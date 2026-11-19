@@ -1,5 +1,5 @@
 output "url" {
-  value = "https://${aws_lb.api.dns_name}"
+  value = local.public_url
 }
 
 output "alb_dns_name" {

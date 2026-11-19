@@ -3,7 +3,7 @@
 Terraform for the Project Hub API on AWS (region `eu-west-1`), in two layers:
 
 - `infra/persistent/` is cheap and stays up: network, ECR, ECS cluster, S3 bucket, SSM settings, IAM roles, budget alerts.
-- `infra/ephemeral/` is billed by the hour: RDS PostgreSQL, the HTTPS load balancer and the ECS service. Bring it up for a checkpoint, then destroy it.
+- `infra/ephemeral/` is billed by the hour: RDS PostgreSQL, the load balancer, the CloudFront distribution in front of it and the ECS service. Bring it up for a checkpoint, then destroy it.
 
 The ephemeral layer finds persistent resources by name and tag, so the two layers share no state.
 
@@ -96,14 +96,19 @@ terraform -chdir=infra/ephemeral init
 terraform -chdir=infra/ephemeral apply
 ```
 
-This takes about 10 minutes. Then check:
+This takes about 10 to 15 minutes: creating the CloudFront distribution adds a few minutes. Then check:
 
 ```bash
-curl -ksS -o /dev/null -w '%{http_code}\n' "$(terraform -chdir=infra/ephemeral output -raw url)/api/health"
-curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "http://$(terraform -chdir=infra/ephemeral output -raw alb_dns_name)/api/health"
+curl -sS -o /dev/null -w '%{http_code}\n' "$(terraform -chdir=infra/ephemeral output -raw url)/api/health"
+URL=$(terraform -chdir=infra/ephemeral output -raw url); curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' "http://${URL#https://}/api/health"
+curl -sS -o /dev/null -w '%{http_code}\n' "http://$(terraform -chdir=infra/ephemeral output -raw alb_dns_name)/api/health"
 ```
 
-The first must print `200`, the second `301` with an `https://` address. The same address serves the site (`/`), the API (`/api/...`) and Swagger (`/docs`); Swagger sends its requests through `/api`. The certificate is self-signed, so a browser shows a warning once; `curl -k` skips it.
+The first must print `200`, the second `301` with an `https://` address, the third `403`. `url` is `https://<id>.cloudfront.net` and serves the site (`/`), the API (`/api/...`) and Swagger (`/docs`); Swagger sends its requests through `/api`. CloudFront uses its own certificate, which browsers trust, so no `curl -k` and no browser warning.
+
+How traffic flows: the browser talks HTTPS to CloudFront (plain HTTP is redirected). CloudFront has no cache here (the managed `CachingDisabled` policy) and passes every method, header (including `Authorization`) and query string to the load balancer (managed `AllViewerExceptHostHeader` policy), so the API, uploads and the nginx security headers behave as before. CloudFront reaches the load balancer over HTTP on port 80, because the load balancer has no certificate CloudFront could verify (a trusted one needs a domain name). That hop is limited two ways: the load balancer's security group admits only the AWS-managed CloudFront prefix list (`com.amazonaws.global.cloudfront.origin-facing`), and the listener answers `403` unless the request carries the secret header `X-Origin-Verify` that Terraform generates and puts in the distribution. Anyone can create a CloudFront distribution, so the prefix list alone is not enough; the header is what ties the load balancer to this one. Opening the load balancer's own address in a browser now gives `403`.
+
+Applying on a layer that is already up: expect a few minutes of downtime, because the old HTTPS address stops answering before the CloudFront address is ready. Apply the ephemeral layer first, then the persistent one. The persistent apply removes the old public ports 80 and 443 from the load balancer's security group and adds the CloudFront rule; done first, it would cut the live site until the ephemeral apply finishes.
 
 To check the Lambda, upload or delete a file in a project, wait a few seconds, then:
 
@@ -148,11 +153,11 @@ AWS denied production access, so the account stays in the SES **sandbox**: SES d
 
 **At the demo:**
 
-1. Open the web app (`terraform -chdir=infra/ephemeral output -raw url`), a project, the members panel, "Send a link by email".
+1. Open the web app (`terraform -chdir=infra/ephemeral output -raw url`; share links use this CloudFront address), a project, the members panel, "Send a link by email".
 2. For a new address, the web app says to ask the person to click the AWS email. Once they have, share again: the invitation arrives, and the link opens the join page of the deployed web app.
 3. To avoid waiting on stage, share to the demo addresses and let them click the AWS email beforehand.
-4. Without the web app: `curl -k -H "Authorization: Bearer $TOKEN" "$URL/api/project/<id>/share?with=friend@example.com"` with a token from `POST /api/login`.
-5. Swagger (`$URL/api/docs`) opens behind the load balancer, but its page fetches `/openapi.json` from the site root, where the web app answers instead of the API, so "Try it out" is not usable there.
+4. Without the web app: `curl -H "Authorization: Bearer $TOKEN" "$URL/api/project/<id>/share?with=friend@example.com"` with a token from `POST /api/login`.
+5. Swagger (`$URL/api/docs`) opens behind CloudFront, but its page fetches `/openapi.json` from the site root, where the web app answers instead of the API, so "Try it out" is not usable there.
 
 **Permissions of the task role:** `ses:SendEmail` / `ses:SendRawEmail` only with the sender as From address (condition `ses:FromAddress`), plus `ses:GetEmailIdentity` and `ses:CreateEmailIdentity`. SES identity permissions can only be limited to "any identity in this account and region", because the recipients are not known in advance. The role can neither delete nor change identities.
 
@@ -176,7 +181,7 @@ To rotate the JWT secret, raise `value_wo_version` in `infra/persistent/ssm.tf`,
 
 ## 8. Cost
 
-- Ephemeral layer: about $0.08 an hour while it is up, nothing after `destroy`.
+- Ephemeral layer: about $0.08 an hour while it is up, nothing after `destroy`. CloudFront adds nothing to that: it has no hourly charge, and the first 1 TB and 10 million requests a month are free. `destroy` removes the distribution.
 - Persistent layer: a few cents a month.
 - Budget alerts go to your email at $20 a month and $1 a day.
 

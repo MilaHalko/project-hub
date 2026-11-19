@@ -21,3 +21,9 @@ mock_resource "aws_cloudwatch_event_rule" {
     arn = "arn:aws:events:eu-west-1:123456789012:rule/mock"
   }
 }
+
+mock_data "aws_ec2_managed_prefix_list" {
+  defaults = {
+    id = "pl-00000000"
+  }
+}
