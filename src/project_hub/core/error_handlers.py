@@ -43,7 +43,11 @@ def _status_for(exc: DomainError) -> HTTPStatus:
 async def _handle_domain_error(request: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, DomainError):
         raise exc
-    headers = {"WWW-Authenticate": "Bearer"} if isinstance(exc, AuthenticationError) else None
+    headers: dict[str, str] | None = None
+    if isinstance(exc, AuthenticationError):
+        headers = {"WWW-Authenticate": "Bearer"}
+    elif isinstance(exc, TooManyRequestsError) and exc.retry_after is not None:
+        headers = {"Retry-After": str(exc.retry_after)}
     return JSONResponse(
         status_code=_status_for(exc), content={"detail": exc.message}, headers=headers
     )

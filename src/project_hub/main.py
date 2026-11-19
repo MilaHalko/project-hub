@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from project_hub.auth.passwords import PasswordHasher
 from project_hub.auth.router import router as auth_router
+from project_hub.auth.throttle import LoginThrottle
 from project_hub.auth.tokens import TokenService
 from project_hub.core.config import Settings
 from project_hub.core.error_handlers import register_error_handlers
@@ -51,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.storage = storage
     app.state.mailer = create_mailer(settings)
     app.state.password_hasher = PasswordHasher()
+    app.state.login_throttle = LoginThrottle.from_settings(settings)
     app.state.token_service = (
         TokenService(settings.jwt_secret.get_secret_value()) if settings.jwt_secret else None
     )

@@ -4,6 +4,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from project_hub.auth.passwords import PasswordHasher
+from project_hub.auth.throttle import LoginThrottle
 from project_hub.auth.tokens import TokenService
 from project_hub.core.exceptions import AuthenticationError
 from project_hub.db.dependencies import get_uow
@@ -18,6 +19,15 @@ bearer_scheme = HTTPBearer(auto_error=False)
 def get_password_hasher(request: Request) -> PasswordHasher:
     hasher: PasswordHasher = request.app.state.password_hasher
     return hasher
+
+
+def get_login_throttle(request: Request) -> LoginThrottle:
+    throttle: LoginThrottle = request.app.state.login_throttle
+    return throttle
+
+
+def get_client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
 
 
 def get_token_service(request: Request) -> TokenService:

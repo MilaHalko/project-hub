@@ -3,9 +3,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 
 from project_hub.auth import service
-from project_hub.auth.dependencies import CurrentUser, get_password_hasher, get_token_service
+from project_hub.auth.dependencies import (
+    CurrentUser,
+    get_client_ip,
+    get_login_throttle,
+    get_password_hasher,
+    get_token_service,
+)
 from project_hub.auth.passwords import PasswordHasher
 from project_hub.auth.schemas import LoginRequest, RegisterRequest, TokenResponse
+from project_hub.auth.throttle import LoginThrottle
 from project_hub.auth.tokens import TokenService
 from project_hub.db.dependencies import get_uow
 from project_hub.db.uow import UnitOfWork
@@ -30,8 +37,10 @@ async def log_in(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     hasher: Annotated[PasswordHasher, Depends(get_password_hasher)],
     tokens: Annotated[TokenService, Depends(get_token_service)],
+    throttle: Annotated[LoginThrottle, Depends(get_login_throttle)],
+    client_ip: Annotated[str, Depends(get_client_ip)],
 ) -> TokenResponse:
-    return await service.login(uow, hasher, tokens, data)
+    return await service.login(uow, hasher, tokens, throttle, client_ip, data)
 
 
 @router.post("/logout", status_code=204, response_class=Response)

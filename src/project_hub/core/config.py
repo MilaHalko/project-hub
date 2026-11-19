@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     document_max_bytes: int = Field(default=10_485_760, ge=1, le=104_857_600)
     document_max_files: int = Field(default=10, ge=1, le=100)
     project_max_bytes: int = Field(default=52_428_800, ge=1, le=10_737_418_240)
+    login_max_failures: int = Field(default=5, ge=1, le=1000)
+    login_ip_max_failures: int = Field(default=20, ge=1, le=100_000)
+    login_window_seconds: int = Field(default=900, ge=1, le=86_400)
 
     @field_validator(
         "jwt_secret",

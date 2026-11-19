@@ -208,6 +208,20 @@ for exactly one hour. An unknown login and a wrong password give the same `401`
 (`Invalid login or password`) and take about the same time (the password is verified against a
 dummy hash when the login does not exist).
 
+Failed logins are limited. Every attempt is counted against the submitted login (also an
+unknown one, so a `429` does not reveal which logins exist) and against the client IP before the
+password is checked. After `APP_LOGIN_MAX_FAILURES` (5) failures for one login, or
+`APP_LOGIN_IP_MAX_FAILURES` (20) for one IP, within `APP_LOGIN_WINDOW_SECONDS` (900), `POST /login`
+answers `429` with `{"detail": ...}` and a `Retry-After` header in seconds, even with the right
+password, until the oldest failure leaves the window. A successful login erases that login's
+count. The counters live in the memory of the API process: correct for the single ECS task, but a
+restart forgets them and N tasks would allow N times the limit (a `login_attempts` table is the
+upgrade then). The client IP is the socket address, or behind the load balancer the last
+`X-Forwarded-For` entry (the one the ALB added): uvicorn runs with
+`--proxy-headers --forwarded-allow-ips 127.0.0.1`, so it trusts the header only from nginx in the
+same task. Failed and blocked attempts go to the security log (`login failed`, `login blocked`)
+with the client IP.
+
 `APP_JWT_SECRET` signs the tokens: at least 32 characters, never committed. Generate one with
 `python -c "import secrets; print(secrets.token_urlsafe(32))"`. An empty or whitespace-only
 value counts as not set; without it the app starts and `/health` works, but `POST /login` answers
@@ -249,8 +263,8 @@ Later routes that need a logged-in user take the `CurrentUser` dependency
 
 ### Known limitations and future improvements
 
-- Brute-force protection on `/login` (important): no rate limit or lockout yet; the plan is to
-  count failed attempts per login and per IP and answer `429` after a threshold.
+- Brute-force protection on `/login` keeps its counters in memory (see above), so it is per API
+  process. An attacker can also lock a known login for up to 15 minutes.
 - `DELETE /users/me` is not implemented; it comes after epic 6, because deleting a user must also
   delete their projects and their S3 files. Until then `projects.owner_id` is `RESTRICT`, so a
   user who owns projects cannot be deleted. The planned endpoint answers a clear `409` such as
@@ -678,7 +692,7 @@ logic, no HTTP knowledge), `repository.py` (data access), `models.py` (ORM model
 - `users/` follows the feature layout: `entities.py`, `repository.py` (protocol), `models.py`
   (ORM model), `repository_orm.py` and `repository_sql.py`.
 - `auth/` holds registration, login and tokens: `passwords.py` (Argon2 hashing), `tokens.py`
-  (JWT issue and decode), `schemas.py`, `service.py`, `router.py` and `dependencies.py`
+  (JWT issue and decode), `throttle.py` (failed-login counters), `schemas.py`, `service.py`, `router.py` and `dependencies.py`
   (`CurrentUser`). `users/` also has `router.py` (`GET /users/me`), `service.py` and
   `schemas.py` for the user data other modules need.
 - Feature modules depend on `core/`; `core/` never imports from feature modules.
